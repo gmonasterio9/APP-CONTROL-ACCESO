@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://API_PROD_URL_AQUI",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn"
+  }
+}

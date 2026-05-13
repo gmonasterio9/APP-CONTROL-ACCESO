@@ -1,0 +1,47 @@
+<ion-content class="login-content" [fullscreen]="true">
+  <div class="login-wrapper">
+
+    <ion-card class="login-card">
+      <ion-card-content>
+
+        <div class="logo-area">
+          <img src="assets/icon/Logo.svg" alt="INACAP" class="logo" />
+        </div>
+
+        <h1 class="login-title">Sistema Unificado de Control</h1>
+        <p class="login-subtitle">Usa el PIN asignado por tu supervisor</p>
+
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+          <p class="pin-label">PIN de Acceso</p>
+
+          <div class="otp-row">
+            <img src="assets/svg/lock.svg" alt="PIN" class="lock-icon" />
+            <ion-input-otp
+              class="otp-input"
+              formControlName="pin"
+              [length]="6"
+              type="number"
+              shape="rectangle"
+              (ionComplete)="onSubmit()">
+            </ion-input-otp>
+          </div>
+
+          <div class="btn-wrapper">
+            <ion-button
+              type="submit"
+              class="login-btn"
+              [disabled]="form.invalid">
+              Iniciar Sesión
+            </ion-button>
+          </div>
+
+        </form>
+
+      </ion-card-content>
+    </ion-card>
+
+    <a class="privacy-link" href="#">Políticas de privacidad INACAP</a>
+
+  </div>
+</ion-content>

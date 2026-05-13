@@ -1,0 +1,93 @@
+<ion-header mode="md">
+  <ion-toolbar class="home-toolbar">
+   <!-- <ion-buttons slot="start">
+      <ion-button>
+        <img slot="icon-only" src="assets/svg/settings.svg" class="header-svg" />
+      </ion-button>
+    </ion-buttons> -->
+    <ion-title>Sistema Unificado de Control</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="home-content">
+
+  <!-- Sección escaneo -->
+  <div class="scan-section">
+    <h2 class="scan-title">Escanea para comenzar</h2>
+    <p class="scan-subtitle">Credencial INACAP, cédula de identidad o patente</p>
+
+    <div class="tipo-row">
+      <div class="tipo-item" *ngFor="let tipo of tiposEscaneo">
+        <div class="tipo-icon" [style.background]="tipo.color">
+          <img [src]="tipo.svg" class="tipo-svg" />
+        </div>
+        <span class="tipo-label">{{ tipo.label }}</span>
+      </div>
+    </div>
+
+    <ion-button expand="block" class="btn-escanear" (click)="escanear()">
+      <img src="assets/svg/scanner.svg" slot="start" class="btn-svg" />
+      Escanear
+    </ion-button>
+
+    <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
+      <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg btn-svg-blue" />
+      Ingreso manual
+    </ion-button>
+  </div>
+
+  <!-- Segmento -->
+  <ion-segment [(ngModel)]="segmentoActivo" class="home-segment" mode="ios">
+    <ion-segment-button value="estacionamientos">
+      <ion-label>Estacionamientos</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="peatonal">
+      <ion-label>Acceso Peatonal</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Lista estacionamientos -->
+  <div class="lista-section" *ngIf="segmentoActivo === 'estacionamientos'">
+    <div class="item-card" *ngFor="let e of estacionamientos">
+      <div class="item-header">
+        <div class="item-icon-wrap">
+          <img src="assets/svg/estacionamiento.svg" class="item-svg" />
+        </div>
+        <div class="item-info">
+          <p class="item-nombre">{{ e.nombre }}</p>
+          <p class="item-ubicacion">
+            <img src="assets/svg/location.svg" class="location-svg" />
+            {{ e.ubicacion }}
+          </p>
+        </div>
+        <img src="assets/svg/arrow-right.svg" class="item-arrow" />
+      </div>
+      <p class="item-cupos">{{ e.cuposDisponibles }} de {{ e.cuposTotales }} cupos disponibles</p>
+      <div class="barra-fondo">
+        <div class="barra-fill"
+          [style.width.%]="porcentaje(e)"
+          [style.background]="colorBarra(e)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Acceso peatonal stats -->
+  <div class="peatonal-section" *ngIf="segmentoActivo === 'peatonal'">
+    <div class="stats-row">
+      <div class="stat-card" *ngFor="let s of statsPeatonal">
+        <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
+        <span class="stat-label">{{ s.label }}</span>
+      </div>
+    </div>
+    <a class="ver-detalles">Ver detalles</a>
+  </div>
+
+  <!-- Cerrar sesión -->
+  <div class="logout-wrapper">
+    <ion-button class="btn-logout" (click)="cerrarSesion()">
+      Cerrar Sesión
+    </ion-button>
+  </div>
+
+</ion-content>

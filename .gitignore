@@ -1,0 +1,38 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build / compilación
+dist/
+www/
+.angular/
+
+# Capacitor
+android/
+ios/
+
+# Entorno y configuración local
+.env
+.env.local
+.env.*.local
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDEs y editores
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tests
+coverage/
+
+# Cache
+.cache/
