@@ -27,7 +27,8 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router) {}
 
   loginWithPin(pin: string): Observable<LoginResponse> {
-    if (environment.name === 'local') {
+    const useMock = !environment.apiUrl.startsWith('https://') || environment.apiUrl.includes('_URL_AQUI');
+    if (useMock) {
       localStorage.setItem(this.TOKEN_KEY, MOCK_RESPONSE.token);
       localStorage.setItem(this.USER_KEY, JSON.stringify(MOCK_RESPONSE.user));
       return of(MOCK_RESPONSE);

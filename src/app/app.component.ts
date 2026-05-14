@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { EdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge-support';
 
 @Component({
   selector: 'app-root',
@@ -7,5 +9,15 @@ import { Component } from '@angular/core';
   standalone: false,
 })
 export class AppComponent {
-  constructor() {}
+  constructor() {
+    this.initEdgeToEdge();
+  }
+
+  private async initEdgeToEdge(): Promise<void> {
+    if (Capacitor.isNativePlatform()) {
+      await EdgeToEdge.enable();
+      await EdgeToEdge.setBackgroundColor({ color: '#050508' });
+      await EdgeToEdge.setNavigationBarColor({ color: '#050508' });
+    }
+  }
 }

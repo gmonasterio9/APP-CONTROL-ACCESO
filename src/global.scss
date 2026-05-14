@@ -59,3 +59,39 @@ ion-input-otp {
   --ion-color-primary: var(--color-border);
   --ion-color-primary-rgb: 56, 59, 83;
 }
+
+:root {
+  --ion-safe-area-top: 0px;
+  --ion-safe-area-bottom: 0px;
+}
+
+ion-toolbar {
+  --min-height: 56px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+ion-header ion-toolbar:first-of-type {
+  padding-top: env(safe-area-inset-top) !important;
+}
+
+ion-tab-bar,
+ion-footer {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.modal-75 {
+  --height: 66%;
+  --width: calc(100% - 48px);
+  --border-radius: 16px;
+  --box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  align-items: center;
+}
+
+.action-sheet-cancel .action-sheet-button-inner {
+  color: #CC0000 !important;
+}
+
+.action-sheet-cancel ion-icon {
+  color: #CC0000 !important;
+}

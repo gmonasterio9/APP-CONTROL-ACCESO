@@ -9,9 +9,12 @@ dist/
 www/
 .angular/
 
-# Capacitor
-android/
-ios/
+# Capacitor - build outputs dentro de android/ios
+android/.gradle/
+android/build/
+android/app/build/
+ios/App/Pods/
+ios/App/build/
 
 # Entorno y configuración local
 .env

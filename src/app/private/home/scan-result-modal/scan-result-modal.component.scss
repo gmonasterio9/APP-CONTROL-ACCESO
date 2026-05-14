@@ -1,0 +1,174 @@
+.modal-content {
+  --background: #fff;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  gap: 0;
+}
+
+.estado-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+
+  ion-icon {
+    font-size: 36px;
+    color: #fff;
+    font-weight: 700;
+  }
+}
+
+.modal-titulo {
+  color: #101828;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: 0.07px;
+  margin: 0 0 8px;
+}
+
+.modal-nombre {
+  color: #101828;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
+.modal-credencial {
+  color: #6A7282;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.15px;
+  margin: 0 0 16px;
+}
+
+.modal-subtitulo {
+  color: #6A7282;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.15px;
+  margin: 0 0 20px;
+  max-width: 300px;
+}
+
+.modal-pregunta {
+  color: #101828;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  width: 100%;
+}
+
+// ── Patente ─────────────────────────────────────────────────────
+.foto-preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+
+.patente-badge {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #101828;
+  margin-bottom: 4px;
+}
+
+// ── Lista opciones de acceso ────────────────────────────────────
+.acceso-lista {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.acceso-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #F0F0F0;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:active { background: #f8f8f8; }
+}
+
+.acceso-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.acceso-info {
+  flex: 1;
+
+  .acceso-nombre {
+    color: #101828;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    text-align: left;
+  }
+
+  .acceso-desc {
+    color: #6A7282;
+    font-size: 13px;
+    font-weight: 400;
+    margin: 0;
+    text-align: left;
+  }
+}
+
+.acceso-arrow {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  filter: brightness(0);
+}
+
+// ── Cancelar ────────────────────────────────────────────────────
+.btn-cancelar {
+  background: none;
+  border: none;
+  color: #0A0A0A;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.15px;
+  text-align: center;
+  padding: 12px 0;
+  width: 100%;
+  cursor: pointer;
+}
