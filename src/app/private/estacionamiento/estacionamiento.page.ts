@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { ModalController, NavController, ToastController } from '@ionic/angular';
-import { IngresoConfirmacionComponent } from './ingreso-confirmacion/ingreso-confirmacion.component';
+import { NavController, ToastController } from '@ionic/angular';
 
 export interface Estacionamiento {
   id: number;
@@ -30,7 +29,6 @@ export class EstacionamientoPage {
 
   constructor(
     private route: ActivatedRoute,
-    private modalCtrl: ModalController,
     private navCtrl: NavController,
     private toastCtrl: ToastController,
   ) {
@@ -47,17 +45,13 @@ export class EstacionamientoPage {
   }
 
   async ingresar(e: Estacionamiento): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: IngresoConfirmacionComponent,
-      componentProps: {
-        nombre:          this.nombre ?? 'Visitante',
-        sede:            'Arica',
-        perfil:          'Visita',
-        estacionamiento: e.nombre,
+    await this.navCtrl.navigateForward('/confirmacion', {
+      queryParams: {
+        nombre: this.nombre ?? 'Visitante',
+        sede:   'Arica',
+        perfil: 'Visita',
       },
-      cssClass: 'modal-fullscreen',
     });
-    await modal.present();
   }
 
   registrarAcompanante(): void {

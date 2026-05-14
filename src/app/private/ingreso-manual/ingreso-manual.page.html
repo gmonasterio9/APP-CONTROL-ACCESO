@@ -19,7 +19,6 @@
 
     <!-- Tipo de Persona -->
     <div class="im-field-block">
-      <div class="im-label" style="font-size: 16px; font-weight: 400; line-height: normal; color: #040B15;">Agenda Tutor</div>
       <p class="im-label">Tipo de Persona <span class="req">(*)</span></p>
       <div class="im-chip-group">
         @for (t of tiposPersona; track t.value) {
@@ -41,7 +40,7 @@
 
     <!-- Vehículo -->
     <div class="im-field-block">
-      <p class="im-label">Vehículo <span class="req">(*)</span></p>
+      <p class="im-label">Vehículo (*)</p>
       <div class="im-chip-group">
         @for (v of tiposVehiculo; track v.value) {
           <button class="im-chip"

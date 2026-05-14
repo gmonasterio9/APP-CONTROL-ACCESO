@@ -1,0 +1,298 @@
+
+.det-toolbar {
+  --background: #050508;
+  --color: #ffffff;
+  ion-button { --color: #ffffff; }
+}
+
+.det-content {
+  --background: #F5F5F5;
+}
+
+.det-header {
+  background: #ffffff;
+  border-radius: 0 0 12px 12px;
+  padding: 20px 16px 16px;
+  margin-bottom: 12px;
+}
+
+.det-titulo {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  margin: 0 0 4px;
+}
+
+.det-subtitulo {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.det-section {
+  background: transparent;
+  margin: 0 16px 12px;
+  padding: 0;
+}
+
+.det-section-titulo {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+
+.cupos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cupo-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+.cupo-icono-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #EDF3F8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.cupo-label {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.cupo-count {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0;
+
+  strong {
+    font-weight: 700;
+    font-size: 16px;
+  }
+}
+
+.cupo-barra-fondo {
+  height: 4px;
+  border-radius: 2px;
+  background: #E4E7EC;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.cupo-barra-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.busqueda-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.busqueda-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+
+  .busqueda-icono {
+    flex-shrink: 0;
+  }
+}
+
+.busqueda-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+
+  &::placeholder { color: #B0B8C1; }
+}
+
+.filtro-btn {
+  display: flex;
+  width: 62px;
+  padding: 8.462px 11.846px;
+  justify-content: center;
+  align-items: center;
+  gap: 8.462px;
+  flex-shrink: 0;
+  border-radius: 42.308px;
+  border: 1px solid #D5D6DD;
+  background: #ffffff;
+  box-shadow: 0 3.385px 6.769px 0 rgba(194, 201, 252, 0.15);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.vehiculos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vehiculo-item {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vehiculo-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vehiculo-patente {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.vehiculo-hora {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vehiculo-nombre {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.vehiculo-rut {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.vehiculo-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 4px;
+}
+
+.chips-row {
+  display: flex;
+  gap: 6px;
+}
+
+.chip-tipo {
+  display: flex;
+  padding: 8.17px 11.44px;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  border-radius: 5px;
+  border: 0.817px solid #1565C0;
+  background: #E1EDFA;
+  color: #1565C0;
+  text-align: right;
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.chip-vehiculo {
+  display: flex;
+  padding: 8.17px 11.44px;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  border-radius: 5px;
+  border: 0.817px solid #6C6F80;
+  background: #F5F6FC;
+  color: #6C6F80;
+  text-align: right;
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.btn-salida {
+  display: flex;
+  width: 88px;
+  padding: 9.176px 14px;
+  justify-content: center;
+  align-items: center;
+  gap: 7.059px;
+  border-radius: 35.294px;
+  border: 1px solid #1D78BF;
+  background: transparent;
+  color: #1D78BF;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 11.294px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.sin-resultados {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
+  margin: 0;
+}

@@ -50,7 +50,7 @@
   @if (segmentoActivo === 'estacionamientos') {
     <div class="lista-section">
       @for (e of estacionamientos; track e.id) {
-        <div class="item-card">
+        <div class="item-card" (click)="verDetalleEstacionamiento(e)">
           <div class="item-header">
             <div class="item-icon-wrap">
               <img src="assets/svg/estacionamiento.svg" class="item-svg" />
@@ -76,7 +76,7 @@
     </div>
   }
 
-  <!-- Acceso peatonal stats -->
+  <!-- Acceso peatonal -->
   @if (segmentoActivo === 'peatonal') {
     <div class="peatonal-section">
       <div class="stats-row">

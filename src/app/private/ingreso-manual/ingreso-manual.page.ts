@@ -71,14 +71,13 @@ export class IngresoManualPage implements OnInit {
     await new Promise(r => setTimeout(r, 1000));
     await loading.dismiss();
 
-    const toast = await this.toastCtrl.create({
-      message: 'Ingreso aprobado correctamente.',
-      duration: 2500,
-      color: 'success',
-      position: 'bottom',
+    await this.navCtrl.navigateForward('/confirmacion', {
+      queryParams: {
+        nombre: this.form.get('nombre')?.value || null,
+        sede:   'Arica',
+        perfil: this.form.get('tipoPersona')?.value ?? 'Visita',
+      },
     });
-    await toast.present();
-    this.navCtrl.back();
   }
 
   volver(): void {

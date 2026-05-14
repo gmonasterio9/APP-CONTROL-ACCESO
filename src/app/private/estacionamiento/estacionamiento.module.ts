@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Routes } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { EstacionamientoPage } from './estacionamiento.page';
-import { IngresoConfirmacionComponent } from './ingreso-confirmacion/ingreso-confirmacion.component';
 
 const routes: Routes = [
   { path: '', component: EstacionamientoPage },
@@ -15,6 +14,6 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
   ],
-  declarations: [EstacionamientoPage, IngresoConfirmacionComponent],
+  declarations: [EstacionamientoPage],
 })
 export class EstacionamientoModule {}

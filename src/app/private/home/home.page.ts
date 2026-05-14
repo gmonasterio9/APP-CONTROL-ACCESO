@@ -209,6 +209,12 @@ export class HomePage {
     this.navCtrl.navigateForward('/ingreso-manual');
   }
 
+  verDetalleEstacionamiento(e: Estacionamiento): void {
+    this.navCtrl.navigateForward('/estacionamiento-detalle', {
+      queryParams: { nombre: e.nombre, ubicacion: e.ubicacion },
+    });
+  }
+
   async cerrarSesion(): Promise<void> {
     const sheet = await this.actionSheetCtrl.create({
       header: '¿Cerrar sesión?',

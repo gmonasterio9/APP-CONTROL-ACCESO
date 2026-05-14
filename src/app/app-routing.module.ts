@@ -28,6 +28,16 @@ const routes: Routes = [
     loadChildren: () => import('./private/ingreso-manual/ingreso-manual.module').then(m => m.IngresoManualModule)
   },
   {
+    path: 'estacionamiento-detalle',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/estacionamiento-detalle/estacionamiento-detalle.module').then(m => m.EstacionamientoDetalleModule)
+  },
+  {
+    path: 'confirmacion',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/confirmacion/confirmacion.module').then(m => m.ConfirmacionModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/login'
   }
