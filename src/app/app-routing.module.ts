@@ -38,6 +38,11 @@ const routes: Routes = [
     loadChildren: () => import('./private/confirmacion/confirmacion.module').then(m => m.ConfirmacionModule)
   },
   {
+    path: 'scanner',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/scanner/scanner.module').then(m => m.ScannerModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/login'
   }

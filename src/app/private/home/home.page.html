@@ -1,7 +1,4 @@
 <ion-content class="home-content">
-  @if (scannerActivo) {
-  <div class="scanner-overlay"></div>
-}
 
 <ion-header mode="md">
     <ion-toolbar class="home-toolbar">
@@ -16,7 +13,7 @@
 
     <div class="tipo-row">
       @for (tipo of tiposEscaneo; track tipo.id) {
-        <div class="tipo-item" (click)="escanear($any(tipo.id))">
+        <div class="tipo-item" (click)="abrirScanner()">
           <div class="tipo-icon" [style.background]="tipo.color">
             <img [src]="tipo.svg" class="tipo-svg" />
           </div>
@@ -25,7 +22,7 @@
       }
     </div>
 
-    <ion-button expand="block" class="btn-escanear" (click)="escanear('credencial')">
+    <ion-button expand="block" class="btn-escanear" (click)="abrirScanner()">
       <img src="assets/svg/scanner.svg" slot="start" class="btn-svg" />
       Escanear
     </ion-button>

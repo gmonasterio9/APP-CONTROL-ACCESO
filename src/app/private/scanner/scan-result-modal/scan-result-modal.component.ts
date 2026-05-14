@@ -42,7 +42,7 @@ export class ScanResultModalComponent {
 
   get titulo(): string {
     if (this.tipo === 'patente') {
-      return this.plateResult ? 'Patente Detectada' : 'Sin Resultado';
+      return this.plateResult ? 'Acceso Autorizado' : 'Sin Resultado';
     }
     return { autorizado: 'Acceso Autorizado', no_autorizado: 'Acceso No Autorizado', expirado: 'Código QR Expirado' }[this.estado];
   }

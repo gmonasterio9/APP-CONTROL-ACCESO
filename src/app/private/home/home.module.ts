@@ -4,7 +4,6 @@ import { IonicModule } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { HomePage } from './home.page';
 import { HomePageRoutingModule } from './home-routing.module';
-import { ScanResultModalComponent } from './scan-result-modal/scan-result-modal.component';
 
 @NgModule({
   imports: [
@@ -13,6 +12,6 @@ import { ScanResultModalComponent } from './scan-result-modal/scan-result-modal.
     IonicModule,
     HomePageRoutingModule
   ],
-  declarations: [HomePage, ScanResultModalComponent]
+  declarations: [HomePage]
 })
 export class HomePageModule {}

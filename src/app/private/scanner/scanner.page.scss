@@ -1,0 +1,162 @@
+.scanner-content {
+  --background: #000;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.scanner-wrap {
+  position: relative;
+  height:   100%;
+}
+
+.scanner-video {
+  position:   absolute;
+  inset:      0;
+  width:      100%;
+  height:     100%;
+  object-fit: cover;
+}
+
+.camera-loading {
+  position:   absolute;
+  inset:      0;
+  z-index:    5;
+  background: #000;
+}
+
+.scanner-overlay {
+  position:        absolute;
+  inset:           0;
+  display:         flex;
+  flex-direction:  column;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.55) 0%,
+    transparent      20%,
+    transparent      75%,
+    rgba(0,0,0,0.65) 100%
+  );
+}
+
+.scanner-top {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         52px 20px 16px;
+}
+
+.btn-cerrar {
+  width:           40px;
+  height:          40px;
+  border-radius:   50%;
+  background:      rgba(255,255,255,0.15);
+  border:          none;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          pointer;
+}
+
+.scanner-titulo {
+  color:       #fff;
+  font-size:   18px;
+  font-weight: 600;
+  font-family: Roboto, sans-serif;
+}
+
+.scanner-center {
+  flex:            1;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+}
+
+.scan-hint {
+  color:       rgba(255,255,255,0.85);
+  font-size:   14px;
+  text-align:  center;
+  padding:     8px 20px;
+  margin:      0;
+  font-family: Roboto, sans-serif;
+  background:  rgba(0,0,0,0.35);
+  border-radius: 20px;
+}
+
+.scanner-bottom {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             10px;
+  padding-bottom:  48px;
+  margin-top:      auto;
+}
+
+.btn-captura {
+  width:           72px;
+  height:          72px;
+  border-radius:   50%;
+  background:      rgba(255,255,255,0.25);
+  border:          3px solid #fff;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          pointer;
+  padding:         0;
+  transition:      transform 0.1s;
+
+  &:active { transform: scale(0.93); }
+}
+
+.btn-captura-inner {
+  width:         56px;
+  height:        56px;
+  border-radius: 50%;
+  background:    #fff;
+}
+
+.patente-hint {
+  color:       rgba(255,255,255,0.75);
+  font-size:   12px;
+  margin:      0;
+  font-family: Roboto, sans-serif;
+}
+
+.scan-spinner {
+  color:  #fff;
+  width:  48px;
+  height: 48px;
+}
+
+.permiso-wrap {
+  height:          100%;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             16px;
+  padding:         40px;
+}
+
+.permiso-icon {
+  font-size: 64px;
+  color:     rgba(255,255,255,0.6);
+}
+
+.permiso-texto {
+  color:       rgba(255,255,255,0.8);
+  font-size:   15px;
+  text-align:  center;
+  margin:      0;
+}
+
+body.barcode-scanning-active {
+  background:               transparent !important;
+  --ion-background-color:   transparent;
+}
+
+body.barcode-scanning-active ion-app,
+body.barcode-scanning-active ion-content,
+body.barcode-scanning-active ion-router-outlet {
+  background:   transparent !important;
+  --background: transparent !important;
+}

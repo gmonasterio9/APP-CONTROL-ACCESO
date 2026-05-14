@@ -1,0 +1,45 @@
+<ion-content fullscreen class="scanner-content">
+
+  @if (permisoDenegado) {
+    <div class="permiso-wrap">
+      <ion-icon name="camera-off-outline" class="permiso-icon"></ion-icon>
+      <p class="permiso-texto">Se necesita permiso de cámara para escanear.</p>
+      <ion-button fill="outline" (click)="iniciarEscaneo()">Reintentar</ion-button>
+      <ion-button fill="clear" (click)="volver()">Volver</ion-button>
+    </div>
+  }
+
+  @if (!permisoDenegado) {
+    <div class="scanner-wrap">
+
+      <video #videoRef class="scanner-video" autoplay playsinline muted></video>
+      @if (!camaraLista) {
+        <div class="camera-loading"></div>
+      }
+
+      <div class="scanner-overlay">
+
+        <div class="scanner-top">
+          <button class="btn-cerrar" (click)="volver()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div style="width:40px"></div>
+        </div>
+
+        <div class="scanner-bottom">
+          @if (procesando) {
+            <ion-spinner name="crescent" class="scan-spinner"></ion-spinner>
+          } @else {
+            <button class="btn-captura" (click)="capturarPatente()">
+              <div class="btn-captura-inner"></div>
+            </button>
+          }
+        </div>
+
+      </div>
+    </div>
+  }
+
+</ion-content>
