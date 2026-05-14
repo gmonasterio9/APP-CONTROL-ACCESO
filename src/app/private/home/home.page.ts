@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { ActionSheetController, LoadingController, ModalController, ToastController } from '@ionic/angular';
+import { ActionSheetController, LoadingController, ModalController, NavController, ToastController } from '@ionic/angular';
 import { Capacitor } from '@capacitor/core';
 import { AuthService } from '../../core/services/auth.service';
 import { ScannerService } from '../../core/services/scanner.service';
@@ -61,6 +61,7 @@ export class HomePage {
     private actionSheetCtrl: ActionSheetController,
     private loadingCtrl: LoadingController,
     private modalCtrl: ModalController,
+    private navCtrl: NavController,
     private toastCtrl: ToastController,
     private scannerService: ScannerService,
     private plateService: PlateRecognizerService,
@@ -188,6 +189,17 @@ export class HomePage {
       cssClass: 'modal-75',
     });
     await modal.present();
+
+    const { data: result, role } = await modal.onDidDismiss<{ via: string; nombre?: string; credencial?: string }>();
+
+    if (role === 'accion' && result?.via === 'estacionamiento') {
+      await this.navCtrl.navigateForward('/estacionamiento', {
+        queryParams: {
+          nombre:     data.nombre,
+          credencial: data.credencial,
+        },
+      });
+    }
   }
 
   ingresoManual(): void {

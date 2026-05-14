@@ -18,6 +18,11 @@ const routes: Routes = [
     loadChildren: () => import('./private/home/home.module').then(m => m.HomePageModule)
   },
   {
+    path: 'estacionamiento',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/estacionamiento/estacionamiento.module').then(m => m.EstacionamientoModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/login'
   }

@@ -1,25 +1,18 @@
 <ion-content class="modal-content" [attr.data-estado]="estado">
   <div class="modal-body">
-
-    <!-- Ícono estado -->
     <div class="estado-circle" [style.background]="colorEstado">
       <ion-icon [name]="iconoEstado + '-outline'"></ion-icon>
     </div>
-
-    <!-- Título -->
     <h2 class="modal-titulo">{{ titulo }}</h2>
-
-    <!-- Info persona (credencial / cédula) -->
     @if (tipo !== 'patente') {
-      @if (nombre) {
+      @if (nombre && estado === 'autorizado') {
         <p class="modal-nombre">{{ nombre }}</p>
       }
-      @if (credencial) {
+      @if (credencial && estado === 'autorizado') {
         <p class="modal-credencial">{{ credencial }}</p>
       }
     }
 
-    <!-- Info patente -->
     @if (tipo === 'patente' && plateResult) {
       @if (fotoPreview) {
         <img [src]="fotoPreview" class="foto-preview" />
@@ -30,13 +23,11 @@
         @if (plateResult.vehicleType) { · {{ plateResult.vehicleType }} }
       </p>
     }
-
-    <!-- Subtítulo / mensaje -->
     @if (subtitulo) {
       <p class="modal-subtitulo">{{ subtitulo }}</p>
     }
 
-    <!-- Opciones de acceso (solo para credencial / cédula) -->
+
     @if (tipo !== 'patente') {
       <p class="modal-pregunta">{{ preguntaAcceso }}</p>
 

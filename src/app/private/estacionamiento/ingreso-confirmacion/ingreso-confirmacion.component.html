@@ -1,0 +1,21 @@
+<ion-content class="conf-content" (click)="cerrar()">
+  <div class="conf-center">
+    <div class="conf-circle">
+      <ion-icon name="checkmark" class="conf-check"></ion-icon>
+    </div>
+
+    <h1 class="conf-titulo">Ingreso Registrado</h1>
+
+    @if (nombre) {
+      <p class="conf-nombre">{{ nombre }}</p>
+    }
+
+    @if (sede) {
+      <p class="conf-detalle">Sede: {{ sede }}</p>
+    }
+
+    @if (perfil) {
+      <p class="conf-detalle">Perfil: {{ perfil }}</p>
+    }
+  </div>
+</ion-content>

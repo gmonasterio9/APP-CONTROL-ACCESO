@@ -1,0 +1,239 @@
+.est-toolbar {
+  --background: #050508;
+  --color: #ffffff;
+
+  ion-button {
+    --color: #ffffff;
+  }
+}
+
+.est-content {
+  --background: #F5F5F5;
+}
+
+.est-body {
+  padding: 20px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.est-header {
+  background: #ffffff;
+  border-radius: 0 0 12px 12px;
+  padding: 16px;
+  margin: -20px -16px 4px -16px;
+}
+
+.est-titulo {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 36px;
+  margin: 0 0 4px;
+}
+
+.est-subtitulo {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+}
+
+.est-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.est-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.est-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.est-icon-wrap {
+  width: 44px;
+  height: 44px;
+  background: #E8F5E9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .est-icon-svg {
+    width: 26px;
+    height: 26px;
+    filter: none;
+  }
+}
+
+.est-icon-wrap::after {
+  content: '🅿';
+  font-size: 22px;
+  display: none;
+}
+
+.est-info {
+  flex: 1;
+}
+
+.est-nombre {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 22px;
+  margin: 0 0 2px;
+}
+
+.est-ubicacion {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .location-svg {
+    width: 14px;
+    height: 14px;
+    filter: brightness(0) saturate(100%) invert(50%) sepia(0%) hue-rotate(0deg);
+  }
+}
+
+// Cupos
+.est-cupos {
+  color: #4CAF50;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  margin: 0;
+
+  &.sin-cupos {
+    color: #CC0000;
+  }
+}
+
+// Barra de progreso
+.barra-fondo {
+  height: 6px;
+  border-radius: 3px;
+  background: #EFEFEF;
+  overflow: hidden;
+}
+
+.barra-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+// Botón Ingresar
+.btn-ingresar {
+  --background: #1565C0;
+  --background-activated: #0d47a1;
+  --background-hover: #0d47a1;
+  --color: #FEFFFE;
+  --border-radius: 35.294px;
+  --border-width: 1px;
+  --border-style: solid;
+  --border-color: #1565C0;
+  --text-transform: none;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: normal;
+  height: 48px;
+  margin: 4px 0 0;
+}
+
+.otros-titulo {
+  color: #040B15;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  margin: 4px 0 0;
+}
+
+.otros-card {
+  height: 118px;
+  background: #FFE3EF;
+  border-radius: 7px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.75;
+  }
+}
+
+.otros-icon-wrap {
+  width: 44px;
+  height: 44px;
+  background: #E381AB;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.otros-info {
+  flex: 1;
+}
+
+.otros-nombre {
+  color: #101828;
+  font-family: Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  margin: 0 0 2px;
+}
+
+.otros-desc {
+  color: #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  margin: 0;
+}
+
+.otros-arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
