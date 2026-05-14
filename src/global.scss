@@ -1,40 +1,13 @@
-/*
- * App Global CSS
- * ----------------------------------------------------------------------------
- * Put style rules here that you want to apply globally. These styles are for
- * the entire app and not just one component. Additionally, this file can be
- * used as an entry point to import other CSS/Sass files to be included in the
- * output CSS.
- * For more information on global stylesheets, visit the documentation:
- * https://ionicframework.com/docs/layout/global-stylesheets
- */
-
-/* Core CSS required for Ionic components to work properly */
 @import "@ionic/angular/css/core.css";
-
-/* Basic CSS for apps built with Ionic */
 @import "@ionic/angular/css/normalize.css";
 @import "@ionic/angular/css/structure.css";
 @import "@ionic/angular/css/typography.css";
 @import "@ionic/angular/css/display.css";
-
-/* Optional CSS utils that can be commented out */
 @import "@ionic/angular/css/padding.css";
 @import "@ionic/angular/css/float-elements.css";
 @import "@ionic/angular/css/text-alignment.css";
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
-
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-/* @import "@ionic/angular/css/palettes/dark.system.css"; */
 
 * {
   font-family: var(--font-family);
@@ -88,7 +61,6 @@ ion-footer {
   align-items: center;
 }
 
-
 .action-sheet-cancel .action-sheet-button-inner {
   color: #CC0000 !important;
 }
@@ -97,7 +69,71 @@ ion-footer {
   color: #CC0000 !important;
 }
 
-// ─── Scanner con cámara transparente ──────────────────────────────────────
+.alert-salida {
+  .alert-wrapper {
+    background:      rgba(242, 242, 242, 0.80) !important;
+    backdrop-filter: blur(11px) !important;
+    border-radius:   14px !important;
+    overflow:        hidden;
+    min-width:       270px;
+    max-width:       270px;
+  }
+
+  .alert-head {
+    padding: 20px 16px 4px;
+  }
+
+  .alert-title {
+    color:          #000 !important;
+    text-align:     center;
+    font-family:    Roboto, sans-serif;
+    font-size:      17px !important;
+    font-weight:    600 !important;
+    line-height:    22px;
+    letter-spacing: -0.408px;
+  }
+
+  .alert-message {
+    color:          #000 !important;
+    text-align:     center;
+    font-family:    Roboto, sans-serif;
+    font-size:      13px !important;
+    font-weight:    400 !important;
+    line-height:    18px;
+    letter-spacing: -0.078px;
+    padding:        4px 16px 20px;
+  }
+
+  .alert-button-group {
+    flex-direction: row !important;
+    border-top:     0.5px solid rgba(0, 0, 0, 0.25);
+    padding:        0;
+    gap:            0;
+  }
+
+  .alert-btn-cancelar,
+  .alert-btn-aceptar {
+    flex:       1;
+    margin:     0;
+    border:     none;
+    background: transparent;
+    padding:    11px 0;
+
+    .alert-button-inner {
+      justify-content: center;
+      font-family:     Roboto, sans-serif;
+      font-size:       17px;
+      font-weight:     400;
+      color:           #007AFF;
+      text-transform:  none;
+    }
+  }
+
+  .alert-btn-cancelar {
+    border-right: 0.5px solid rgba(0, 0, 0, 0.25);
+  }
+}
+
 body.barcode-scanning-active {
   background:                   transparent !important;
   --ion-background-color:       transparent;
@@ -115,7 +151,6 @@ body.barcode-scanning-active app-scanner {
   background: transparent !important;
 }
 
-// Overlay semitransparente sobre la cámara
 body.barcode-scanning-active .scanner-overlay {
   background: linear-gradient(
     to bottom,

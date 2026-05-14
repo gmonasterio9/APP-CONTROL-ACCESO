@@ -370,4 +370,9 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-regular);
   margin: 0;
+  text-transform: none !important;
+
+  &::part(native) {
+    text-transform: none;
+  }
 }

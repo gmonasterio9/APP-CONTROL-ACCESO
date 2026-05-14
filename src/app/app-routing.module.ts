@@ -43,6 +43,11 @@ const routes: Routes = [
     loadChildren: () => import('./private/scanner/scanner.module').then(m => m.ScannerModule)
   },
   {
+    path: 'acceso-peatonal-detalle',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/acceso-peatonal-detalle/acceso-peatonal-detalle.module').then(m => m.AccesoPeatonalDetalleModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/login'
   }

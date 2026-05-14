@@ -1,0 +1,160 @@
+.det-content {
+  --background: #F2F3F8;
+}
+
+.det-toolbar {
+  --background: #050508;
+  --color: #fff;
+
+  ion-title {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 500;
+  }
+
+  ion-back-button {
+    --color: #fff;
+  }
+}
+
+.det-header {
+  background:    #fff;
+  padding:       20px 16px 16px;
+  margin-bottom: 16px;
+}
+
+.det-titulo {
+  color:       #040B15;
+  font-family: Roboto, sans-serif;
+  font-size:   22px;
+  font-weight: 700;
+  margin:      0 0 4px;
+}
+
+.det-subtitulo {
+  color:       #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size:   14px;
+  font-weight: 400;
+  margin:      0;
+}
+
+.stats-row {
+  display:       flex;
+  gap:           10px;
+  padding:       0 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  flex:            1;
+  background:      #FEFFFE;
+  border-radius:   14px;
+  border:          0.689px solid #E5E7EB;
+  box-shadow:      0 4px 8px 0 rgba(194, 201, 252, 0.15);
+  padding:         14px 10px;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             4px;
+}
+
+.stat-valor {
+  font-family: Roboto, sans-serif;
+  font-size:   24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  color:       #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size:   12px;
+  font-weight: 400;
+}
+
+.accesos-section {
+  padding: 0 16px;
+}
+
+.accesos-titulo {
+  color:         #040B15;
+  font-family:   Roboto, sans-serif;
+  font-size:     13px;
+  font-style:    normal;
+  font-weight:   400;
+  line-height:   normal;
+  margin:        0 0 10px;
+}
+
+.accesos-lista {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+.acceso-item {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         14px 16px;
+  background:      #FEFFFE;
+  border-radius:   14px;
+  border:          0.689px solid #E5E7EB;
+  box-shadow:      0 4px 8px 0 rgba(194, 201, 252, 0.15);
+}
+
+.acceso-info {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+}
+
+.acceso-nombre {
+  color:       #040B15;
+  font-family: Roboto, sans-serif;
+  font-size:   15px;
+  font-weight: 600;
+  margin:      0;
+}
+
+.acceso-rut,
+.acceso-credencial {
+  color:       #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size:   12px;
+  font-weight: 400;
+  margin:      0;
+}
+
+.chip-estado {
+  display:          flex;
+  align-items:      center;
+  justify-content:  flex-end;
+  gap:              10px;
+  font-family:      Roboto, sans-serif;
+  font-size:        12px;
+  font-weight:      400;
+  padding:          8.17px 11.44px;
+  border-radius:    5px;
+  white-space:      nowrap;
+  flex-shrink:      0;
+
+  &.chip-permitido {
+    color:        #0A7F0F;
+    border:       0.817px solid #0A7F0F;
+    background:   #EFF9F1;
+  }
+
+  &.chip-expirado {
+    color:        #8C5E12;
+    border:       0.817px solid #8C5E12;
+    background:   #FFECCC;
+  }
+
+  &.chip-visita {
+    color:        #1565C0;
+    border:       0.817px solid #1565C0;
+    background:   #E1EDFA;
+  }
+}

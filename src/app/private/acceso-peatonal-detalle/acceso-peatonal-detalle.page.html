@@ -1,0 +1,45 @@
+<ion-header mode="md">
+  <ion-toolbar class="det-toolbar">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text=""></ion-back-button>
+    </ion-buttons>
+    <ion-title>Sistema Unificado de Control</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="det-content">
+
+  <div class="det-header">
+    <h1 class="det-titulo">Acceso Peatonal</h1>
+    <p class="det-subtitulo">Control de ingreso de personas</p>
+  </div>
+
+  <div class="stats-row">
+    @for (s of stats; track s.label) {
+      <div class="stat-card">
+        <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
+        <span class="stat-label">{{ s.label }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="accesos-section">
+    <p class="accesos-titulo">Accesos Recientes</p>
+
+    <div class="accesos-lista">
+      @for (a of accesos; track $index) {
+        <div class="acceso-item">
+          <div class="acceso-info">
+            <p class="acceso-nombre">{{ a.nombre }}</p>
+            <p class="acceso-rut">{{ a.rut }}</p>
+            <p class="acceso-credencial">{{ a.credencial }}</p>
+          </div>
+          <span [class]="'chip-estado chip-' + a.estado">
+            {{ chipLabel(a.estado) }}
+          </span>
+        </div>
+      }
+    </div>
+  </div>
+
+</ion-content>

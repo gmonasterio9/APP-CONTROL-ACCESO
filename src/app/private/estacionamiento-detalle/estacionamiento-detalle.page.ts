@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { NavController } from '@ionic/angular';
+import { AlertController, NavController } from '@ionic/angular';
 
 export type CategoriaTipo = 'estudiante' | 'docente' | 'visita';
 
@@ -58,8 +58,9 @@ export class EstacionamientoDetallePage implements OnInit {
   ];
 
   constructor(
-    private route: ActivatedRoute,
-    private navCtrl: NavController,
+    private route:         ActivatedRoute,
+    private navCtrl:       NavController,
+    private alertCtrl:     AlertController,
   ) {}
 
   ngOnInit(): void {
@@ -80,8 +81,27 @@ export class EstacionamientoDetallePage implements OnInit {
     return Math.round((c.disponibles / c.total) * 100);
   }
 
-  marcarSalida(v: VehiculoActivo): void {
-    this.vehiculos = this.vehiculos.filter(x => x.patente !== v.patente);
+  async marcarSalida(v: VehiculoActivo): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header:  'Autorizar Salida',
+      message: '¿Estás seguro que deseas autorizar la salida?',
+      cssClass: 'alert-salida',
+      buttons: [
+        {
+          text:    'Cancelar',
+          role:    'cancel',
+          cssClass: 'alert-btn-cancelar',
+        },
+        {
+          text:    'Aceptar',
+          cssClass: 'alert-btn-aceptar',
+          handler: () => {
+            this.vehiculos = this.vehiculos.filter(x => x.patente !== v.patente);
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   volver(): void {

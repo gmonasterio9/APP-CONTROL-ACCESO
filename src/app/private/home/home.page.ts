@@ -68,6 +68,10 @@ export class HomePage {
     this.navCtrl.navigateForward('/scanner');
   }
 
+  verDetallePeatonal(): void {
+    this.navCtrl.navigateForward('/acceso-peatonal-detalle');
+  }
+
   ingresoManual(): void {
     this.navCtrl.navigateForward('/ingreso-manual');
   }
