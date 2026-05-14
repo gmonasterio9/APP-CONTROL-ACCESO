@@ -29,13 +29,9 @@
         </div>
 
         <div class="scanner-bottom">
-          @if (procesando) {
-            <ion-spinner name="crescent" class="scan-spinner"></ion-spinner>
-          } @else {
-            <button class="btn-captura" (click)="capturarPatente()">
-              <div class="btn-captura-inner"></div>
-            </button>
-          }
+          <button type="button" class="btn-captura" (click)="capturarPatente()" [disabled]="procesando">
+            <div class="btn-captura-inner"></div>
+          </button>
         </div>
 
       </div>

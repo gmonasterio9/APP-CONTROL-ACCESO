@@ -12,12 +12,10 @@
 <ion-content class="im-content">
   <div class="im-body" [formGroup]="form">
 
-    <!-- Bloque título -->
     <div class="im-header-block">
       <h1 class="im-titulo">Ingreso Manual</h1>
     </div>
 
-    <!-- Tipo de Persona -->
     <div class="im-field-block">
       <p class="im-label">Tipo de Persona <span class="req">(*)</span></p>
       <div class="im-chip-group">
@@ -38,7 +36,6 @@
       </div>
     </div>
 
-    <!-- Vehículo -->
     <div class="im-field-block">
       <p class="im-label">Vehículo (*)</p>
       <div class="im-chip-group">
@@ -59,28 +56,24 @@
       </div>
     </div>
 
-    <!-- Patente -->
     <div class="im-field-block">
       <p class="im-label">Patente <span class="req">(*)</span></p>
       <input class="im-input" formControlName="patente" placeholder="Ingrese patente" />
       <div class="im-divider"></div>
     </div>
 
-    <!-- RUT -->
     <div class="im-field-block">
       <p class="im-label">RUT <span class="req">(*)</span></p>
       <input class="im-input" formControlName="rut" placeholder="Ingrese RUT" />
       <div class="im-divider"></div>
     </div>
 
-    <!-- Nombre -->
     <div class="im-field-block">
       <p class="im-label">Nombre</p>
       <input class="im-input" formControlName="nombre" placeholder="Ingrese nombre" />
       <div class="im-divider"></div>
     </div>
 
-    <!-- Observaciones -->
     <div class="im-field-block">
       <div class="im-obs-header">
         <p class="im-label">Observaciones</p>

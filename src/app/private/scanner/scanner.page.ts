@@ -1,5 +1,5 @@
 import { Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
-import { NavController, ModalController, ToastController } from '@ionic/angular';
+import { NavController, ModalController, ToastController, LoadingController } from '@ionic/angular';
 import { PluginListenerHandle } from '@capacitor/core';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 
@@ -28,6 +28,7 @@ export class ScannerPage implements OnDestroy {
     private navCtrl:      NavController,
     private modalCtrl:    ModalController,
     private toastCtrl:    ToastController,
+    private loadingCtrl:  LoadingController,
     private plateService: PlateRecognizerService,
     private zone:         NgZone,
   ) {}
@@ -44,7 +45,6 @@ export class ScannerPage implements OnDestroy {
     this.detenerTodo();
   }
 
-  // ─── Iniciar cámara y escaneo QR ──────────────────────────────────
   async iniciarEscaneo() {
     this.permisoDenegado = false;
     this.camaraLista     = false;
@@ -74,7 +74,6 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  // ─── Detección QR con BarcodeDetector (WebView nativo) ───────────
   private iniciarDeteccionQR() {
     if (!('BarcodeDetector' in window)) {
       this.iniciarMLKit();
@@ -100,7 +99,6 @@ export class ScannerPage implements OnDestroy {
     }, 400);
   }
 
-  // ─── Fallback: MLKit con fondo transparente ───────────────────────
   private async iniciarMLKit() {
     this.detenerVideoStream();
     try {
@@ -125,7 +123,6 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  // ─── Código detectado (QR o barcode) ─────────────────────────────
   async onCodigoDetectado(valor: string) {
     if (this.procesando || !valor.trim()) { return; }
     this.procesando = true;
@@ -146,11 +143,12 @@ export class ScannerPage implements OnDestroy {
     this.procesando = false;
   }
 
-  // ─── Capturar frame para patente ──────────────────────────────────
   async capturarPatente() {
     if (this.procesando) { return; }
     this.procesando = true;
     this.detenerDeteccion();
+
+    let loading: HTMLIonLoadingElement | null = null;
 
     try {
       let base64: string;
@@ -168,14 +166,33 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      const plateResult = await this.plateService.readPlate(base64);
-      await this.mostrarResultadoModal({
-        tipo: 'patente',
-        estado: 'autorizado',
-        plateResult: plateResult ?? undefined,
-        fotoPreview: base64,
+      loading = await this.loadingCtrl.create({
+        message: 'Cargando...',
+        spinner: 'crescent',
       });
+      await loading.present();
+
+      const plateResult = await this.plateService.readPlate(base64);
+
+      await loading.dismiss();
+      loading = null;
+
+      if (!plateResult) {
+        await this.mostrarResultadoModal({
+          tipo:   'patente',
+          estado: 'no_autorizado',
+        });
+      } else {
+        await this.mostrarResultadoModal({
+          tipo:        'patente',
+          estado:      'autorizado',
+          plateResult,
+        });
+      }
     } catch {
+      if (loading) {
+        await loading.dismiss();
+      }
       await this.mostrarError('Error al detectar la patente. Intenta de nuevo.');
       await this.iniciarEscaneo();
     }
@@ -183,13 +200,11 @@ export class ScannerPage implements OnDestroy {
     this.procesando = false;
   }
 
-  // ─── Cerrar ───────────────────────────────────────────────────────
   async volver() {
     this.detenerTodo();
     this.navCtrl.back();
   }
 
-  // ─── Modal resultado ──────────────────────────────────────────────
   async mostrarResultadoModal(data: {
     tipo: ScanTipo;
     estado?: ScanEstado;
@@ -227,7 +242,6 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  // ─── Detener ──────────────────────────────────────────────────────
   private detenerDeteccion() {
     if (this.scanInterval) { clearInterval(this.scanInterval); this.scanInterval = null; }
     if (this.usandoMLKit) {
@@ -253,7 +267,6 @@ export class ScannerPage implements OnDestroy {
     this.detenerVideoStream();
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────
   private esPatente(valor: string): boolean {
     return /^[A-Za-z]{2,4}\d{2,4}$/.test(valor.trim());
   }

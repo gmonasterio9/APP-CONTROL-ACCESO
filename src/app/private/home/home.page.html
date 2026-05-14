@@ -6,7 +6,6 @@
     </ion-toolbar>
   </ion-header>
 
-  <!-- Sección escaneo -->
   <div class="scan-section">
     <h2 class="scan-title">Escanea para comenzar</h2>
     <p class="scan-subtitle">Credencial INACAP, cédula de identidad o patente</p>
@@ -33,7 +32,6 @@
     </ion-button>
   </div>
 
-  <!-- Segmento -->
   <ion-segment [(ngModel)]="segmentoActivo" class="home-segment" mode="ios">
     <ion-segment-button value="estacionamientos">
       <ion-label>Estacionamientos</ion-label>
@@ -43,7 +41,6 @@
     </ion-segment-button>
   </ion-segment>
 
-  <!-- Lista estacionamientos -->
   @if (segmentoActivo === 'estacionamientos') {
     <div class="lista-section">
       @for (e of estacionamientos; track e.id) {
@@ -73,7 +70,6 @@
     </div>
   }
 
-  <!-- Acceso peatonal -->
   @if (segmentoActivo === 'peatonal') {
     <div class="peatonal-section">
       <div class="stats-row">
@@ -89,7 +85,6 @@
   }
 
 
-  <!-- Cerrar sesión -->
   <div class="logout-wrapper">
     <ion-button class="btn-logout" (click)="cerrarSesion()">
       Cerrar Sesión

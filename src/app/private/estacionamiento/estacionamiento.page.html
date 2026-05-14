@@ -12,13 +12,11 @@
 <ion-content class="est-content">
   <div class="est-body">
 
-    <!-- Título -->
     <div class="est-header">
       <h1 class="est-titulo">Estacionamientos</h1>
       <p class="est-subtitulo">Selecciona el estacionamiento para registrar</p>
     </div>
 
-    <!-- Lista -->
     <div class="est-lista">
       @for (e of estacionamientos; track e.id) {
         <div class="est-card">
@@ -59,7 +57,6 @@
       }
     </div>
 
-    <!-- Otros ingresos -->
     <p class="otros-titulo">Otros ingresos</p>
 
     <div class="otros-card" (click)="registrarAcompanante()">

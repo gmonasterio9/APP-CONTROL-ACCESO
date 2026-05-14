@@ -104,7 +104,12 @@
   padding:         0;
   transition:      transform 0.1s;
 
-  &:active { transform: scale(0.93); }
+  &:active:not(:disabled) { transform: scale(0.93); }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor:  not-allowed;
+  }
 }
 
 .btn-captura-inner {
@@ -119,12 +124,6 @@
   font-size:   12px;
   margin:      0;
   font-family: Roboto, sans-serif;
-}
-
-.scan-spinner {
-  color:  #fff;
-  width:  48px;
-  height: 48px;
 }
 
 .permiso-wrap {
