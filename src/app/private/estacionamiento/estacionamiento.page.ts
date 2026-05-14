@@ -61,7 +61,9 @@ export class EstacionamientoPage {
   }
 
   registrarAcompanante(): void {
-    // TODO: abrir escáner para acompañante
+    this.navCtrl.navigateForward('/ingreso-manual', {
+      queryParams: { nombre: this.nombre ?? '' },
+    });
   }
 
   volver(): void {

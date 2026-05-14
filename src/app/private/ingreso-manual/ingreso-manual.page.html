@@ -1,0 +1,103 @@
+<ion-header mode="md">
+  <ion-toolbar class="im-toolbar">
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Sistema Unificado de Control</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="im-content">
+  <div class="im-body" [formGroup]="form">
+
+    <!-- Bloque título -->
+    <div class="im-header-block">
+      <h1 class="im-titulo">Ingreso Manual</h1>
+    </div>
+
+    <!-- Tipo de Persona -->
+    <div class="im-field-block">
+      <div class="im-label" style="font-size: 16px; font-weight: 400; line-height: normal; color: #040B15;">Agenda Tutor</div>
+      <p class="im-label">Tipo de Persona <span class="req">(*)</span></p>
+      <div class="im-chip-group">
+        @for (t of tiposPersona; track t.value) {
+          <button class="im-chip"
+            [class.active]="form.get('tipoPersona')?.value === t.value"
+            (click)="form.get('tipoPersona')?.setValue(t.value)">
+            @if (form.get('tipoPersona')?.value === t.value) {
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 14C5.61553 14 4.26215 13.5895 3.11101 12.8203C1.95987 12.0511 1.06266 10.9579 0.532846 9.67879C0.00303298 8.3997 -0.13559 6.99224 0.134506 5.63437C0.404603 4.2765 1.07129 3.02922 2.05026 2.05026C3.02922 1.07129 4.2765 0.404603 5.63437 0.134506C6.99224 -0.13559 8.3997 0.00303298 9.67879 0.532846C10.9579 1.06266 12.0511 1.95987 12.8203 3.11101C13.5895 4.26215 14 5.61553 14 7C13.998 8.85589 13.2598 10.6352 11.9475 11.9475C10.6352 13.2598 8.85589 13.998 7 14ZM3.087 6.013L2.1 7L5.6 10.5L11.2 4.9L10.213 3.906L5.6 8.519L3.087 6.013Z" fill="#1D78BF"/>
+              </svg>
+            } @else {
+              <span class="chip-radio"></span>
+            }
+            {{ t.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Vehículo -->
+    <div class="im-field-block">
+      <p class="im-label">Vehículo <span class="req">(*)</span></p>
+      <div class="im-chip-group">
+        @for (v of tiposVehiculo; track v.value) {
+          <button class="im-chip"
+            [class.active]="form.get('vehiculo')?.value === v.value"
+            (click)="form.get('vehiculo')?.setValue(v.value)">
+            @if (form.get('vehiculo')?.value === v.value) {
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 14C5.61553 14 4.26215 13.5895 3.11101 12.8203C1.95987 12.0511 1.06266 10.9579 0.532846 9.67879C0.00303298 8.3997 -0.13559 6.99224 0.134506 5.63437C0.404603 4.2765 1.07129 3.02922 2.05026 2.05026C3.02922 1.07129 4.2765 0.404603 5.63437 0.134506C6.99224 -0.13559 8.3997 0.00303298 9.67879 0.532846C10.9579 1.06266 12.0511 1.95987 12.8203 3.11101C13.5895 4.26215 14 5.61553 14 7C13.998 8.85589 13.2598 10.6352 11.9475 11.9475C10.6352 13.2598 8.85589 13.998 7 14ZM3.087 6.013L2.1 7L5.6 10.5L11.2 4.9L10.213 3.906L5.6 8.519L3.087 6.013Z" fill="#1D78BF"/>
+              </svg>
+            } @else {
+              <span class="chip-radio"></span>
+            }
+            {{ v.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Patente -->
+    <div class="im-field-block">
+      <p class="im-label">Patente <span class="req">(*)</span></p>
+      <input class="im-input" formControlName="patente" placeholder="Ingrese patente" />
+      <div class="im-divider"></div>
+    </div>
+
+    <!-- RUT -->
+    <div class="im-field-block">
+      <p class="im-label">RUT <span class="req">(*)</span></p>
+      <input class="im-input" formControlName="rut" placeholder="Ingrese RUT" />
+      <div class="im-divider"></div>
+    </div>
+
+    <!-- Nombre -->
+    <div class="im-field-block">
+      <p class="im-label">Nombre</p>
+      <input class="im-input" formControlName="nombre" placeholder="Ingrese nombre" />
+      <div class="im-divider"></div>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="im-field-block">
+      <div class="im-obs-header">
+        <p class="im-label">Observaciones</p>
+        <span class="im-obs-counter">{{ obsLength }}/{{ obsMaxLength }}</span>
+      </div>
+      <textarea class="im-textarea" formControlName="observaciones"
+        placeholder="Ingrese observaciones"
+        [maxlength]="obsMaxLength" rows="3">
+      </textarea>
+      <div class="im-divider"></div>
+    </div>
+
+    <div class="btn-aprobar-wrap">
+      <ion-button class="btn-aprobar" (click)="aprobar()">
+        Aprobar Ingreso
+      </ion-button>
+    </div>
+  </div>
+</ion-content>

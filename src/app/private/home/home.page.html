@@ -91,16 +91,6 @@
     </div>
   }
 
-  @if (esDev) {
-    <div class="dev-section">
-      <p class="dev-titulo">🧪 Simulador de escaneo</p>
-      <div class="dev-row">
-        <button class="dev-btn dev-ok"  (click)="simularEscaneo('credencial', 'autorizado')">✓ Autorizado</button>
-        <button class="dev-btn dev-exp" (click)="simularEscaneo('credencial', 'expirado')">⚠ Expirado</button>
-        <button class="dev-btn dev-err" (click)="simularEscaneo('credencial', 'no_autorizado')">✗ No autorizado</button>
-      </div>
-    </div>
-  }
 
   <!-- Cerrar sesión -->
   <div class="logout-wrapper">

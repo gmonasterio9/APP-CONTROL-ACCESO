@@ -61,7 +61,7 @@ export class HomePage {
     private actionSheetCtrl: ActionSheetController,
     private loadingCtrl: LoadingController,
     private modalCtrl: ModalController,
-    private navCtrl: NavController,
+    public navCtrl: NavController,
     private toastCtrl: ToastController,
     private scannerService: ScannerService,
     private plateService: PlateRecognizerService,
@@ -194,16 +194,19 @@ export class HomePage {
 
     if (role === 'accion' && result?.via === 'estacionamiento') {
       await this.navCtrl.navigateForward('/estacionamiento', {
-        queryParams: {
-          nombre:     data.nombre,
-          credencial: data.credencial,
-        },
+        queryParams: { nombre: data.nombre, credencial: data.credencial },
+      });
+    }
+
+    if (role === 'accion' && result?.via === 'peatonal') {
+      await this.navCtrl.navigateForward('/ingreso-manual', {
+        queryParams: { nombre: data.nombre },
       });
     }
   }
 
   ingresoManual(): void {
-    console.log('Ingreso manual');
+    this.navCtrl.navigateForward('/ingreso-manual');
   }
 
   async cerrarSesion(): Promise<void> {

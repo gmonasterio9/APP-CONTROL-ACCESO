@@ -23,6 +23,11 @@ const routes: Routes = [
     loadChildren: () => import('./private/estacionamiento/estacionamiento.module').then(m => m.EstacionamientoModule)
   },
   {
+    path: 'ingreso-manual',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/ingreso-manual/ingreso-manual.module').then(m => m.IngresoManualModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/login'
   }
