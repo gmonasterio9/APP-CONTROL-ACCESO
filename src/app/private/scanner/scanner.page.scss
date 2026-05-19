@@ -126,28 +126,6 @@
   font-family: Roboto, sans-serif;
 }
 
-.permiso-wrap {
-  height:          100%;
-  display:         flex;
-  flex-direction:  column;
-  align-items:     center;
-  justify-content: center;
-  gap:             16px;
-  padding:         40px;
-}
-
-.permiso-icon {
-  font-size: 64px;
-  color:     rgba(255,255,255,0.6);
-}
-
-.permiso-texto {
-  color:       rgba(255,255,255,0.8);
-  font-size:   15px;
-  text-align:  center;
-  margin:      0;
-}
-
 body.barcode-scanning-active {
   background:               transparent !important;
   --ion-background-color:   transparent;

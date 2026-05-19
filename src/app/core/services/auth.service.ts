@@ -1,63 +1,113 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, of, tap } from 'rxjs';
-import { environment } from '../../../environments/environment';
-
-export interface LoginResponse {
-  token: string;
-  user: {
-    id: number;
-    nombre: string;
-    email: string;
-    rol: string;
-  };
-}
-
-const MOCK_RESPONSE: LoginResponse = {
-  token: 'mock-token-local',
-  user: { id: 1, nombre: 'Usuario Local', email: 'local@inacap.cl', rol: 'admin' }
-};
+import { Observable, from, throwError } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { Sede } from '../models/sede.model';
+import {
+  AuthUser,
+  LoginApiResponse,
+  RefreshApiResponse,
+} from '../models/auth.model';
+import { apiEndpoint } from '../utils/api-endpoint.util';
+import { AppStorageService } from './app-storage.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly TOKEN_KEY = 'auth_token';
+  private readonly ACCESS_TOKEN_KEY = 'auth_access_token';
+  private readonly REFRESH_TOKEN_KEY = 'auth_refresh_token';
   private readonly USER_KEY = 'auth_user';
+  private readonly SEDE_KEY = 'auth_sede';
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private storage: AppStorageService
+  ) {}
 
-  loginWithPin(pin: string): Observable<LoginResponse> {
-    const useMock = !environment.apiUrl.startsWith('https://') || environment.apiUrl.includes('_URL_AQUI');
-    if (useMock) {
-      localStorage.setItem(this.TOKEN_KEY, MOCK_RESPONSE.token);
-      localStorage.setItem(this.USER_KEY, JSON.stringify(MOCK_RESPONSE.user));
-      return of(MOCK_RESPONSE);
-    }
-
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/api/auth/login`, { pin }).pipe(
-      tap(res => {
-        localStorage.setItem(this.TOKEN_KEY, res.token);
-        localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+  loginWithPin(pin: string, sedeId: number): Observable<LoginApiResponse> {
+    return this.http
+      .post<LoginApiResponse>(apiEndpoint('/api/login'), {
+        sede: sedeId,
+        pin: Number(pin),
       })
+      .pipe(switchMap(res => from(this.persistSession(res))));
+  }
+
+  refreshSession(): Observable<RefreshApiResponse> {
+    return from(this.getRefreshToken()).pipe(
+      switchMap(refresh => {
+        if (!refresh) {
+          return throwError(() => new Error('Sin refresh token'));
+        }
+        return this.http.post<RefreshApiResponse>(apiEndpoint('/api/refresh'), {
+          refresh,
+        });
+      }),
+      switchMap(res => from(this.persistTokens(res.access_token, res.refresh)).pipe(
+        switchMap(() => from([res]))
+      ))
     );
   }
 
-  logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    this.router.navigate(['/auth/login']);
+  async setSede(sede: Sede): Promise<void> {
+    await this.storage.set(this.SEDE_KEY, sede);
   }
 
-  getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+  async getSede(): Promise<Sede | null> {
+    return this.storage.get<Sede>(this.SEDE_KEY);
   }
 
-  getUser(): LoginResponse['user'] | null {
-    const user = localStorage.getItem(this.USER_KEY);
-    return user ? JSON.parse(user) : null;
+  async logout(): Promise<void> {
+    await Promise.all([
+      this.storage.remove(this.ACCESS_TOKEN_KEY),
+      this.storage.remove(this.REFRESH_TOKEN_KEY),
+      this.storage.remove(this.USER_KEY),
+      this.storage.remove(this.SEDE_KEY),
+    ]);
+    await this.router.navigate(['/auth/login']);
   }
 
-  isAuthenticated(): boolean {
-    return !!this.getToken();
+  async getAccessToken(): Promise<string | null> {
+    return this.storage.get<string>(this.ACCESS_TOKEN_KEY);
+  }
+
+  async getToken(): Promise<string | null> {
+    return this.getAccessToken();
+  }
+
+  async getRefreshToken(): Promise<string | null> {
+    return this.storage.get<string>(this.REFRESH_TOKEN_KEY);
+  }
+
+  async getUser(): Promise<AuthUser | null> {
+    return this.storage.get<AuthUser>(this.USER_KEY);
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return !!token;
+  }
+
+  private async persistSession(response: LoginApiResponse): Promise<LoginApiResponse> {
+    const user: AuthUser = {
+      nombre: response.apeuTnombre,
+      sedeId: response.sedeCcod,
+      sedeNombre: response.sedeTdesc,
+    };
+    const sede: Sede = { id: response.sedeCcod, nombre: response.sedeTdesc };
+
+    await this.persistTokens(response.access_token, response.refresh);
+    await this.storage.set(this.USER_KEY, user);
+    await this.storage.set(this.SEDE_KEY, sede);
+    return response;
+  }
+
+  private async persistTokens(
+    accessToken: string,
+    refreshToken: string
+  ): Promise<void> {
+    await this.storage.set(this.ACCESS_TOKEN_KEY, accessToken);
+    await this.storage.set(this.REFRESH_TOKEN_KEY, refreshToken);
   }
 }

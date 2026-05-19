@@ -4,6 +4,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { LoginPageRoutingModule } from './login-routing.module';
 import { LoginPage } from './login.page';
+import { SedesModalComponent } from './components/sedes-modal/sedes-modal.component';
 
 @NgModule({
   imports: [
@@ -12,7 +13,7 @@ import { LoginPage } from './login.page';
     IonicModule,
     LoginPageRoutingModule
   ],
-  declarations: [LoginPage],
+  declarations: [LoginPage, SedesModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class LoginPageModule {}

@@ -1,0 +1,45 @@
+<ion-header class="sedes-modal-header">
+  <ion-toolbar>
+    <ion-title>Seleccionar sede</ion-title>
+    <ion-buttons slot="end">
+      <ion-button
+        fill="clear"
+        class="modal-close-btn"
+        aria-label="Cerrar"
+        (click)="cancel()">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="sedes-modal-content">
+  <ion-searchbar
+    class="sedes-searchbar"
+    placeholder="Buscar sede"
+    (ionInput)="searchbarInput($event)">
+  </ion-searchbar>
+
+  <ion-list class="sedes-modal-list" lines="none">
+    @for (sede of filteredSedes; track trackSede($index, sede)) {
+      <ion-item class="sede-option" [class.sede-option--selected]="isChecked(sede.id)">
+        <ion-checkbox
+          slot="start"
+          [value]="sede.id"
+          [checked]="isChecked(sede.id)"
+          (ionChange)="checkboxChange($event)">
+        </ion-checkbox>
+        <ion-label>{{ sede.nombre }}</ion-label>
+      </ion-item>
+    }
+  </ion-list>
+
+  <div class="btn-wrapper">
+    <ion-button
+      class="login-btn"
+      [disabled]="workingSelectedId === null"
+      (click)="confirm()">
+      Confirmar
+    </ion-button>
+  </div>
+</ion-content>

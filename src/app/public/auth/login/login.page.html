@@ -9,34 +9,89 @@
         </div>
 
         <h1 class="login-title">Sistema Unificado de Control</h1>
-        <p class="login-subtitle">Usa el PIN asignado por tu supervisor</p>
 
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        @if (step === 'sede') {
+          <p class="login-subtitle">Selecciona la sede donde trabajarás</p>
 
-          <p class="pin-label">PIN de Acceso</p>
+          @if (loadingSedes) {
+            <div class="sede-loading">
+              <ion-spinner name="crescent"></ion-spinner>
+              <p>Cargando sedes...</p>
+            </div>
+          } @else {
+            <form [formGroup]="form" (ngSubmit)="continuarASede()">
+              <p class="field-label">Sede</p>
+              <button
+                type="button"
+                id="select-sede"
+                class="sede-field"
+                [disabled]="sedes.length === 0">
+                <span
+                  class="sede-field-value"
+                  [class.is-placeholder]="!selectedSede">
+                  {{ selectedSedeText }}
+                </span>
+                <ion-icon name="chevron-forward-outline" class="sede-field-icon"></ion-icon>
+              </button>
 
-          <div class="otp-row">
-            <img src="assets/svg/lock.svg" alt="PIN" class="lock-icon" />
-            <ion-input-otp
-              class="otp-input"
-              formControlName="pin"
-              [length]="6"
-              type="number"
-              shape="rectangle"
-              (ionComplete)="onSubmit()">
-            </ion-input-otp>
-          </div>
+              <ion-modal trigger="select-sede" #sedeModal>
+                <ng-template>
+                  <app-sedes-modal
+                    class="ion-page"
+                    [sedes]="sedes"
+                    [selectedSede]="selectedSede"
+                    (sedeSelected)="onSedeSelected($event); sedeModal.dismiss()"
+                    (cancelled)="sedeModal.dismiss()">
+                  </app-sedes-modal>
+                </ng-template>
+              </ion-modal>
 
-          <div class="btn-wrapper">
-            <ion-button
-              type="submit"
-              class="login-btn"
-              [disabled]="form.invalid">
-              Iniciar Sesión
-            </ion-button>
-          </div>
+              <div class="btn-wrapper">
+                <ion-button
+                  type="submit"
+                  class="login-btn"
+                  [disabled]="sedeId.invalid || loadingSedes">
+                  Continuar
+                </ion-button>
+              </div>
+            </form>
+          }
+        } @else {
+          <p class="login-subtitle">Usa el PIN asignado por tu supervisor</p>
 
-        </form>
+          @if (selectedSede) {
+            <p class="field-label">Sede</p>
+            <button type="button" class="sede-field" (click)="volverASede()">
+              <span class="sede-field-value">{{ selectedSede.nombre }}</span>
+              <span class="sede-field-action">Cambiar</span>
+            </button>
+          }
+
+          <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <p class="pin-label">PIN de Acceso</p>
+
+            <div class="otp-row">
+              <img src="assets/svg/lock.svg" alt="PIN" class="lock-icon" />
+              <ion-input-otp
+                class="otp-input"
+                formControlName="pin"
+                [length]="6"
+                type="number"
+                shape="rectangle"
+                (ionComplete)="onSubmit()">
+              </ion-input-otp>
+            </div>
+
+            <div class="btn-wrapper">
+              <ion-button
+                type="submit"
+                class="login-btn"
+                [disabled]="pin.invalid">
+                Iniciar Sesión
+              </ion-button>
+            </div>
+          </form>
+        }
 
       </ion-card-content>
     </ion-card>

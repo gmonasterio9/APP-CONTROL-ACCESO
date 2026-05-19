@@ -1,8 +1,8 @@
 {
   "name": "APP-CONTROL-ACCESO",
   "version": "0.0.1",
-  "author": "Ionic Framework",
-  "homepage": "https://ionicframework.com/",
+  "author": "Inacap", 
+  "homepage": "https://inacap.cl/",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --configuration=local",
@@ -38,6 +38,8 @@
     "@capacitor/status-bar": "8.0.2",
     "@capawesome/capacitor-android-edge-to-edge-support": "^8.0.8",
     "@ionic/angular": "^8.0.0",
+    "@ionic/storage": "^4.0.0",
+    "@ionic/storage-angular": "^4.0.0",
     "ionicons": "^7.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

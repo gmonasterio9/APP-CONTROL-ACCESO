@@ -96,7 +96,7 @@ export class HomePage {
             await loading.present();
             await new Promise(r => setTimeout(r, 800));
             await loading.dismiss();
-            this.authService.logout();
+            await this.authService.logout();
           },
         },
         {

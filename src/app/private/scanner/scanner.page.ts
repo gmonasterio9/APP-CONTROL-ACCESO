@@ -1,5 +1,11 @@
 import { Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
-import { NavController, ModalController, ToastController, LoadingController } from '@ionic/angular';
+import {
+  AlertController,
+  NavController,
+  ModalController,
+  ToastController,
+  LoadingController,
+} from '@ionic/angular';
 import { PluginListenerHandle } from '@capacitor/core';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 
@@ -16,8 +22,8 @@ export class ScannerPage implements OnDestroy {
   @ViewChild('videoRef') videoRef!: ElementRef<HTMLVideoElement>;
 
   procesando      = false;
-  permisoDenegado = false;
   camaraLista     = false;
+  scannerVisible  = false;
 
   private videoStream:   MediaStream | null = null;
   private scanInterval:  any = null;
@@ -27,6 +33,7 @@ export class ScannerPage implements OnDestroy {
   constructor(
     private navCtrl:      NavController,
     private modalCtrl:    ModalController,
+    private alertCtrl:    AlertController,
     private toastCtrl:    ToastController,
     private loadingCtrl:  LoadingController,
     private plateService: PlateRecognizerService,
@@ -34,7 +41,7 @@ export class ScannerPage implements OnDestroy {
   ) {}
 
   async ionViewWillEnter() {
-    await this.iniciarEscaneo();
+    await this.prepararEscaneo();
   }
 
   async ionViewWillLeave() {
@@ -45,9 +52,22 @@ export class ScannerPage implements OnDestroy {
     this.detenerTodo();
   }
 
+  private async prepararEscaneo(): Promise<void> {
+    this.scannerVisible = false;
+    this.detenerTodo();
+
+    const tienePermiso = await this.verificarPermisoCamara();
+    if (!tienePermiso) {
+      await this.mostrarAlertPermisoCamara();
+      return;
+    }
+
+    this.scannerVisible = true;
+    await this.iniciarEscaneo();
+  }
+
   async iniciarEscaneo() {
-    this.permisoDenegado = false;
-    this.camaraLista     = false;
+    this.camaraLista = false;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -65,12 +85,13 @@ export class ScannerPage implements OnDestroy {
         this.iniciarDeteccionQR();
       }, 80);
 
-    } catch (e: any) {
-      if (e?.name === 'NotAllowedError') {
-        this.permisoDenegado = true;
-      } else {
-        await this.iniciarMLKit();
+    } catch (e: unknown) {
+      if (this.esErrorPermisoCamara(e)) {
+        this.scannerVisible = false;
+        await this.mostrarAlertPermisoCamara();
+        return;
       }
+      await this.iniciarMLKit();
     }
   }
 
@@ -104,7 +125,7 @@ export class ScannerPage implements OnDestroy {
     try {
       const permisos = await BarcodeScanner.requestPermissions();
       if (permisos.camera !== 'granted' && permisos.camera !== 'limited') {
-        this.permisoDenegado = true;
+        await this.mostrarAlertPermisoCamara();
         return;
       }
       this.usandoMLKit = true;
@@ -118,7 +139,13 @@ export class ScannerPage implements OnDestroy {
       });
 
       await BarcodeScanner.startScan();
-    } catch {
+      this.scannerVisible = true;
+    } catch (e: unknown) {
+      this.scannerVisible = false;
+      if (this.esErrorPermisoCamara(e)) {
+        await this.mostrarAlertPermisoCamara();
+        return;
+      }
       await this.mostrarError('No se pudo iniciar el escáner.');
     }
   }
@@ -194,7 +221,7 @@ export class ScannerPage implements OnDestroy {
         await loading.dismiss();
       }
       await this.mostrarError('Error al detectar la patente. Intenta de nuevo.');
-      await this.iniciarEscaneo();
+      await this.prepararEscaneo();
     }
 
     this.procesando = false;
@@ -238,7 +265,7 @@ export class ScannerPage implements OnDestroy {
         this.navCtrl.navigateForward('/ingreso-manual');
       }
     } else {
-      await this.iniciarEscaneo();
+      await this.prepararEscaneo();
     }
   }
 
@@ -288,5 +315,74 @@ export class ScannerPage implements OnDestroy {
   private async mostrarError(msg: string) {
     const t = await this.toastCtrl.create({ message: msg, duration: 2500, color: 'danger', position: 'bottom' });
     await t.present();
+  }
+
+  private async verificarPermisoCamara(): Promise<boolean> {
+    try {
+      const estado = await navigator.permissions.query({
+        name: 'camera' as PermissionName,
+      });
+      if (estado.state === 'denied') {
+        return false;
+      }
+      if (estado.state === 'granted') {
+        return true;
+      }
+    } catch {}
+
+    try {
+      const check = await BarcodeScanner.checkPermissions();
+      if (check.camera === 'granted' || check.camera === 'limited') {
+        return true;
+      }
+      if (check.camera === 'denied') {
+        return false;
+      }
+    } catch {}
+
+    try {
+      const permisos = await BarcodeScanner.requestPermissions();
+      return permisos.camera === 'granted' || permisos.camera === 'limited';
+    } catch {
+      return false;
+    }
+  }
+
+  private esErrorPermisoCamara(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+    const nombre = error.name;
+    return (
+      nombre === 'NotAllowedError' ||
+      nombre === 'PermissionDeniedError' ||
+      /permission/i.test(error.message)
+    );
+  }
+
+  private async mostrarAlertPermisoCamara(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      cssClass: 'alert-salida',
+      header: 'Permiso de cámara',
+      message: 'Se necesita permiso de cámara para escanear.',
+      buttons: [
+        {
+          text: 'Volver',
+          cssClass: 'alert-btn-cancelar',
+          role: 'cancel',
+          handler: () => {
+            void this.volver();
+          },
+        },
+        {
+          text: 'Reintentar',
+          cssClass: 'alert-btn-aceptar',
+          handler: () => {
+            void this.prepararEscaneo();
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 }
