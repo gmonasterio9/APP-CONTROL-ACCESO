@@ -37,10 +37,10 @@
     </div>
 
     <div class="im-field-block">
-      <p class="im-label">Vehículo (*)</p>
+      <p class="im-label">Tipo de ingreso <span class="req">(*)</span></p>
       <div class="im-chip-group">
         @for (v of tiposVehiculo; track v.value) {
-          <button class="im-chip"
+          <button type="button" class="im-chip"
             [class.active]="form.get('vehiculo')?.value === v.value"
             (click)="form.get('vehiculo')?.setValue(v.value)">
             @if (form.get('vehiculo')?.value === v.value) {
@@ -56,11 +56,13 @@
       </div>
     </div>
 
-    <div class="im-field-block">
-      <p class="im-label">Patente <span class="req">(*)</span></p>
-      <input class="im-input" formControlName="patente" placeholder="Ingrese patente" />
-      <div class="im-divider"></div>
-    </div>
+    @if (!esPeatonal) {
+      <div class="im-field-block">
+        <p class="im-label">Patente <span class="req">(*)</span></p>
+        <input class="im-input" formControlName="patente" placeholder="Ingrese patente" />
+        <div class="im-divider"></div>
+      </div>
+    }
 
     <div class="im-field-block">
       <p class="im-label">RUT <span class="req">(*)</span></p>

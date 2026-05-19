@@ -23,6 +23,7 @@ export class IngresoManualPage implements OnInit {
   tiposVehiculo = [
     { value: 'auto', label: 'Auto' },
     { value: 'moto', label: 'Moto' },
+    { value: 'peatonal', label: 'Peatonal' },
   ];
 
   constructor(
@@ -43,10 +44,19 @@ export class IngresoManualPage implements OnInit {
       observaciones: ['', Validators.maxLength(this.obsMaxLength)],
     });
 
+    this.form.get('vehiculo')?.valueChanges.subscribe(() => {
+      this.actualizarValidacionPatente();
+    });
+    this.actualizarValidacionPatente();
+
     const nombre = this.route.snapshot.queryParamMap.get('nombre');
     const rut    = this.route.snapshot.queryParamMap.get('rut');
     if (nombre) this.form.patchValue({ nombre });
     if (rut)    this.form.patchValue({ rut });
+  }
+
+  get esPeatonal(): boolean {
+    return this.form?.get('vehiculo')?.value === 'peatonal';
   }
 
   get obsLength(): number {
@@ -82,5 +92,21 @@ export class IngresoManualPage implements OnInit {
 
   volver(): void {
     this.navCtrl.back();
+  }
+
+  private actualizarValidacionPatente(): void {
+    const patente = this.form.get('patente');
+    if (!patente) {
+      return;
+    }
+
+    if (this.esPeatonal) {
+      patente.clearValidators();
+      patente.setValue('', { emitEvent: false });
+    } else {
+      patente.setValidators([Validators.required]);
+    }
+
+    patente.updateValueAndValidity({ emitEvent: false });
   }
 }
