@@ -10,6 +10,8 @@ export interface ScanResultData {
   estado:      ScanEstado;
   nombre?:     string;
   credencial?: string;
+  rut?:        string;
+  perfil?:     string;
   mensaje?:    string;
   plateResult?: PlateResult;
   fotoPreview?: string;
@@ -26,6 +28,8 @@ export class ScanResultModalComponent {
   @Input() estado:      ScanEstado = 'autorizado';
   @Input() nombre?:     string;
   @Input() credencial?: string;
+  @Input() rut?:        string;
+  @Input() perfil?:     string;
   @Input() mensaje?:    string;
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
@@ -61,7 +65,17 @@ export class ScanResultModalComponent {
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
-    this.modalCtrl.dismiss({ via, tipo: this.tipo, estado: this.estado }, 'accion');
+    this.modalCtrl.dismiss(
+      {
+        via,
+        tipo: this.tipo,
+        estado: this.estado,
+        nombre: this.nombre,
+        rut: this.rut ?? this.credencial,
+        perfil: this.perfil,
+      },
+      'accion'
+    );
   }
 
   cerrar() {

@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { LoadingController, NavController, ToastController } from '@ionic/angular';
+import { firstValueFrom } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
+import { ValidarPerfilService } from '../../core/services/validar-perfil.service';
 
 @Component({
   selector: 'app-ingreso-manual',
@@ -32,6 +35,8 @@ export class IngresoManualPage implements OnInit {
     private navCtrl: NavController,
     private loadingCtrl: LoadingController,
     private toastCtrl: ToastController,
+    private validarPerfilService: ValidarPerfilService,
+    private authService: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -50,9 +55,20 @@ export class IngresoManualPage implements OnInit {
     this.actualizarValidacionPatente();
 
     const nombre = this.route.snapshot.queryParamMap.get('nombre');
-    const rut    = this.route.snapshot.queryParamMap.get('rut');
-    if (nombre) this.form.patchValue({ nombre });
-    if (rut)    this.form.patchValue({ rut });
+    const rut = this.route.snapshot.queryParamMap.get('rut');
+    const perfil = this.route.snapshot.queryParamMap.get('perfil');
+    if (nombre) {
+      this.form.patchValue({ nombre });
+    }
+    if (rut) {
+      this.form.patchValue({ rut });
+    }
+    if (perfil) {
+      const tipo = this.tiposPersona.find(t => t.value === perfil.toLowerCase());
+      if (tipo) {
+        this.form.patchValue({ tipoPersona: tipo.value });
+      }
+    }
   }
 
   get esPeatonal(): boolean {
@@ -76,18 +92,51 @@ export class IngresoManualPage implements OnInit {
       return;
     }
 
-    const loading = await this.loadingCtrl.create({ message: 'Registrando ingreso...' });
+    const rut = String(this.form.get('rut')?.value ?? '').trim();
+    const loading = await this.loadingCtrl.create({ message: 'Validando perfil...' });
     await loading.present();
-    await new Promise(r => setTimeout(r, 1000));
-    await loading.dismiss();
 
-    await this.navCtrl.navigateForward('/confirmacion', {
-      queryParams: {
-        nombre: this.form.get('nombre')?.value || null,
-        sede:   'Arica',
-        perfil: this.form.get('tipoPersona')?.value ?? 'Visita',
-      },
-    });
+    try {
+      const res = await firstValueFrom(this.validarPerfilService.validarPorRut(rut));
+      await loading.dismiss();
+
+      if (!res.success) {
+        const toast = await this.toastCtrl.create({
+          message: res.message || 'No se pudo validar el RUT.',
+          duration: 2500,
+          color: 'warning',
+          position: 'bottom',
+        });
+        await toast.present();
+        return;
+      }
+
+      const sede = await this.authService.getSede();
+
+      await this.navCtrl.navigateForward('/confirmacion', {
+        queryParams: {
+          nombre:
+            this.form.get('nombre')?.value ||
+            res.perfilDescripcion ||
+            null,
+          sede: sede?.nombre ?? null,
+          perfil: res.perfilDescripcion || res.perfil || this.form.get('tipoPersona')?.value,
+        },
+      });
+    } catch (err: unknown) {
+      await loading.dismiss();
+      const mensaje =
+        (err as { error?: { message?: string } })?.error?.message ||
+        (err instanceof Error ? err.message : null) ||
+        'Error al validar el RUT.';
+      const toast = await this.toastCtrl.create({
+        message: mensaje,
+        duration: 2500,
+        color: 'danger',
+        position: 'bottom',
+      });
+      await toast.present();
+    }
   }
 
   volver(): void {

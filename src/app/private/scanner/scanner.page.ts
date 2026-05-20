@@ -9,7 +9,10 @@ import {
 import { PluginListenerHandle } from '@capacitor/core';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 
+import { firstValueFrom } from 'rxjs';
 import { PlateRecognizerService } from '../../core/services/plate-recognizer.service';
+import { ValidarPerfilService } from '../../core/services/validar-perfil.service';
+import { ValidarPerfilResponse } from '../../core/models/validar-perfil.model';
 import { ScanResultModalComponent, ScanTipo, ScanEstado } from './scan-result-modal/scan-result-modal.component';
 
 @Component({
@@ -37,7 +40,8 @@ export class ScannerPage implements OnDestroy {
     private toastCtrl:    ToastController,
     private loadingCtrl:  LoadingController,
     private plateService: PlateRecognizerService,
-    private zone:         NgZone,
+    private validarPerfilService: ValidarPerfilService,
+    private zone: NgZone,
   ) {}
 
   async ionViewWillEnter() {
@@ -155,16 +159,31 @@ export class ScannerPage implements OnDestroy {
     this.procesando = true;
     this.detenerDeteccion();
 
-    const tipo: ScanTipo = this.esPatente(valor) ? 'patente' : 'credencial';
-
-    if (tipo === 'patente') {
+    if (this.esPatente(valor)) {
       await this.mostrarResultadoModal({
         tipo: 'patente',
         estado: 'autorizado',
         plateResult: { plate: valor.toUpperCase(), score: 1, region: 'cl', vehicleType: '' },
       });
-    } else {
-      await this.mostrarResultadoModal(this.validarQR(valor));
+      this.procesando = false;
+      return;
+    }
+
+    const loading = await this.loadingCtrl.create({ message: 'Validando perfil...' });
+    await loading.present();
+
+    try {
+      const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(valor));
+      await loading.dismiss();
+      await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
+    } catch (err: unknown) {
+      await loading.dismiss();
+      const mensaje = this.extraerMensajeError(err) || 'No se pudo validar el código.';
+      await this.mostrarResultadoModal({
+        tipo: 'credencial',
+        estado: 'no_autorizado',
+        mensaje,
+      });
     }
 
     this.procesando = false;
@@ -237,6 +256,8 @@ export class ScannerPage implements OnDestroy {
     estado?: ScanEstado;
     nombre?: string;
     credencial?: string;
+    rut?: string;
+    perfil?: string;
     mensaje?: string;
     plateResult?: any;
     fotoPreview?: string;
@@ -249,6 +270,8 @@ export class ScannerPage implements OnDestroy {
         estado:      data.estado ?? 'autorizado',
         nombre:      data.nombre,
         credencial:  data.credencial,
+        rut:         data.rut,
+        perfil:      data.perfil,
         mensaje:     data.mensaje,
         plateResult: data.plateResult,
         fotoPreview: data.fotoPreview,
@@ -262,7 +285,8 @@ export class ScannerPage implements OnDestroy {
       if (resp?.via === 'estacionamiento') {
         this.navCtrl.navigateForward('/estacionamiento');
       } else if (resp?.via === 'peatonal') {
-        this.navCtrl.navigateForward('/ingreso-manual');
+        this.navCtrl.navigateForward('/ingreso-manual', {
+        });
       }
     } else {
       await this.prepararEscaneo();
@@ -298,18 +322,48 @@ export class ScannerPage implements OnDestroy {
     return /^[A-Za-z]{2,4}\d{2,4}$/.test(valor.trim());
   }
 
-  private validarQR(valor: string): { tipo: ScanTipo; estado: ScanEstado; nombre?: string; credencial?: string } {
-    if (valor.startsWith('CRED:')) {
-      const p = valor.replace('CRED:', '').split('|');
-      return { tipo: 'credencial', estado: 'autorizado', nombre: p[0], credencial: p[1] };
+  private mapValidarPerfilToModal(res: ValidarPerfilResponse): {
+    tipo: ScanTipo;
+    estado: ScanEstado;
+    nombre?: string;
+    credencial?: string;
+    rut?: string;
+    perfil?: string;
+    mensaje?: string;
+  } {
+    const base = {
+      tipo: 'credencial' as const,
+      nombre: res.perfilDescripcion,
+      credencial: res.rut,
+      rut: res.rut,
+      perfil: res.perfil,
+      mensaje: res.message,
+    };
+
+    if (res.success && !res.ingresarManual) {
+      return { ...base, estado: 'autorizado' };
     }
-    if (valor.startsWith('EXPI:')) {
-      return { tipo: 'credencial', estado: 'expirado' };
+
+    return {
+      ...base,
+      estado: 'no_autorizado',
+      mensaje:
+        res.message ||
+        'La persona no pertenece a INACAP. Debe ingresarla como visita.',
+    };
+  }
+
+  private extraerMensajeError(err: unknown): string | null {
+    if (err && typeof err === 'object' && 'error' in err) {
+      const body = (err as { error?: { message?: string } }).error;
+      if (body?.message) {
+        return body.message;
+      }
     }
-    if (valor.startsWith('VISITA:')) {
-      return { tipo: 'cedula', estado: 'no_autorizado', credencial: valor.replace('VISITA:', '') };
+    if (err instanceof Error && err.message) {
+      return err.message;
     }
-    return { tipo: 'credencial', estado: 'no_autorizado' };
+    return null;
   }
 
   private async mostrarError(msg: string) {
