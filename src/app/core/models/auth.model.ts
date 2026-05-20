@@ -11,6 +11,12 @@ export interface RefreshApiResponse {
   refresh: string;
 }
 
+export interface LogoutApiResponse {
+  success: boolean;
+  code: number;
+  message: string;
+}
+
 export interface AuthUser {
   nombre: string;
   sedeId: number;

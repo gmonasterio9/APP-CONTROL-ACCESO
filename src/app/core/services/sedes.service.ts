@@ -1,17 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Sede, SedesApiResponse } from '../models/sede.model';
-import { apiEndpoint } from '../utils/api-endpoint.util';
+import { ApiHttpService } from './api-http.service';
 
 @Injectable({ providedIn: 'root' })
 export class SedesService {
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiHttpService) {}
 
   getSedes(): Observable<Sede[]> {
-    return this.http
-      .get<SedesApiResponse>(apiEndpoint('/api/sedes'))
+    return this.api
+      .get<SedesApiResponse>('/sedes')
       .pipe(
         map(res =>
           (res.sedes ?? []).map(item => ({

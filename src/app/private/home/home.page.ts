@@ -94,9 +94,11 @@ export class HomePage {
           handler: async () => {
             const loading = await this.loadingCtrl.create({ message: 'Cerrando sesión...' });
             await loading.present();
-            await new Promise(r => setTimeout(r, 800));
-            await loading.dismiss();
-            await this.authService.logout();
+            try {
+              await this.authService.logout();
+            } finally {
+              await loading.dismiss();
+            }
           },
         },
         {

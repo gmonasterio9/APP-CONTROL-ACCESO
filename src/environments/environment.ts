@@ -1,5 +1,5 @@
 export const environment = {
   production: false,
   name: 'local',
-  apiUrl: '',
+  apiUrl: '/api/v1',
 };

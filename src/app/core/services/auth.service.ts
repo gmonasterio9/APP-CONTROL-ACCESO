@@ -1,16 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, from, throwError } from 'rxjs';
+import { firstValueFrom, Observable, from, throwError } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Sede } from '../models/sede.model';
 import {
   AuthUser,
   LoginApiResponse,
+  LogoutApiResponse,
   RefreshApiResponse,
 } from '../models/auth.model';
-import { apiEndpoint } from '../utils/api-endpoint.util';
 import { AppStorageService } from './app-storage.service';
+import { ApiHttpService } from './api-http.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -20,14 +20,14 @@ export class AuthService {
   private readonly SEDE_KEY = 'auth_sede';
 
   constructor(
-    private http: HttpClient,
     private router: Router,
-    private storage: AppStorageService
+    private storage: AppStorageService,
+    private api: ApiHttpService
   ) {}
 
   loginWithPin(pin: string, sedeId: number): Observable<LoginApiResponse> {
-    return this.http
-      .post<LoginApiResponse>(apiEndpoint('/api/login'), {
+    return this.api
+      .postPublic<LoginApiResponse>('/login', {
         sede: sedeId,
         pin: Number(pin),
       })
@@ -40,9 +40,7 @@ export class AuthService {
         if (!refresh) {
           return throwError(() => new Error('Sin refresh token'));
         }
-        return this.http.post<RefreshApiResponse>(apiEndpoint('/api/refresh'), {
-          refresh,
-        });
+        return this.api.postPublic<RefreshApiResponse>('/refresh', { refresh });
       }),
       switchMap(res => from(this.persistTokens(res.access_token, res.refresh)).pipe(
         switchMap(() => from([res]))
@@ -59,6 +57,20 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    const token = await this.getAccessToken();
+    if (token) {
+      try {
+        await firstValueFrom(
+          this.api.post<LogoutApiResponse>('/logout', {})
+        );
+      } catch {
+        console.error('Error al cerrar sesión');
+      }
+    }
+    await this.clearLocalSession();
+  }
+  
+  async clearLocalSession(): Promise<void> {
     await Promise.all([
       this.storage.remove(this.ACCESS_TOKEN_KEY),
       this.storage.remove(this.REFRESH_TOKEN_KEY),

@@ -1,25 +1,21 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import {
   ValidarPerfilRequest,
   ValidarPerfilResponse,
 } from '../models/validar-perfil.model';
-import { apiEndpoint } from '../utils/api-endpoint.util';
 import {
   buildValidarPerfilBodyFromScan,
   normalizeRutManual,
 } from '../utils/qr-perfil.util';
+import { ApiHttpService } from './api-http.service';
 
 @Injectable({ providedIn: 'root' })
 export class ValidarPerfilService {
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiHttpService) {}
 
   validar(body: ValidarPerfilRequest): Observable<ValidarPerfilResponse> {
-    return this.http.post<ValidarPerfilResponse>(
-      apiEndpoint('/api/validar-perfil'),
-      body
-    );
+    return this.api.post<ValidarPerfilResponse>('/validar-perfil', body);
   }
 
   validarEscaneo(rawQr: string): Observable<ValidarPerfilResponse> {
