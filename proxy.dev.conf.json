@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "https://siga.desa.inacap.cl/Inacap.Api.Control.Acceso.V2",
+    "target": "https://siga.desa.inacap.cl/Inacap.Api.ControlAcceso.V2",
     "secure": true,
     "changeOrigin": true,
     "logLevel": "debug"

@@ -10,7 +10,7 @@ export class SedesService {
 
   getSedes(): Observable<Sede[]> {
     return this.api
-      .get<SedesApiResponse>('/sedes')
+      .getPublic<SedesApiResponse>('/sedes')
       .pipe(
         map(res =>
           (res.sedes ?? []).map(item => ({
