@@ -5,7 +5,12 @@
       <ion-icon name="checkmark" class="conf-check"></ion-icon>
     </div>
 
-    <h1 class="conf-titulo">Ingreso Registrado</h1>
+    @if (perfil === 'Visita') {
+      <h1 class="conf-titulo">Visita Registrado</h1>
+    } @else {
+      <h1 class="conf-titulo">Ingreso Registrado</h1>
+    }
+
 
     @if (nombre) {
       <p class="conf-nombre">{{ nombre }}</p>

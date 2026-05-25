@@ -43,29 +43,40 @@
 
   @if (segmentoActivo === 'estacionamientos') {
     <div class="lista-section">
-      @for (e of estacionamientos; track e.id) {
-        <div class="item-card" (click)="verDetalleEstacionamiento(e)">
-          <div class="item-header">
-            <div class="item-icon-wrap">
-              <img src="assets/svg/estacionamiento.svg" class="item-svg" />
+      @if (cargandoEstacionamientos) {
+        <p class="lista-estado">Cargando estacionamientos...</p>
+      } @else if (errorEstacionamientos) {
+        <p class="lista-estado lista-estado--error">{{ errorEstacionamientos }}</p>
+        <ion-button fill="outline" size="small" (click)="cargarEstacionamientos()">
+          Reintentar
+        </ion-button>
+      } @else if (estacionamientos.length === 0) {
+        <p class="lista-estado">No hay estacionamientos para esta sede.</p>
+      } @else {
+        @for (e of estacionamientos; track e.id) {
+          <div class="item-card" (click)="verDetalleEstacionamiento(e)">
+            <div class="item-header">
+              <div class="item-icon-wrap">
+                <img src="assets/svg/estacionamiento.svg" class="item-svg" />
+              </div>
+              <div class="item-info">
+                <p class="item-nombre">{{ e.nombre }}</p>
+                <p class="item-ubicacion">
+                  <img src="assets/svg/location.svg" class="location-svg" />
+                  {{ e.ubicacion }}
+                </p>
+              </div>
+              <img src="assets/svg/arrow-right.svg" class="item-arrow" />
             </div>
-            <div class="item-info">
-              <p class="item-nombre">{{ e.nombre }}</p>
-              <p class="item-ubicacion">
-                <img src="assets/svg/location.svg" class="location-svg" />
-                {{ e.ubicacion }}
-              </p>
+            <p class="item-cupos">{{ e.cuposDisponibles }} de {{ e.cuposTotales }} cupos disponibles</p>
+            <div class="barra-fondo">
+              <div class="barra-fill"
+                [style.width.%]="porcentaje(e)"
+                [style.background]="colorBarra(e)">
+              </div>
             </div>
-            <img src="assets/svg/arrow-right.svg" class="item-arrow" />
           </div>
-          <p class="item-cupos">{{ e.cuposDisponibles }} de {{ e.cuposTotales }} cupos disponibles</p>
-          <div class="barra-fondo">
-            <div class="barra-fill"
-              [style.width.%]="porcentaje(e)"
-              [style.background]="colorBarra(e)">
-            </div>
-          </div>
-        </div>
+        }
       }
     </div>
   }

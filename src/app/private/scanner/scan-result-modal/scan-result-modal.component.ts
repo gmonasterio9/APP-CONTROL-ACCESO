@@ -3,7 +3,7 @@ import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 
 export type ScanTipo    = 'credencial' | 'cedula' | 'patente';
-export type ScanEstado  = 'autorizado' | 'no_autorizado' | 'expirado';
+export type ScanEstado  = 'autorizado' | 'no_autorizado' | 'manual';
 
 export interface ScanResultData {
   tipo:        ScanTipo;
@@ -37,18 +37,24 @@ export class ScanResultModalComponent {
   constructor(private modalCtrl: ModalController) {}
 
   get iconoEstado(): string {
-    return { autorizado: 'checkmark', no_autorizado: 'close', expirado: 'warning' }[this.estado];
+    return { autorizado: 'checkmark', no_autorizado: 'close', manual: 'warning' }[this.estado];
   }
 
   get colorEstado(): string {
-    return { autorizado: '#4CAF50', no_autorizado: '#CC0000', expirado: '#FFA000' }[this.estado];
+    return { autorizado: '#4CAF50', no_autorizado: '#CC0000', manual: '#FFA000' }[this.estado];
   }
 
   get titulo(): string {
     if (this.tipo === 'patente') {
-      return this.plateResult ? 'Acceso Autorizado' : 'Acceso No Autorizado';
+      return this.estado === 'autorizado'
+        ? 'Acceso Autorizado'
+        : 'Acceso No Autorizado';
     }
-    return { autorizado: 'Acceso Autorizado', no_autorizado: 'Acceso No Autorizado', expirado: 'Código QR Expirado' }[this.estado];
+    return {
+      autorizado: 'Acceso Autorizado',
+      no_autorizado: 'Acceso No Autorizado',
+      manual: 'Ingreso manual',
+    }[this.estado];
   }
 
   get subtitulo(): string {
@@ -56,12 +62,15 @@ export class ScanResultModalComponent {
     return {
       autorizado:      '',
       no_autorizado:   'La persona no pertenece a INACAP. Debe ingresarla como visita.',
-      expirado:        'Solicitar mostrar la credencial desde la APP INACAP. Si el problema persiste solicitar Cédula de Identidad.',
+      manual:
+        'Solicitar mostrar la credencial desde la APP INACAP. Si el problema persiste solicitar Cédula de Identidad.',
     }[this.estado];
   }
 
   get preguntaAcceso(): string {
-    return this.estado === 'no_autorizado' ? '¿Cómo ingresa el visitante?' : '¿Cómo ingresa?';
+    return this.estado === 'no_autorizado' || this.estado === 'manual'
+      ? '¿Cómo ingresa el visitante?'
+      : '¿Cómo ingresa?';
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {

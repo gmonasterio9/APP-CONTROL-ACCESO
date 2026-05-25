@@ -1,5 +1,5 @@
 export const environment = {
   production: false,
   name: 'dev',
-  apiUrl: 'https://API_DEV_URL_AQUI/api/v1',
+  apiUrl: 'https://siga.desa.inacap.cl/Inacap.Api.Control.Acceso.V2/api/v1',
 };

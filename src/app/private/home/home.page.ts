@@ -1,14 +1,15 @@
 import { Component } from '@angular/core';
-import { ActionSheetController, LoadingController, NavController } from '@ionic/angular';
+import {
+  ActionSheetController,
+  LoadingController,
+  NavController,
+  ToastController,
+} from '@ionic/angular';
+import { firstValueFrom } from 'rxjs';
+import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
+import { ApiHttpError } from '../../core/services/api-http.service';
 import { AuthService } from '../../core/services/auth.service';
-
-export interface Estacionamiento {
-  id: number;
-  nombre: string;
-  ubicacion: string;
-  cuposDisponibles: number;
-  cuposTotales: number;
-}
+import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 
 export interface AccesoPeatonal {
   id: number;
@@ -28,40 +29,47 @@ export class HomePage {
 
   tiposEscaneo = [
     { id: 'credencial', label: 'Credencial', svg: 'assets/svg/credencial.svg', color: '#FEEB80' },
-    { id: 'cedula',     label: 'Cédula',     svg: 'assets/svg/cedula.svg',     color: '#A7B0F1' },
-    { id: 'patente',    label: 'Patente',    svg: 'assets/svg/patente.svg',    color: '#FFB066' },
+    { id: 'cedula', label: 'Cédula', svg: 'assets/svg/cedula.svg', color: '#A7B0F1' },
+    { id: 'patente', label: 'Patente', svg: 'assets/svg/patente.svg', color: '#FFB066' },
   ];
 
-  estacionamientos: Estacionamiento[] = [
-    { id: 1, nombre: 'Estacionamiento Principal',   ubicacion: 'Entrada Av. Vitacura',      cuposDisponibles: 71, cuposTotales: 75 },
-    { id: 2, nombre: 'Estacionamiento Norte',        ubicacion: 'Sector Talleres',            cuposDisponibles: 11, cuposTotales: 75 },
-    { id: 3, nombre: 'Estacionamiento Subterráneo',  ubicacion: 'Edificio Central - Subsuelo', cuposDisponibles: 46, cuposTotales: 55 },
-  ];
+  estacionamientos: EstacionamientoCard[] = [];
+  cargandoEstacionamientos = false;
+  errorEstacionamientos: string | null = null;
 
   accesosPeatonales: AccesoPeatonal[] = [
     { id: 1, nombre: 'Entrada Principal', ubicacion: 'Acceso Av. Vitacura', estado: 'Abierto' },
-    { id: 2, nombre: 'Entrada Norte',     ubicacion: 'Sector Talleres',     estado: 'Abierto' },
+    { id: 2, nombre: 'Entrada Norte', ubicacion: 'Sector Talleres', estado: 'Abierto' },
   ];
 
   statsPeatonal = [
     { valor: 142, label: 'Autorizados', color: '#2ECC71' },
-    { valor: 3,   label: 'Expirados',   color: '#F39C12' },
-    { valor: 5,   label: 'Visitas',     color: '#2563EB' },
+    { valor: 3, label: 'Ingreso Manual', color: '#F39C12' },
+    { valor: 5, label: 'Visitas', color: '#2563EB' },
   ];
 
   constructor(
     private authService: AuthService,
+    private estacionamientoService: EstacionamientoService,
     private actionSheetCtrl: ActionSheetController,
     private loadingCtrl: LoadingController,
-    public navCtrl: NavController,
+    private toastCtrl: ToastController,
+    public navCtrl: NavController
   ) {}
 
-  porcentaje(item: Estacionamiento): number {
+  ionViewWillEnter(): void {
+    void this.cargarEstacionamientos();
+  }
+
+  porcentaje(item: EstacionamientoCard): number {
+    if (!item.cuposTotales) {
+      return 0;
+    }
     return Math.round((item.cuposDisponibles / item.cuposTotales) * 100);
   }
 
-  colorBarra(_item: Estacionamiento): string {
-    return '#4CAF50';
+  colorBarra(item: EstacionamientoCard): string {
+    return item.cuposDisponibles > 0 ? '#4CAF50' : '#CC0000';
   }
 
   abrirScanner(): void {
@@ -76,10 +84,31 @@ export class HomePage {
     this.navCtrl.navigateForward('/ingreso-manual');
   }
 
-  verDetalleEstacionamiento(e: Estacionamiento): void {
+  verDetalleEstacionamiento(e: EstacionamientoCard): void {
     this.navCtrl.navigateForward('/estacionamiento-detalle', {
-      queryParams: { nombre: e.nombre, ubicacion: e.ubicacion },
+      queryParams: {
+        aeseNcorr: e.id,
+        nombre: e.nombre,
+        ubicacion: e.ubicacion,
+      },
     });
+  }
+
+  async cargarEstacionamientos(): Promise<void> {
+    this.cargandoEstacionamientos = true;
+    this.errorEstacionamientos = null;
+
+    try {
+      this.estacionamientos = await firstValueFrom(
+        this.estacionamientoService.listar()
+      );
+    } catch (err: unknown) {
+      this.estacionamientos = [];
+      this.errorEstacionamientos =
+        this.extraerMensajeError(err) || 'No se pudieron cargar los estacionamientos.';
+    } finally {
+      this.cargandoEstacionamientos = false;
+    }
   }
 
   async cerrarSesion(): Promise<void> {
@@ -92,7 +121,9 @@ export class HomePage {
           role: 'destructive',
           icon: 'log-out-outline',
           handler: async () => {
-            const loading = await this.loadingCtrl.create({ message: 'Cerrando sesión...' });
+            const loading = await this.loadingCtrl.create({
+              message: 'Cerrando sesión...',
+            });
             await loading.present();
             try {
               await this.authService.logout();
@@ -110,5 +141,16 @@ export class HomePage {
       ],
     });
     await sheet.present();
+  }
+
+  private extraerMensajeError(err: unknown): string | null {
+    const apiErr = err as ApiHttpError;
+    if (apiErr?.message) {
+      return apiErr.message;
+    }
+    if (err instanceof Error && err.message) {
+      return err.message;
+    }
+    return null;
   }
 }

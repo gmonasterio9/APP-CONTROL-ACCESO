@@ -4,13 +4,13 @@
       <ion-icon [name]="iconoEstado + '-outline'"></ion-icon>
     </div>
     <h2 class="modal-titulo">{{ titulo }}</h2>
-    @if (nombre && estado === 'autorizado') {
+    @if (nombre && (estado === 'autorizado' || estado === 'manual')) {
       <p class="modal-nombre">{{ nombre }}</p>
     }
 
     @if (tipo === 'patente' && plateResult) {
       <p class="modal-credencial">{{ plateResult.plate }}</p>
-    } @else if (credencial && estado === 'autorizado') {
+    } @else if (credencial && (estado === 'autorizado' || estado === 'manual')) {
       <p class="modal-credencial">{{ credencial }}</p>
     }
 

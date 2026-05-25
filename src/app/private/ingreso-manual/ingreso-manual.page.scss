@@ -18,7 +18,6 @@
 
 .im-header-block {
   background: #ffffff;
-  border-radius: 0 0 12px 12px;
   padding: 20px 16px 16px;
 }
 
@@ -120,6 +119,16 @@
   height: 1px;
   background: #E4E7EC;
   margin-top: 8px;
+}
+
+.im-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6a7282;
+
+  &--error {
+    color: #cc0000;
+  }
 }
 
 .im-obs-header {

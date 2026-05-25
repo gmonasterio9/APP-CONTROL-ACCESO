@@ -10,9 +10,12 @@ import { PluginListenerHandle } from '@capacitor/core';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 
 import { firstValueFrom } from 'rxjs';
-import { PlateRecognizerService } from '../../core/services/plate-recognizer.service';
+import { PlateRecognizerService, PlateResult } from '../../core/services/plate-recognizer.service';
 import { ValidarPerfilService } from '../../core/services/validar-perfil.service';
+import { ValidarPatenteService } from '../../core/services/validar-patente.service';
 import { ValidarPerfilResponse } from '../../core/models/validar-perfil.model';
+import { ValidarPatenteResponse } from '../../core/models/validar-patente.model';
+import { ApiHttpError } from '../../core/services/api-http.service';
 import { ScanResultModalComponent, ScanTipo, ScanEstado } from './scan-result-modal/scan-result-modal.component';
 
 @Component({
@@ -41,6 +44,7 @@ export class ScannerPage implements OnDestroy {
     private loadingCtrl:  LoadingController,
     private plateService: PlateRecognizerService,
     private validarPerfilService: ValidarPerfilService,
+    private validarPatenteService: ValidarPatenteService,
     private zone: NgZone,
   ) {}
 
@@ -160,11 +164,7 @@ export class ScannerPage implements OnDestroy {
     this.detenerDeteccion();
 
     if (this.esPatente(valor)) {
-      await this.mostrarResultadoModal({
-        tipo: 'patente',
-        estado: 'autorizado',
-        plateResult: { plate: valor.toUpperCase(), score: 1, region: 'cl', vehicleType: '' },
-      });
+      await this.validarPatenteEscaneada(valor);
       this.procesando = false;
       return;
     }
@@ -213,7 +213,7 @@ export class ScannerPage implements OnDestroy {
       }
 
       loading = await this.loadingCtrl.create({
-        message: 'Cargando...',
+        message: 'Detectando patente...',
         spinner: 'crescent',
       });
       await loading.present();
@@ -223,17 +223,14 @@ export class ScannerPage implements OnDestroy {
       await loading.dismiss();
       loading = null;
 
-      if (!plateResult) {
+      if (!plateResult?.plate) {
         await this.mostrarResultadoModal({
-          tipo:   'patente',
+          tipo: 'patente',
           estado: 'no_autorizado',
+          mensaje: 'No se detectó la patente en la imagen.',
         });
       } else {
-        await this.mostrarResultadoModal({
-          tipo:        'patente',
-          estado:      'autorizado',
-          plateResult,
-        });
+        await this.validarPatenteEscaneada(plateResult.plate);
       }
     } catch {
       if (loading) {
@@ -286,6 +283,11 @@ export class ScannerPage implements OnDestroy {
         this.navCtrl.navigateForward('/estacionamiento');
       } else if (resp?.via === 'peatonal') {
         this.navCtrl.navigateForward('/ingreso-manual', {
+          queryParams: {
+            rut: resp.rut ?? null,
+            nombre: resp.nombre ?? null,
+            perfil: resp.perfil ?? null,
+          },
         });
       }
     } else {
@@ -318,6 +320,65 @@ export class ScannerPage implements OnDestroy {
     this.detenerVideoStream();
   }
 
+  private async validarPatenteEscaneada(patenteRaw: string): Promise<void> {
+    const patente = patenteRaw.trim().toUpperCase();
+    const loading = await this.loadingCtrl.create({ message: 'Validando patente...' });
+    await loading.present();
+
+    try {
+      const res = await firstValueFrom(this.validarPatenteService.validar(patente));
+      await loading.dismiss();
+      await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
+    } catch (err: unknown) {
+      await loading.dismiss();
+      const mensaje = this.extraerMensajeError(err) || 'No se pudo validar la patente.';
+      await this.mostrarResultadoModal({
+        tipo: 'patente',
+        estado: 'no_autorizado',
+        mensaje,
+        plateResult: this.toPlateResult(patente),
+      });
+    }
+  }
+
+  private mapValidarPatenteToModal(
+    res: ValidarPatenteResponse,
+    patenteFallback: string
+  ): {
+    tipo: ScanTipo;
+    estado: ScanEstado;
+    mensaje?: string;
+    plateResult?: PlateResult;
+  } {
+    const patente = (res.patente ?? patenteFallback).toUpperCase();
+    const plateResult = this.toPlateResult(patente);
+
+    if (res.success) {
+      return {
+        tipo: 'patente',
+        estado: 'autorizado',
+        mensaje: res.message,
+        plateResult,
+      };
+    }
+
+    return {
+      tipo: 'patente',
+      estado: 'no_autorizado',
+      mensaje: res.message || 'Patente no autorizada.',
+      plateResult,
+    };
+  }
+
+  private toPlateResult(patente: string): PlateResult {
+    return {
+      plate: patente.toUpperCase(),
+      score: 1,
+      region: 'cl',
+      vehicleType: '',
+    };
+  }
+
   private esPatente(valor: string): boolean {
     return /^[A-Za-z]{2,4}\d{2,4}$/.test(valor.trim());
   }
@@ -344,6 +405,10 @@ export class ScannerPage implements OnDestroy {
       return { ...base, estado: 'autorizado' };
     }
 
+    if (res.ingresarManual) {
+      return { ...base, estado: 'manual' };
+    }
+
     return {
       ...base,
       estado: 'no_autorizado',
@@ -354,9 +419,13 @@ export class ScannerPage implements OnDestroy {
   }
 
   private extraerMensajeError(err: unknown): string | null {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
-      if (body?.message) {
+    const apiErr = err as ApiHttpError;
+    if (apiErr?.message) {
+      return apiErr.message;
+    }
+    if (apiErr?.error && typeof apiErr.error === 'object' && apiErr.error !== null) {
+      const body = apiErr.error as { message?: string };
+      if (body.message) {
         return body.message;
       }
     }

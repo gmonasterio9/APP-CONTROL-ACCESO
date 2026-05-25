@@ -39,11 +39,11 @@
     <div class="im-field-block">
       <p class="im-label">Tipo de ingreso <span class="req">(*)</span></p>
       <div class="im-chip-group">
-        @for (v of tiposVehiculo; track v.value) {
+        @for (v of tiposMedio; track v.value) {
           <button type="button" class="im-chip"
-            [class.active]="form.get('vehiculo')?.value === v.value"
-            (click)="form.get('vehiculo')?.setValue(v.value)">
-            @if (form.get('vehiculo')?.value === v.value) {
+            [class.active]="form.get('tipoMedio')?.value === v.value"
+            (click)="form.get('tipoMedio')?.setValue(v.value)">
+            @if (form.get('tipoMedio')?.value === v.value) {
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M7 14C5.61553 14 4.26215 13.5895 3.11101 12.8203C1.95987 12.0511 1.06266 10.9579 0.532846 9.67879C0.00303298 8.3997 -0.13559 6.99224 0.134506 5.63437C0.404603 4.2765 1.07129 3.02922 2.05026 2.05026C3.02922 1.07129 4.2765 0.404603 5.63437 0.134506C6.99224 -0.13559 8.3997 0.00303298 9.67879 0.532846C10.9579 1.06266 12.0511 1.95987 12.8203 3.11101C13.5895 4.26215 14 5.61553 14 7C13.998 8.85589 13.2598 10.6352 11.9475 11.9475C10.6352 13.2598 8.85589 13.998 7 14ZM3.087 6.013L2.1 7L5.6 10.5L11.2 4.9L10.213 3.906L5.6 8.519L3.087 6.013Z" fill="#1D78BF"/>
               </svg>
@@ -56,22 +56,39 @@
       </div>
     </div>
 
-    @if (!esPeatonal) {
+    @if (requierePatente) {
       <div class="im-field-block">
         <p class="im-label">Patente <span class="req">(*)</span></p>
-        <input class="im-input" formControlName="patente" placeholder="Ingrese patente" />
+        <input
+          class="im-input"
+          formControlName="patente"
+          placeholder="XX-XX-XX"
+          maxlength="8"
+          autocapitalize="characters"
+          (input)="onPatenteInput($event)" />
+        @if (form.get('patente')?.touched && form.get('patente')?.hasError('patenteFormato')) {
+          <p class="im-hint im-hint--error">Formato: PT-CL-21 (6 caracteres)</p>
+        }
         <div class="im-divider"></div>
       </div>
     }
 
     <div class="im-field-block">
       <p class="im-label">RUT <span class="req">(*)</span></p>
-      <input class="im-input" formControlName="rut" placeholder="Ingrese RUT" />
+      <input
+        class="im-input"
+        formControlName="rut"
+        placeholder="XX.XXX.XXX-X"
+        maxlength="12"
+        (input)="onRutInput($event)" />
+      @if (form.get('rut')?.touched && form.get('rut')?.hasError('rutFormato')) {
+        <p class="im-hint im-hint--error">Formato: 20.497.490-K</p>
+      }
       <div class="im-divider"></div>
     </div>
 
     <div class="im-field-block">
-      <p class="im-label">Nombre</p>
+      <p class="im-label">Nombre <span class="req">(*)</span></p>
       <input class="im-input" formControlName="nombre" placeholder="Ingrese nombre" />
       <div class="im-divider"></div>
     </div>

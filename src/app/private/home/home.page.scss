@@ -199,6 +199,17 @@
   gap: var(--spacing-sm);
 }
 
+.lista-estado {
+  text-align: center;
+  color: #6a7282;
+  font-size: 14px;
+  margin: 12px 0;
+
+  &--error {
+    color: #cc0000;
+  }
+}
+
 .item-card {
   background: var(--color-surface);
   border-radius: var(--radius-md);
