@@ -3,7 +3,7 @@
     <div class="estado-circle" [style.background]="colorEstado">
       <ion-icon [name]="iconoEstado + '-outline'"></ion-icon>
     </div>
-    <h2 class="modal-titulo">{{ titulo }}</h2>
+    <h2 class="modal-titulo">{{ tituloModal }}</h2>
     @if (nombre && (estado === 'autorizado' || estado === 'manual')) {
       <p class="modal-nombre">{{ nombre }}</p>
     }

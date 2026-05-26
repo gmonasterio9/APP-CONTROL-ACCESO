@@ -48,6 +48,17 @@
   gap: 12px;
 }
 
+.lista-estado {
+  text-align: center;
+  color: #6a7282;
+  font-size: 14px;
+  margin: 12px 0;
+
+  &--error {
+    color: #cc0000;
+  }
+}
+
 .est-card {
   background: #ffffff;
   border-radius: 12px;

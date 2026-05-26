@@ -5,9 +5,14 @@ export type ValidarPerfilRequest =
 
 export interface ValidarPerfilResponse {
   success: boolean;
-  perfil?: string;
+  perfil?: string | number;
   perfilDescripcion?: string;
-  rut?: string;
+  rut?: string | null;
+  nombreCompleto?: string | null;
+  persNcorr?: number;
+  codigoCredencial?: string | null;
   message?: string;
-  ingresarManual?: boolean;
+  messages?: string[];
+  ingresarManual?: boolean | string | number;
+  credencialExpirada?: boolean | string | number;
 }

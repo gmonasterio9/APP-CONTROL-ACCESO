@@ -1,12 +1,13 @@
 {
   "name": "APP-CONTROL-ACCESO",
   "version": "0.0.1",
-  "author": "Inacap", 
+  "author": "Inacap",
   "homepage": "https://inacap.cl/",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --configuration=local",
-    "start:dev": "ng serve --configuration=dev",
+    "start:dev": "ng build --configuration=dev",
+    "serve:dev": "ng serve --configuration=dev",
     "start:test": "ng serve --configuration=test",
     "start:prod": "ng serve --configuration=production",
     "build": "ng build --configuration=local",

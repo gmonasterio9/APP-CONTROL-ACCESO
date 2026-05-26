@@ -2,29 +2,35 @@ import { ValidarPerfilRequest } from '../models/validar-perfil.model';
 
 const SIDIV_HOST = 'portal.sidiv.registrocivil.cl';
 
-export function buildValidarPerfilBodyFromScan(
-  raw: string
-): ValidarPerfilRequest | null {
+export function buildValidarPerfilBodyFromScan(raw: string): ValidarPerfilRequest {
   const value = raw.trim();
   if (!value) {
-    return null;
+    return { qr: raw };
   }
 
   if (value.includes('BEGIN:VCARD')) {
     const email = extractVCardEmail(value);
-    return email ? { email } : null;
+    if (email) {
+      return { email };
+    }
   }
 
   if (isSidivUrl(value)) {
     const rut = extractRutFromSidivUrl(value);
-    return rut ? { rut } : null;
+    if (rut) {
+      return { rut };
+    }
   }
 
   if (isCredencialVirtualQr(value)) {
     return { qr: value };
   }
 
-  return null;
+  if (isRutEscaneado(value)) {
+    return { rut: normalizeRutManual(value) };
+  }
+
+  return { qr: value };
 }
 
 export function normalizeRutManual(value: string): string {
@@ -76,4 +82,9 @@ function isCredencialVirtualQr(value: string): boolean {
     return false;
   }
   return /^[A-Za-z0-9+/=]+$/.test(value) && value.length >= 16;
+}
+
+function isRutEscaneado(value: string): boolean {
+  const cleaned = value.replace(/\./g, '').trim().toUpperCase();
+  return /^\d{7,8}-[\dkK]$/.test(cleaned) || /^\d{7,9}$/.test(cleaned);
 }

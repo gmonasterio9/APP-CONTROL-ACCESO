@@ -40,6 +40,14 @@
   background: transparent;
 }
 
+.sedes-empty {
+  margin: var(--spacing-md) var(--spacing-md) 0;
+  padding: var(--spacing-lg) var(--spacing-md);
+  color: var(--color-subtitle);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
 .sede-option {
   --background: transparent;
   --padding-start: var(--spacing-md);
@@ -57,6 +65,7 @@
     --checkbox-background-checked: var(--color-primary);
     --border-color: var(--color-border-light);
     --border-color-checked: var(--color-primary);
+    pointer-events: none;
   }
 
   &--selected ion-label {

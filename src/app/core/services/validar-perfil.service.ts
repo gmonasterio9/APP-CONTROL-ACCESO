@@ -20,9 +20,6 @@ export class ValidarPerfilService {
 
   validarEscaneo(rawQr: string): Observable<ValidarPerfilResponse> {
     const body = buildValidarPerfilBodyFromScan(rawQr);
-    if (!body) {
-      return throwError(() => new Error('Código QR no reconocido.'));
-    }
     return this.validar(body);
   }
 

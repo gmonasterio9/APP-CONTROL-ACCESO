@@ -165,8 +165,16 @@ export class ApiHttpService {
     }
   }
 
+  private getApiBase(): string {
+    const env = environment as { apiUrl: string; nativeApiUrl?: string };
+    if (Capacitor.isNativePlatform() && env.nativeApiUrl) {
+      return env.nativeApiUrl;
+    }
+    return env.apiUrl;
+  }
+
   private buildRequestPath(resource: string): string {
-    const base = environment.apiUrl.replace(/\/$/, '');
+    const base = this.getApiBase().replace(/\/$/, '');
     const suffix = resource.startsWith('/') ? resource : `/${resource}`;
     return `${base}${suffix}`;
   }

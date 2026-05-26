@@ -16,6 +16,7 @@ export class SedesModalComponent implements OnChanges {
 
   filteredSedes: Sede[] = [];
   workingSelectedId: number | null = null;
+  searchQuery = '';
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['sedes'] || changes['selectedSede']) {
@@ -38,21 +39,21 @@ export class SedesModalComponent implements OnChanges {
     }
   }
 
+  selectSede(sede: Sede): void {
+    this.workingSelectedId = this.workingSelectedId === sede.id ? null : sede.id;
+  }
+
   searchbarInput(event: Event): void {
     const query = (event as CustomEvent).detail?.value ?? '';
     this.filterList(String(query));
   }
 
   filterList(searchQuery: string): void {
+    this.searchQuery = searchQuery;
     const normalizedQuery = searchQuery.trim().toLowerCase();
     this.filteredSedes = this.sedes.filter(sede =>
       sede.nombre.toLowerCase().includes(normalizedQuery)
     );
-  }
-
-  checkboxChange(event: CustomEvent): void {
-    const { checked, value } = event.detail as { checked: boolean; value: number };
-    this.workingSelectedId = checked ? value : null;
   }
 
   isChecked(sedeId: number): boolean {
@@ -60,6 +61,7 @@ export class SedesModalComponent implements OnChanges {
   }
 
   private syncFromInputs(): void {
+    this.searchQuery = '';
     this.filteredSedes = [...this.sedes];
     this.workingSelectedId = this.selectedSede?.id ?? null;
   }

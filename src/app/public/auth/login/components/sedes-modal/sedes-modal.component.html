@@ -20,19 +20,27 @@
     (ionInput)="searchbarInput($event)">
   </ion-searchbar>
 
-  <ion-list class="sedes-modal-list" lines="none">
-    @for (sede of filteredSedes; track trackSede($index, sede)) {
-      <ion-item class="sede-option" [class.sede-option--selected]="isChecked(sede.id)">
-        <ion-checkbox
-          slot="start"
-          [value]="sede.id"
-          [checked]="isChecked(sede.id)"
-          (ionChange)="checkboxChange($event)">
-        </ion-checkbox>
-        <ion-label>{{ sede.nombre }}</ion-label>
-      </ion-item>
-    }
-  </ion-list>
+  @if (filteredSedes.length === 0 && searchQuery.trim()) {
+    <p class="sedes-empty">No hay ninguna sede con ese nombre.</p>
+  } @else {
+    <ion-list class="sedes-modal-list" lines="none">
+      @for (sede of filteredSedes; track trackSede($index, sede)) {
+        <ion-item
+          class="sede-option"
+          button
+          detail="false"
+          [class.sede-option--selected]="isChecked(sede.id)"
+          (click)="selectSede(sede)">
+          <ion-checkbox
+            slot="start"
+            aria-hidden="true"
+            [checked]="isChecked(sede.id)">
+          </ion-checkbox>
+          <ion-label>{{ sede.nombre }}</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
 
   <div class="btn-wrapper">
     <ion-button

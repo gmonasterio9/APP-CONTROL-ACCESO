@@ -18,6 +18,7 @@ export class LoginPage implements OnInit {
   step: LoginStep = 'sede';
   sedes: Sede[] = [];
   loadingSedes = false;
+  sedesLoadError = false;
   selectedSede: Sede | null = null;
   form: FormGroup;
 
@@ -54,14 +55,16 @@ export class LoginPage implements OnInit {
 
   loadSedes(): void {
     this.loadingSedes = true;
+    this.sedesLoadError = false;
     this.sedesService.getSedes().subscribe({
       next: (sedes) => {
         this.sedes = sedes;
         this.loadingSedes = false;
+        this.sedesLoadError = sedes.length === 0;
       },
-      error: async () => {
+      error: () => {
         this.loadingSedes = false;
-        await this.showToast('No se pudieron cargar las sedes. Intente nuevamente.');
+        this.sedesLoadError = true;
       }
     });
   }

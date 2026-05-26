@@ -14,6 +14,12 @@ import { PlateRecognizerService, PlateResult } from '../../core/services/plate-r
 import { ValidarPerfilService } from '../../core/services/validar-perfil.service';
 import { ValidarPatenteService } from '../../core/services/validar-patente.service';
 import { ValidarPerfilResponse } from '../../core/models/validar-perfil.model';
+import {
+  esCredencialExpirada,
+  extraerTituloYMensaje,
+  extraerValidarPerfilResponse,
+  requiereIngresoManual,
+} from '../../core/utils/validar-perfil.util';
 import { ValidarPatenteResponse } from '../../core/models/validar-patente.model';
 import { ApiHttpError } from '../../core/services/api-http.service';
 import { ScanResultModalComponent, ScanTipo, ScanEstado } from './scan-result-modal/scan-result-modal.component';
@@ -61,6 +67,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async prepararEscaneo(): Promise<void> {
+    this.procesando = false;
     this.scannerVisible = false;
     this.detenerTodo();
 
@@ -110,7 +117,7 @@ export class ScannerPage implements OnDestroy {
     }
 
     const detector = new (window as any).BarcodeDetector({
-      formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'data_matrix'],
+      formats: ['qr_code'],
     });
 
     this.scanInterval = setInterval(async () => {
@@ -120,8 +127,12 @@ export class ScannerPage implements OnDestroy {
 
       try {
         const barcodes = await detector.detect(video);
-        if (barcodes?.length > 0) {
-          const valor = barcodes[0].rawValue as string;
+        const qr = barcodes?.find(
+          (code: { format?: string; rawValue?: string }) =>
+            code.format === 'qr_code' && !!code.rawValue?.trim()
+        );
+        const valor = qr?.rawValue?.trim();
+        if (valor) {
           this.zone.run(() => this.onCodigoDetectado(valor));
         }
       } catch {}
@@ -140,8 +151,16 @@ export class ScannerPage implements OnDestroy {
       document.body.classList.add('barcode-scanning-active');
 
       this.mlkitListener = await BarcodeScanner.addListener('barcodesScanned', (event) => {
-        if (!this.procesando && event.barcodes?.length > 0) {
-          const valor = event.barcodes[0].rawValue ?? '';
+        if (this.procesando || !event.barcodes?.length) {
+          return;
+        }
+
+        const qr =
+          event.barcodes.find(code => code.format === 'QR_CODE' && code.rawValue?.trim()) ??
+          event.barcodes.find(code => code.rawValue?.trim());
+
+        const valor = qr?.rawValue?.trim();
+        if (valor) {
           this.zone.run(() => this.onCodigoDetectado(valor));
         }
       });
@@ -159,34 +178,41 @@ export class ScannerPage implements OnDestroy {
   }
 
   async onCodigoDetectado(valor: string) {
-    if (this.procesando || !valor.trim()) { return; }
+    const codigo = valor.trim();
+    if (this.procesando || !codigo) { return; }
     this.procesando = true;
     this.detenerDeteccion();
 
-    if (this.esPatente(valor)) {
-      await this.validarPatenteEscaneada(valor);
-      this.procesando = false;
-      return;
-    }
-
-    const loading = await this.loadingCtrl.create({ message: 'Validando perfil...' });
-    await loading.present();
-
     try {
-      const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(valor));
-      await loading.dismiss();
-      await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
-    } catch (err: unknown) {
-      await loading.dismiss();
-      const mensaje = this.extraerMensajeError(err) || 'No se pudo validar el código.';
-      await this.mostrarResultadoModal({
-        tipo: 'credencial',
-        estado: 'no_autorizado',
-        mensaje,
-      });
-    }
+      if (this.esPatente(codigo)) {
+        await this.validarPatenteEscaneada(codigo);
+        return;
+      }
 
-    this.procesando = false;
+      const loading = await this.loadingCtrl.create({ message: 'Validando perfil...' });
+      await loading.present();
+
+      try {
+        const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
+        await loading.dismiss();
+        await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
+      } catch (err: unknown) {
+        await loading.dismiss();
+        const res = extraerValidarPerfilResponse(err);
+        if (res) {
+          await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
+        } else {
+          const mensaje = this.extraerMensajeError(err) || 'No se pudo validar el código.';
+          await this.mostrarResultadoModal({
+            tipo: 'credencial',
+            estado: 'no_autorizado',
+            mensaje,
+          });
+        }
+      }
+    } finally {
+      this.procesando = false;
+    }
   }
 
   async capturarPatente() {
@@ -255,6 +281,7 @@ export class ScannerPage implements OnDestroy {
     credencial?: string;
     rut?: string;
     perfil?: string;
+    titulo?: string;
     mensaje?: string;
     plateResult?: any;
     fotoPreview?: string;
@@ -269,6 +296,7 @@ export class ScannerPage implements OnDestroy {
         credencial:  data.credencial,
         rut:         data.rut,
         perfil:      data.perfil,
+        titulo:      data.titulo,
         mensaje:     data.mensaje,
         plateResult: data.plateResult,
         fotoPreview: data.fotoPreview,
@@ -390,23 +418,49 @@ export class ScannerPage implements OnDestroy {
     credencial?: string;
     rut?: string;
     perfil?: string;
+    titulo?: string;
     mensaje?: string;
   } {
+    const textos = extraerTituloYMensaje(res);
     const base = {
       tipo: 'credencial' as const,
-      nombre: res.perfilDescripcion,
-      credencial: res.rut,
-      rut: res.rut,
-      perfil: res.perfil,
-      mensaje: res.message,
+      nombre: res.nombreCompleto ?? res.perfilDescripcion,
+      credencial: res.codigoCredencial ?? res.rut ?? undefined,
+      rut: res.rut ?? undefined,
+      perfil: res.perfil != null ? String(res.perfil) : undefined,
+      titulo: textos.titulo,
+      mensaje: textos.mensaje,
     };
 
-    if (res.success && !res.ingresarManual) {
-      return { ...base, estado: 'autorizado' };
+    if (esCredencialExpirada(res)) {
+      return {
+        ...base,
+        estado: 'manual',
+        titulo: textos.titulo ?? 'Código QR Expirado',
+        mensaje:
+          textos.mensaje ??
+          'Solicitar mostrar la credencial desde la APP INACAP. Si el problema persiste solicitar Cédula de Identidad.',
+      };
     }
 
-    if (res.ingresarManual) {
-      return { ...base, estado: 'manual' };
+    if (requiereIngresoManual(res)) {
+      return {
+        ...base,
+        estado: 'no_autorizado',
+        mensaje:
+          res.message ||
+          textos.mensaje ||
+          'Se debe ingresar de forma manual.',
+      };
+    }
+
+    if (res.success) {
+      return {
+        ...base,
+        estado: 'autorizado',
+        titulo: textos.titulo ?? 'Acceso Autorizado',
+        mensaje: textos.mensaje,
+      };
     }
 
     return {
@@ -414,6 +468,7 @@ export class ScannerPage implements OnDestroy {
       estado: 'no_autorizado',
       mensaje:
         res.message ||
+        textos.mensaje ||
         'La persona no pertenece a INACAP. Debe ingresarla como visita.',
     };
   }

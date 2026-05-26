@@ -18,6 +18,17 @@
               <ion-spinner name="crescent"></ion-spinner>
               <p>Cargando sedes...</p>
             </div>
+          } @else if (sedesLoadError) {
+            <div class="sede-error">
+              <p>No se pudieron cargar las sedes.</p>
+              <ion-button
+                type="button"
+                class="login-btn"
+                fill="outline"
+                (click)="loadSedes()">
+                Reintentar
+              </ion-button>
+            </div>
           } @else {
             <form [formGroup]="form" (ngSubmit)="continuarASede()">
               <p class="field-label">Sede</p>

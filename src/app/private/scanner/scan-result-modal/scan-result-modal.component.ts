@@ -12,6 +12,7 @@ export interface ScanResultData {
   credencial?: string;
   rut?:        string;
   perfil?:     string;
+  titulo?:     string;
   mensaje?:    string;
   plateResult?: PlateResult;
   fotoPreview?: string;
@@ -30,6 +31,7 @@ export class ScanResultModalComponent {
   @Input() credencial?: string;
   @Input() rut?:        string;
   @Input() perfil?:     string;
+  @Input() titulo?:     string;
   @Input() mensaje?:    string;
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
@@ -44,7 +46,11 @@ export class ScanResultModalComponent {
     return { autorizado: '#4CAF50', no_autorizado: '#CC0000', manual: '#FFA000' }[this.estado];
   }
 
-  get titulo(): string {
+  get tituloModal(): string {
+    if (this.titulo) {
+      return this.titulo;
+    }
+
     if (this.tipo === 'patente') {
       return this.estado === 'autorizado'
         ? 'Acceso Autorizado'
@@ -58,7 +64,9 @@ export class ScanResultModalComponent {
   }
 
   get subtitulo(): string {
-    if (this.mensaje) return this.mensaje;
+    if (this.mensaje && this.mensaje !== this.titulo) {
+      return this.mensaje;
+    }
     return {
       autorizado:      '',
       no_autorizado:   'La persona no pertenece a INACAP. Debe ingresarla como visita.',
