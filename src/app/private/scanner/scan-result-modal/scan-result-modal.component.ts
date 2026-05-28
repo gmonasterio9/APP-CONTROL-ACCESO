@@ -12,6 +12,7 @@ export interface ScanResultData {
   credencial?: string;
   rut?:        string;
   perfil?:     string;
+  perfilDescripcion?: string;
   titulo?:     string;
   mensaje?:    string;
   plateResult?: PlateResult;
@@ -31,6 +32,7 @@ export class ScanResultModalComponent {
   @Input() credencial?: string;
   @Input() rut?:        string;
   @Input() perfil?:     string;
+  @Input() perfilDescripcion?: string;
   @Input() titulo?:     string;
   @Input() mensaje?:    string;
   @Input() plateResult?: PlateResult;
@@ -52,6 +54,9 @@ export class ScanResultModalComponent {
     }
 
     if (this.tipo === 'patente') {
+      if (this.titulo) {
+        return this.titulo;
+      }
       return this.estado === 'autorizado'
         ? 'Acceso Autorizado'
         : 'Acceso No Autorizado';
@@ -76,6 +81,9 @@ export class ScanResultModalComponent {
   }
 
   get preguntaAcceso(): string {
+    if (this.tipo === 'patente') {
+      return '¿Dónde registra el vehículo?';
+    }
     return this.estado === 'no_autorizado' || this.estado === 'manual'
       ? '¿Cómo ingresa el visitante?'
       : '¿Cómo ingresa?';
@@ -90,6 +98,8 @@ export class ScanResultModalComponent {
         nombre: this.nombre,
         rut: this.rut ?? this.credencial,
         perfil: this.perfil,
+        perfilDescripcion: this.perfilDescripcion,
+        patente: this.plateResult?.plate,
       },
       'accion'
     );

@@ -40,15 +40,23 @@ export class PlateRecognizerService {
       this.http.post<PlateRecognizerResponse>(this.API_URL, formData, { headers })
     );
 
-    if (!response.results || response.results.length === 0) return null;
+    if (!response.results?.length) {
+      return null;
+    }
 
-    const top = response.results[0];
-    return {
-      plate: top.plate.toUpperCase(),
-      score: top.score,
-      region: top.region?.code ?? '',
-      vehicleType: top.vehicle?.type ?? '',
-    };
+    for (const item of response.results) {
+      const plate = item.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (plate.length === 6) {
+        return {
+          plate,
+          score: item.score,
+          region: item.region?.code ?? '',
+          vehicleType: item.vehicle?.type ?? '',
+        };
+      }
+    }
+
+    return null;
   }
 
   private base64ToBlob(base64: string): Blob {

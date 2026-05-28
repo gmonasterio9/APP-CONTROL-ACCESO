@@ -4,7 +4,14 @@ export interface ValidarPatenteRequest {
 
 export interface ValidarPatenteResponse {
   success: boolean;
-  code?: number;
+  valida?: boolean;
+  tipoAcceso?: string;
+  ingresarComoVisita?: boolean;
+  perfil?: string | number;
+  perfilDescripcion?: string;
+  nombreCompleto?: string | null;
+  code?: number | string;
   message?: string;
+  messages?: string[];
   patente?: string;
 }

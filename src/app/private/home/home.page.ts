@@ -1,15 +1,15 @@
 import { Component } from '@angular/core';
 import {
   ActionSheetController,
-  LoadingController,
   NavController,
-  ToastController,
+  RefresherCustomEvent,
 } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { ApiHttpError } from '../../core/services/api-http.service';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { UiService } from '../../core/services/ui.service';
 
 export interface AccesoPeatonal {
   id: number;
@@ -52,8 +52,7 @@ export class HomePage {
     private authService: AuthService,
     private estacionamientoService: EstacionamientoService,
     private actionSheetCtrl: ActionSheetController,
-    private loadingCtrl: LoadingController,
-    private toastCtrl: ToastController,
+    private ui: UiService,
     public navCtrl: NavController
   ) {}
 
@@ -94,8 +93,10 @@ export class HomePage {
     });
   }
 
-  async cargarEstacionamientos(): Promise<void> {
-    this.cargandoEstacionamientos = true;
+  async cargarEstacionamientos(opciones?: { silencioso?: boolean }): Promise<void> {
+    if (!opciones?.silencioso) {
+      this.cargandoEstacionamientos = true;
+    }
     this.errorEstacionamientos = null;
 
     try {
@@ -107,8 +108,26 @@ export class HomePage {
       this.errorEstacionamientos =
         this.extraerMensajeError(err) || 'No se pudieron cargar los estacionamientos.';
     } finally {
-      this.cargandoEstacionamientos = false;
+      if (!opciones?.silencioso) {
+        this.cargandoEstacionamientos = false;
+      }
     }
+  }
+
+  async refrescarEstacionamientos(event?: RefresherCustomEvent): Promise<void> {
+    if (this.segmentoActivo !== 'estacionamientos') {
+      await event?.target.complete();
+      return;
+    }
+
+    if (!event) {
+      this.cargandoEstacionamientos = true;
+    }
+
+    await this.cargarEstacionamientos({ silencioso: true });
+
+    this.cargandoEstacionamientos = false;
+    await event?.target.complete();
   }
 
   async cerrarSesion(): Promise<void> {
@@ -121,14 +140,11 @@ export class HomePage {
           role: 'destructive',
           icon: 'log-out-outline',
           handler: async () => {
-            const loading = await this.loadingCtrl.create({
-              message: 'Cerrando sesión...',
-            });
-            await loading.present();
+            const loading = await this.ui.presentLoading('Cerrando sesión...');
             try {
               await this.authService.logout();
             } finally {
-              await loading.dismiss();
+              await this.ui.dismissLoading(loading);
             }
           },
         },

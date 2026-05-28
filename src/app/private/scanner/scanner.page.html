@@ -1,8 +1,20 @@
-<ion-content fullscreen class="scanner-content">
+<ion-content fullscreen class="scanner-content" [class.scanner-content--mlkit]="modoMLKit">
   @if (scannerVisible) {
-  <div class="scanner-wrap">
+  <div class="scanner-wrap" [class.scanner-wrap--mlkit]="modoMLKit">
 
-    <video #videoRef class="scanner-video" autoplay playsinline muted></video>
+    @if (mostrarVideoPreview) {
+      <div class="scanner-video-wrap">
+        <video
+          #videoRef
+          class="scanner-video"
+          [style.transform]="zoomVideoTransform"
+          autoplay
+          playsinline
+          muted>
+        </video>
+      </div>
+    }
+
     @if (!camaraLista) {
       <div class="camera-loading"></div>
     }
@@ -10,13 +22,58 @@
     <div class="scanner-overlay">
 
       <div class="scanner-top">
-        <button class="btn-cerrar" (click)="volver()">
+        <button type="button" class="btn-cerrar" (click)="volver()" aria-label="Cerrar">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </button>
-        <div style="width:40px"></div>
+
+        @if (flashDisponible) {
+          <button
+            type="button"
+            class="btn-flash"
+            [class.activo]="flashActivo"
+            (click)="toggleFlash()"
+            [disabled]="procesando"
+            aria-label="Flash">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"
+                [attr.fill]="flashActivo ? '#FFD60A' : 'none'"
+                [attr.stroke]="flashActivo ? '#FFD60A' : '#fff'"
+                stroke-width="1.8"
+                stroke-linejoin="round"/>
+            </svg>
+          </button>
+        } @else {
+          <div class="scanner-top-spacer"></div>
+        }
       </div>
+
+      @if (mostrarControlesZoom) {
+        <div class="scanner-zoom-stack">
+          @if (tieneZoomAplicado) {
+            <button
+              type="button"
+              class="btn-zoom-lateral btn-zoom-lateral--bajar"
+              (click)="bajarZoom()"
+              [disabled]="procesando"
+              aria-label="Disminuir zoom">
+              <ion-icon name="remove-outline"></ion-icon>
+            </button>
+          }
+
+          <button
+            type="button"
+            class="btn-zoom-lateral btn-zoom-lateral--subir"
+            (click)="subirZoom()"
+            [disabled]="procesando"
+            aria-label="Aumentar zoom">
+            <ion-icon name="add-outline"></ion-icon>
+            <span>{{ zoomEtiqueta }}</span>
+          </button>
+        </div>
+      }
 
       <div class="scanner-bottom">
         <button type="button" class="btn-captura" (click)="capturarPatente()" [disabled]="procesando">

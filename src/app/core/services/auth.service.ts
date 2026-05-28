@@ -42,9 +42,14 @@ export class AuthService {
         }
         return this.api.postPublic<RefreshApiResponse>('/refresh', { refresh });
       }),
-      switchMap(res => from(this.persistTokens(res.access_token, res.refresh)).pipe(
-        switchMap(() => from([res]))
-      ))
+      switchMap(res => {
+        if (!res?.access_token || !res?.refresh) {
+          return throwError(() => new Error('Respuesta de refresh inválida'));
+        }
+        return from(this.persistTokens(res.access_token, res.refresh)).pipe(
+          switchMap(() => from([res]))
+        );
+      })
     );
   }
 

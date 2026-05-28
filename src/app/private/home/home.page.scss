@@ -199,6 +199,53 @@
   gap: var(--spacing-sm);
 }
 
+.lista-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         4px 0 8px;
+}
+
+.lista-titulo {
+  margin:      0;
+  color:       #040B15;
+  font-size:   14px;
+  font-weight: 600;
+  font-family: Roboto, sans-serif;
+}
+
+.btn-refrescar {
+  width:           36px;
+  height:          36px;
+  border:          none;
+  border-radius:   50%;
+  background:      #fff;
+  box-shadow:      0 2px 8px rgba(0, 0, 0, 0.08);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          pointer;
+  color:           var(--color-accent);
+
+  ion-icon {
+    font-size: 20px;
+  }
+
+  ion-icon.girando {
+    animation: giro-refresco 0.8s linear infinite;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor:  not-allowed;
+  }
+}
+
+@keyframes giro-refresco {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .lista-estado {
   text-align: center;
   color: #6a7282;

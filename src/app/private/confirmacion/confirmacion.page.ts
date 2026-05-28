@@ -12,6 +12,7 @@ export class ConfirmacionPage {
   nombre:  string | null = null;
   sede:    string | null = null;
   perfil:  string | null = null;
+  patente: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -20,6 +21,7 @@ export class ConfirmacionPage {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
     this.sede   = this.route.snapshot.queryParamMap.get('sede')   ?? 'Arica';
     this.perfil = this.route.snapshot.queryParamMap.get('perfil') ?? 'Visita';
+    this.patente = this.route.snapshot.queryParamMap.get('patente');
   }
 
   cerrar(): void {

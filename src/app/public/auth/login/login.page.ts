@@ -1,11 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LoadingController, ToastController } from '@ionic/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { SedesService } from '../../../core/services/sedes.service';
+import { UiService } from '../../../core/services/ui.service';
 import { Sede } from '../../../core/models/sede.model';
-
 type LoginStep = 'sede' | 'pin';
 
 @Component({
@@ -27,8 +26,7 @@ export class LoginPage implements OnInit {
     private authService: AuthService,
     private sedesService: SedesService,
     private router: Router,
-    private loadingCtrl: LoadingController,
-    private toastCtrl: ToastController
+    private ui: UiService
   ) {
     this.form = this.fb.group({
       sedeId: [null as number | null, Validators.required],
@@ -88,16 +86,15 @@ export class LoginPage implements OnInit {
   async onSubmit(): Promise<void> {
     if (this.step !== 'pin' || this.form.invalid || !this.selectedSede) return;
 
-    const loading = await this.loadingCtrl.create({ message: 'Verificando PIN...' });
-    await loading.present();
+    const loading = await this.ui.presentLoading('Verificando PIN...');
 
     this.authService.loginWithPin(this.pin.value, this.selectedSede.id).subscribe({
       next: async () => {
-        await loading.dismiss();
+        await this.ui.dismissLoading(loading);
         this.router.navigate(['/home']);
       },
       error: async (err) => {
-        await loading.dismiss();
+        await this.ui.dismissLoading(loading);
         this.form.get('pin')?.reset();
         const mensaje = err?.error?.message || 'PIN incorrecto. Intente nuevamente.';
         await this.showToast(mensaje);
@@ -106,12 +103,10 @@ export class LoginPage implements OnInit {
   }
 
   private async showToast(message: string): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      message,
+    await this.ui.presentToast(message, {
       duration: 3000,
       color: 'danger',
-      position: 'top'
+      position: 'top',
     });
-    await toast.present();
   }
 }

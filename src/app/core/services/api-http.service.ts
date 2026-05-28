@@ -2,7 +2,7 @@ import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
 import { Observable, firstValueFrom, from, throwError } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -14,7 +14,7 @@ export interface ApiHttpError {
 
 @Injectable({ providedIn: 'root' })
 export class ApiHttpService {
-  private refreshInFlight = false;
+  private refreshInFlight$: Observable<void> | null = null;
 
   constructor(private injector: Injector) {}
 
@@ -59,23 +59,27 @@ export class ApiHttpService {
     path: string,
     body?: unknown
   ): Observable<T> {
-    if (this.refreshInFlight) {
-      return throwError(() => new Error('Sesión expirada'));
+    return this.ensureRefreshed$().pipe(
+      switchMap(() => this.requestWithAuth<T>(method, path, body, true))
+    );
+  }
+
+  private ensureRefreshed$(): Observable<void> {
+    if (!this.refreshInFlight$) {
+      this.refreshInFlight$ = this.auth.refreshSession().pipe(
+        map(() => undefined),
+        catchError(err => {
+          void this.auth.clearLocalSession();
+          return throwError(() => err);
+        }),
+        finalize(() => {
+          this.refreshInFlight$ = null;
+        }),
+        shareReplay(1)
+      );
     }
 
-    this.refreshInFlight = true;
-
-    return this.auth.refreshSession().pipe(
-      switchMap(() => {
-        this.refreshInFlight = false;
-        return this.requestWithAuth<T>(method, path, body, true);
-      }),
-      catchError(err => {
-        this.refreshInFlight = false;
-        void this.auth.clearLocalSession();
-        return throwError(() => err);
-      })
-    );
+    return this.refreshInFlight$;
   }
 
   private async request<T>(
@@ -115,18 +119,11 @@ export class ApiHttpService {
     const data = this.parseData<T>(response.data);
 
     if (response.status < 200 || response.status >= 300) {
-      const err: ApiHttpError = {
-        status: response.status,
-        error: data,
-        message:
-          typeof data === 'object' &&
-          data !== null &&
-          'message' in data &&
-          typeof (data as { message: unknown }).message === 'string'
-            ? (data as { message: string }).message
-            : undefined,
-      };
-      throw err;
+      throw this.buildApiHttpError(response.status, data);
+    }
+
+    if (withAuth && this.isUnauthorizedPayload(data)) {
+      throw this.buildApiHttpError(401, data);
     }
 
     return data;
@@ -155,11 +152,17 @@ export class ApiHttpService {
     const url = this.buildRequestPath(path);
 
     try {
-      return await firstValueFrom(
+      const data = await firstValueFrom(
         method === 'GET'
           ? http.get<T>(url, { headers })
           : http.post<T>(url, body ?? {}, { headers })
       );
+
+      if (withAuth && this.isUnauthorizedPayload(data)) {
+        throw this.buildApiHttpError(401, data);
+      }
+
+      return data;
     } catch (error) {
       throw this.toApiHttpError(error);
     }
@@ -194,23 +197,71 @@ export class ApiHttpService {
   }
 
   private toApiHttpError(error: unknown): ApiHttpError {
+    if (this.isApiHttpError(error)) {
+      return error;
+    }
+
     if (error instanceof HttpErrorResponse) {
-      return {
-        status: error.status,
-        error: error.error,
-        message:
-          typeof error.error === 'object' &&
-          error.error !== null &&
-          'message' in error.error &&
-          typeof (error.error as { message: unknown }).message === 'string'
-            ? (error.error as { message: string }).message
-            : undefined,
-      };
+      const payload = error.error;
+      const status =
+        error.status === 401 || this.isUnauthorizedPayload(payload)
+          ? 401
+          : error.status;
+
+      return this.buildApiHttpError(status, payload);
     }
 
     return {
       status: 0,
       message: error instanceof Error ? error.message : 'Error de red',
+    };
+  }
+
+  private isApiHttpError(error: unknown): error is ApiHttpError {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'status' in error &&
+      typeof (error as ApiHttpError).status === 'number'
+    );
+  }
+
+  private isUnauthorizedPayload(data: unknown): boolean {
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+
+    const body = data as {
+      success?: boolean;
+      code?: number | string;
+      message?: string;
+    };
+
+    if (body.code === 401 || body.code === '401') {
+      return true;
+    }
+
+    const message = body.message?.toLowerCase() ?? '';
+    return (
+      message.includes('token') &&
+      (message.includes('expirado') ||
+        message.includes('no válido') ||
+        message.includes('no valido') ||
+        message.includes('invalid'))
+    );
+  }
+
+  private buildApiHttpError(status: number, data: unknown): ApiHttpError {
+    return {
+      status,
+      error: data,
+      message:
+        typeof data === 'object' &&
+        data !== null &&
+        'message' in data &&
+        typeof (data as { message: unknown }).message === 'string'
+          ? (data as { message: string }).message
+          : undefined,
     };
   }
 

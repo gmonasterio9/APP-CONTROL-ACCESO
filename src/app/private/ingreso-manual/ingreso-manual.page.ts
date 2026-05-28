@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { LoadingController, NavController, ToastController } from '@ionic/angular';
+import { NavController } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import {
   IngresoManualRequest,
@@ -10,14 +10,9 @@ import {
 } from '../../core/models/ingreso-manual.model';
 import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
-import {
-  formatPatenteInput,
-  formatRutInput,
-  isPatenteFormatValid,
-  isRutFormatValid,
-  patenteToApi,
-} from '../../core/utils/input-format.util';
-import { normalizeRutManual } from '../../core/utils/qr-perfil.util';
+import { UiService } from '../../core/services/ui.service';
+import { PatenteUtil } from '../../core/utils/patente.util';
+import { RutUtil } from '../../core/utils/rut.util';
 import { ApiHttpError } from '../../core/services/api-http.service';
 
 const MEDIOS_SIN_PATENTE: TipoMedioIngreso[] = ['bicicleta', 'peatonal'];
@@ -27,7 +22,7 @@ function rutValidator(control: AbstractControl): ValidationErrors | null {
   if (!value.trim()) {
     return null;
   }
-  return isRutFormatValid(value) ? null : { rutFormato: true };
+  return RutUtil.isFormatValid(value) ? null : { rutFormato: true };
 }
 
 function patenteValidator(control: AbstractControl): ValidationErrors | null {
@@ -35,7 +30,7 @@ function patenteValidator(control: AbstractControl): ValidationErrors | null {
   if (!value.trim()) {
     return null;
   }
-  return isPatenteFormatValid(value) ? null : { patenteFormato: true };
+  return PatenteUtil.isFormatValid(value) ? null : { patenteFormato: true };
 }
 
 @Component({
@@ -66,8 +61,7 @@ export class IngresoManualPage implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private navCtrl: NavController,
-    private loadingCtrl: LoadingController,
-    private toastCtrl: ToastController,
+    private ui: UiService,
     private ingresoManualService: IngresoManualService,
     private authService: AuthService
   ) {}
@@ -90,11 +84,21 @@ export class IngresoManualPage implements OnInit {
     const nombre = this.route.snapshot.queryParamMap.get('nombre');
     const rut = this.route.snapshot.queryParamMap.get('rut');
     const perfil = this.route.snapshot.queryParamMap.get('perfil');
+    const patente = this.route.snapshot.queryParamMap.get('patente');
+    const tipoMedio = this.route.snapshot.queryParamMap.get('tipoMedio');
+
     if (nombre) {
       this.form.patchValue({ nombre });
     }
     if (rut) {
-      this.form.patchValue({ rut: formatRutInput(normalizeRutManual(rut)) });
+      this.form.patchValue({ rut: RutUtil.formatInput(RutUtil.normalizeManual(rut)) });
+    }
+    if (patente) {
+      this.form.patchValue({
+        patente: PatenteUtil.formatInput(patente),
+        tipoMedio: (tipoMedio as TipoMedioIngreso) || 'auto',
+      });
+      this.actualizarValidacionPatente();
     }
     if (perfil) {
       const tipo = this.tiposPersona.find(t => t.value === perfil.toLowerCase());
@@ -115,13 +119,13 @@ export class IngresoManualPage implements OnInit {
 
   onRutInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const formatted = formatRutInput(input.value);
+    const formatted = RutUtil.formatInput(input.value);
     this.form.get('rut')?.setValue(formatted, { emitEvent: false });
   }
 
   onPatenteInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const formatted = formatPatenteInput(input.value);
+    const formatted = PatenteUtil.formatInput(input.value);
     this.form.get('patente')?.setValue(formatted, { emitEvent: false });
   }
 
@@ -130,32 +134,25 @@ export class IngresoManualPage implements OnInit {
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      const toast = await this.toastCtrl.create({
-        message: 'Completa los campos obligatorios.',
+      await this.ui.presentToast('Completa los campos obligatorios.', {
         duration: 2000,
         color: 'warning',
-        position: 'bottom',
       });
-      await toast.present();
       return;
     }
 
     const body = this.buildRequestBody();
-    const loading = await this.loadingCtrl.create({ message: 'Registrando ingreso...' });
-    await loading.present();
+    const loading = await this.ui.presentLoading('Registrando ingreso...');
 
     try {
       const res = await firstValueFrom(this.ingresoManualService.registrar(body));
-      await loading.dismiss();
+      await this.ui.dismissLoading(loading);
 
       if (!res.success) {
-        const toast = await this.toastCtrl.create({
-          message: res.message || 'No se pudo registrar el ingreso.',
-          duration: 2500,
-          color: 'warning',
-          position: 'bottom',
-        });
-        await toast.present();
+        await this.ui.presentToast(
+          res.message || 'No se pudo registrar el ingreso.',
+          { color: 'warning' }
+        );
         return;
       }
 
@@ -172,7 +169,7 @@ export class IngresoManualPage implements OnInit {
         },
       });
     } catch (err: unknown) {
-      await loading.dismiss();
+      await this.ui.dismissLoading(loading);
       const apiErr = err as ApiHttpError;
       const mensaje =
         apiErr?.message ||
@@ -183,13 +180,7 @@ export class IngresoManualPage implements OnInit {
           ? (apiErr.error as { message: string }).message
           : null) ||
         'Error al registrar el ingreso.';
-      const toast = await this.toastCtrl.create({
-        message: mensaje,
-        duration: 2500,
-        color: 'danger',
-        position: 'bottom',
-      });
-      await toast.present();
+      await this.ui.presentToast(mensaje, { color: 'danger' });
     }
   }
 
@@ -200,7 +191,7 @@ export class IngresoManualPage implements OnInit {
   private buildRequestBody(): IngresoManualRequest {
     const tipoPersona = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
     const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
-    const rut = normalizeRutManual(String(this.form.get('rut')?.value ?? ''));
+    const rut = RutUtil.normalizeManual(String(this.form.get('rut')?.value ?? ''));
     const nombre = String(this.form.get('nombre')?.value ?? '').trim();
     const observaciones = String(this.form.get('observaciones')?.value ?? '').trim();
 
@@ -216,7 +207,7 @@ export class IngresoManualPage implements OnInit {
     }
 
     if (this.requierePatente) {
-      body.patente = patenteToApi(String(this.form.get('patente')?.value ?? ''));
+      body.patente = PatenteUtil.toApi(String(this.form.get('patente')?.value ?? ''));
     }
 
     return body;

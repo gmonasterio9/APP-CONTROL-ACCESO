@@ -4,10 +4,8 @@ import {
   ValidarPerfilRequest,
   ValidarPerfilResponse,
 } from '../models/validar-perfil.model';
-import {
-  buildValidarPerfilBodyFromScan,
-  normalizeRutManual,
-} from '../utils/qr-perfil.util';
+import { ScanPerfilUtil } from '../utils/scan-perfil.util';
+import { RutUtil } from '../utils/rut.util';
 import { ApiHttpService } from './api-http.service';
 
 @Injectable({ providedIn: 'root' })
@@ -19,7 +17,7 @@ export class ValidarPerfilService {
   }
 
   validarEscaneo(rawQr: string): Observable<ValidarPerfilResponse> {
-    const body = buildValidarPerfilBodyFromScan(rawQr);
+    const body = ScanPerfilUtil.buildValidarPerfilBody(rawQr);
     return this.validar(body);
   }
 
@@ -28,6 +26,6 @@ export class ValidarPerfilService {
     if (!trimmed) {
       return throwError(() => new Error('Ingrese un RUT válido.'));
     }
-    return this.validar({ rut: normalizeRutManual(trimmed) });
+    return this.validar({ rut: RutUtil.normalizeManual(trimmed) });
   }
 }

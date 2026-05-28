@@ -1,5 +1,9 @@
 <ion-content class="home-content">
 
+  <ion-refresher slot="fixed" (ionRefresh)="refrescarEstacionamientos($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
 <ion-header mode="md">
     <ion-toolbar class="home-toolbar">
       <ion-title>Sistema Unificado de Control</ion-title>
@@ -43,7 +47,11 @@
 
   @if (segmentoActivo === 'estacionamientos') {
     <div class="lista-section">
-      @if (cargandoEstacionamientos) {
+      <div class="lista-header">
+        <p class="lista-titulo">Cupos disponibles</p>
+      </div>
+
+      @if (cargandoEstacionamientos && estacionamientos.length === 0) {
         <p class="lista-estado">Cargando estacionamientos...</p>
       } @else if (errorEstacionamientos) {
         <p class="lista-estado lista-estado--error">{{ errorEstacionamientos }}</p>

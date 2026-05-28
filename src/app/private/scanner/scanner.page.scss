@@ -2,19 +2,35 @@
   --background: #000;
   --padding-top: 0;
   --padding-bottom: 0;
+
+  &--mlkit {
+    --background: transparent;
+  }
 }
 
 .scanner-wrap {
   position: relative;
   height:   100%;
+
+  &--mlkit {
+    background: transparent;
+  }
+}
+
+.scanner-video-wrap {
+  position:   absolute;
+  inset:      0;
+  overflow:   hidden;
 }
 
 .scanner-video {
-  position:   absolute;
-  inset:      0;
-  width:      100%;
-  height:     100%;
-  object-fit: cover;
+  position:        absolute;
+  inset:           0;
+  width:           100%;
+  height:          100%;
+  object-fit:      cover;
+  transform-origin: center center;
+  transition:      transform 0.12s ease-out;
 }
 
 .camera-loading {
@@ -29,6 +45,7 @@
   inset:           0;
   display:         flex;
   flex-direction:  column;
+  pointer-events:  none;
   background: linear-gradient(
     to bottom,
     rgba(0,0,0,0.55) 0%,
@@ -36,6 +53,13 @@
     transparent      75%,
     rgba(0,0,0,0.65) 100%
   );
+
+  .btn-cerrar,
+  .btn-flash,
+  .scanner-zoom-stack,
+  .btn-captura {
+    pointer-events: auto;
+  }
 }
 
 .scanner-top {
@@ -45,7 +69,8 @@
   padding:         52px 20px 16px;
 }
 
-.btn-cerrar {
+.btn-cerrar,
+.btn-flash {
   width:           40px;
   height:          40px;
   border-radius:   50%;
@@ -55,6 +80,24 @@
   align-items:     center;
   justify-content: center;
   cursor:          pointer;
+  transition:      background 0.2s, transform 0.1s;
+
+  &:active:not(:disabled) {
+    transform: scale(0.93);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor:  not-allowed;
+  }
+}
+
+.btn-flash.activo {
+  background: rgba(255, 214, 10, 0.25);
+}
+
+.scanner-top-spacer {
+  width: 40px;
 }
 
 .scanner-titulo {
@@ -82,12 +125,80 @@
   border-radius: 20px;
 }
 
+.scanner-zoom-stack {
+  position:        absolute;
+  right:           20px;
+  top:             50%;
+  transform:       translateY(-50%);
+  z-index:         3;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             12px;
+}
+
+.btn-zoom-lateral {
+  width:           52px;
+  height:          52px;
+  border-radius:   50%;
+  background:      rgba(0, 0, 0, 0.5);
+  border:          1.5px solid rgba(255, 255, 255, 0.4);
+  color:           #fff;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             1px;
+  cursor:          pointer;
+  padding:         0;
+  backdrop-filter: blur(4px);
+  transition:      background 0.2s, transform 0.1s;
+
+  ion-icon {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  span {
+    font-size:   10px;
+    font-weight: 700;
+    font-family: Roboto, sans-serif;
+    line-height: 1;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+    background: rgba(0, 0, 0, 0.65);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor:  not-allowed;
+  }
+}
+
+.btn-zoom-lateral--bajar {
+  animation: zoom-btn-in 0.2s ease-out;
+}
+
+@keyframes zoom-btn-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .scanner-bottom {
   display:         flex;
   flex-direction:  column;
   align-items:     center;
   gap:             10px;
   padding-bottom:  48px;
+  padding-top:     12px;
   margin-top:      auto;
 }
 

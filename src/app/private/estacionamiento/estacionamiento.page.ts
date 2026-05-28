@@ -15,6 +15,11 @@ import { EstacionamientoService } from '../../core/services/estacionamiento.serv
 export class EstacionamientoPage {
   nombre: string | null = null;
   credencial: string | null = null;
+  patente: string | null = null;
+  rut: string | null = null;
+  perfil: string | null = null;
+  origen: string | null = null;
+  estadoScan: string | null = null;
 
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;
@@ -27,6 +32,11 @@ export class EstacionamientoPage {
   ) {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
     this.credencial = this.route.snapshot.queryParamMap.get('credencial');
+    this.patente = this.route.snapshot.queryParamMap.get('patente');
+    this.rut = this.route.snapshot.queryParamMap.get('rut');
+    this.perfil = this.route.snapshot.queryParamMap.get('perfil');
+    this.origen = this.route.snapshot.queryParamMap.get('origen');
+    this.estadoScan = this.route.snapshot.queryParamMap.get('estado');
   }
 
   ionViewWillEnter(): void {
@@ -45,13 +55,36 @@ export class EstacionamientoPage {
   }
 
   async ingresar(e: EstacionamientoCard): Promise<void> {
+    const perfil = this.perfil ?? 'Visita';
+    const nombre = this.nombre ?? (this.patente ? this.patente : 'Visitante');
+    const rechazado =
+      this.estadoScan === 'no_autorizado' || this.estadoScan === 'manual';
+
+    if (rechazado) {
+      await this.navCtrl.navigateForward('/ingreso-manual', {
+        queryParams: {
+          nombre,
+          rut: this.rut,
+          patente: this.patente,
+          perfil,
+          tipoMedio: this.patente ? 'auto' : null,
+          aeseNcorr: e.id,
+          estacionamiento: e.nombre,
+          origen: this.origen,
+        },
+      });
+      return;
+    }
+
     await this.navCtrl.navigateForward('/confirmacion', {
       queryParams: {
-        nombre: this.nombre ?? 'Visitante',
+        nombre,
         sede: e.ubicacion,
-        perfil: 'Visita',
+        perfil,
+        patente: this.patente,
         aeseNcorr: e.id,
         estacionamiento: e.nombre,
+        estado: this.estadoScan ?? 'autorizado',
       },
     });
   }
