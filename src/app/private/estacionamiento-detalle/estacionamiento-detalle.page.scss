@@ -296,3 +296,14 @@
   padding: 24px 0;
   margin: 0;
 }
+
+.lista-estado {
+  text-align: center;
+  color: #6a7282;
+  font-size: 14px;
+  margin: 12px 0;
+
+  &--error {
+    color: #cc0000;
+  }
+}

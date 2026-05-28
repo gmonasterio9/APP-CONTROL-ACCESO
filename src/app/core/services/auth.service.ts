@@ -31,7 +31,17 @@ export class AuthService {
         sede: sedeId,
         pin: Number(pin),
       })
-      .pipe(switchMap(res => from(this.persistSession(res))));
+      .pipe(
+        switchMap(res => {
+          const refreshToken = this.extractRefreshToken(res);
+          if (!res?.success || !res?.access_token || !refreshToken) {
+            return throwError(
+              () => new Error(res?.message ?? 'Respuesta de login inválida')
+            );
+          }
+          return from(this.persistSession(res));
+        })
+      );
   }
 
   refreshSession(): Observable<RefreshApiResponse> {
@@ -43,10 +53,11 @@ export class AuthService {
         return this.api.postPublic<RefreshApiResponse>('/refresh', { refresh });
       }),
       switchMap(res => {
-        if (!res?.access_token || !res?.refresh) {
+        const refreshToken = this.extractRefreshToken(res);
+        if (!res?.success || !res?.access_token || !refreshToken) {
           return throwError(() => new Error('Respuesta de refresh inválida'));
         }
-        return from(this.persistTokens(res.access_token, res.refresh)).pipe(
+        return from(this.persistTokens(res.access_token, refreshToken)).pipe(
           switchMap(() => from([res]))
         );
       })
@@ -107,6 +118,11 @@ export class AuthService {
   }
 
   private async persistSession(response: LoginApiResponse): Promise<LoginApiResponse> {
+    const refreshToken = this.extractRefreshToken(response);
+    if (!refreshToken) {
+      throw new Error('Respuesta de login inválida');
+    }
+
     const user: AuthUser = {
       nombre: response.apeuTnombre,
       sedeId: response.sedeCcod,
@@ -114,7 +130,7 @@ export class AuthService {
     };
     const sede: Sede = { id: response.sedeCcod, nombre: response.sedeTdesc };
 
-    await this.persistTokens(response.access_token, response.refresh);
+    await this.persistTokens(response.access_token, refreshToken);
     await this.storage.set(this.USER_KEY, user);
     await this.storage.set(this.SEDE_KEY, sede);
     return response;
@@ -126,5 +142,12 @@ export class AuthService {
   ): Promise<void> {
     await this.storage.set(this.ACCESS_TOKEN_KEY, accessToken);
     await this.storage.set(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+
+  private extractRefreshToken(response: {
+    refreshToken?: string;
+    refresh?: string;
+  }): string | null {
+    return response.refreshToken ?? response.refresh ?? null;
   }
 }

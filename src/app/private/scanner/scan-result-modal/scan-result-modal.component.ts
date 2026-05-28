@@ -97,6 +97,7 @@ export class ScanResultModalComponent {
         estado: this.estado,
         nombre: this.nombre,
         rut: this.rut ?? this.credencial,
+        credencial: this.credencial,
         perfil: this.perfil,
         perfilDescripcion: this.perfilDescripcion,
         patente: this.plateResult?.plate,

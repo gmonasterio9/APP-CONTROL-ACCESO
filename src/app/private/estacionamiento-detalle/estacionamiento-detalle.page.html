@@ -10,6 +10,9 @@
 </ion-header>
 
 <ion-content class="det-content">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescarDetalle($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
 
   <div class="det-header">
     <h1 class="det-titulo">{{ nombre }}</h1>
@@ -18,6 +21,12 @@
 
   <div class="det-section">
     <p class="det-section-titulo">Disponibilidad de Cupos</p>
+
+    @if (cargandoCupos && cupos.length === 0) {
+      <p class="lista-estado">Cargando disponibilidad...</p>
+    } @else if (errorCupos) {
+      <p class="lista-estado lista-estado--error">{{ errorCupos }}</p>
+    } @else {
     <div class="cupos-grid">
       @for (c of cupos; track c.label) {
         <div class="cupo-card" [class.full-width]="c.fullWidth">
@@ -49,31 +58,32 @@
         </div>
       }
     </div>
+    }
   </div>
 
   <div class="det-section">
-    <p class="det-section-titulo">Vehículos Activos ({{ vehiculosFiltrados.length }})</p>
+    <p class="det-section-titulo">Vehículos Activos ({{ totalRegistrosVehiculos }})</p>
     <div class="busqueda-row">
       <div class="busqueda-wrap">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" class="busqueda-icono">
           <path d="M12.8945 14C12.7848 14 12.6762 13.9773 12.5753 13.9333C12.4743 13.8893 12.3832 13.8249 12.3072 13.744L8.56009 9.912C7.64891 10.6045 6.5428 10.977 5.40714 10.974H5.38365C4.32059 10.972 3.28181 10.6491 2.3978 10.0459C1.5138 9.44269 0.823997 8.58606 0.415051 7.58362C0.00610514 6.58119 -0.103747 5.47764 0.0992935 4.41162C0.302334 3.34561 0.809213 2.36466 1.55626 1.592C2.55737 0.575539 3.91052 0.00347919 5.32198 0L5.3445 0C6.77118 0.00841735 8.13697 0.591678 9.14508 1.62304C10.1532 2.6544 10.7221 4.05051 10.7283 5.508C10.7361 6.67041 10.3755 7.8042 9.70048 8.74L13.4525 12.574C13.5697 12.688 13.6508 12.8352 13.6853 12.9967C13.7198 13.1581 13.7061 13.3265 13.646 13.48C13.586 13.6334 13.4823 13.765 13.3484 13.8577C13.2144 13.9504 13.0563 14 12.8945 14ZM5.32883 1.1C4.48282 1.10554 3.65736 1.36695 2.95662 1.85124C2.25588 2.33553 1.71126 3.02101 1.39146 3.82117C1.07166 4.62134 0.991025 5.50035 1.15972 6.34728C1.32842 7.19422 1.7389 7.97113 2.33935 8.58C2.73841 8.9901 3.21267 9.31582 3.73504 9.53855C4.2574 9.76127 4.81762 9.87662 5.38365 9.878H5.40029C6.52436 9.84755 7.59197 9.3682 8.37404 8.54281C9.15612 7.71742 9.59034 6.61175 9.58356 5.46304C9.57677 4.31432 9.1295 3.21409 8.33773 2.39841C7.54596 1.58272 6.47276 1.11658 5.34841 1.1H5.32883Z" fill="#040B15"/>
         </svg>
-        <input class="busqueda-input" placeholder="Buscar patente" [(ngModel)]="busqueda" />
+        <input
+          class="busqueda-input"
+          placeholder="Buscar patente"
+          [(ngModel)]="busqueda"
+          (ngModelChange)="onBusquedaPatente()" />
       </div>
-      <button class="filtro-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <mask id="mask0_62_6071" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="20" height="20">
-            <rect width="20" height="20" fill="#D9D9D9"/>
-          </mask>
-          <g mask="url(#mask0_62_6071)">
-            <path d="M9.16567 16.6649C8.92956 16.6649 8.73165 16.585 8.57193 16.4253C8.4122 16.2656 8.33234 16.0676 8.33234 15.8315V10.8315L3.49901 4.66488C3.29068 4.3871 3.25943 4.09543 3.40526 3.78988C3.55109 3.48432 3.80456 3.33154 4.16568 3.33154H15.8323C16.1935 3.33154 16.4469 3.48432 16.5928 3.78988C16.7386 4.09543 16.7073 4.3871 16.499 4.66488L11.6657 10.8315V15.8315C11.6657 16.0676 11.5858 16.2656 11.4261 16.4253C11.2664 16.585 11.0685 16.6649 10.8323 16.6649H9.16567Z" fill="#040B15"/>
-          </g>
-        </svg>
-      </button>
     </div>
 
+    @if (cargandoVehiculos && vehiculos.length === 0) {
+      <p class="lista-estado">Cargando vehículos...</p>
+    } @else if (errorVehiculos) {
+      <p class="lista-estado lista-estado--error">{{ errorVehiculos }}</p>
+    }
+
     <div class="vehiculos-lista">
-      @for (v of vehiculosFiltrados; track v.patente) {
+      @for (v of vehiculos; track v.patente) {
         <div class="vehiculo-item">
           <div class="vehiculo-top">
             <span class="vehiculo-patente">{{ v.patente }}</span>
@@ -94,10 +104,20 @@
         </div>
       }
 
-      @if (vehiculosFiltrados.length === 0) {
+      @if (!cargandoVehiculos && !errorVehiculos && vehiculos.length === 0) {
         <p class="sin-resultados">Sin vehículos activos</p>
       }
     </div>
+
+    <ion-infinite-scroll
+      threshold="120px"
+      [disabled]="!hayMasVehiculos"
+      (ionInfinite)="cargarMasVehiculos($event)">
+      <ion-infinite-scroll-content
+        loadingSpinner="crescent"
+        loadingText="Cargando más...">
+      </ion-infinite-scroll-content>
+    </ion-infinite-scroll>
   </div>
 
 </ion-content>

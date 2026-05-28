@@ -1,14 +1,27 @@
 export interface LoginApiResponse {
+  success: boolean;
+  code: number;
   access_token: string;
-  refresh: string;
-  apeuTnombre: string;
+  refreshToken: string;
+  refresh?: string;
+  expires_in: number;
+  refresh_expires_in: number;
   sedeCcod: number;
   sedeTdesc: string;
+  apeuTnombre: string;
+  message?: string;
 }
 
 export interface RefreshApiResponse {
+  success: boolean;
+  code: number;
   access_token: string;
-  refresh: string;
+  refreshToken: string;
+  refresh?: string;
+  expires_in: number;
+  refresh_expires_in: number;
+  sedeCcod: number;
+  message?: string;
 }
 
 export interface LogoutApiResponse {

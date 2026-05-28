@@ -4,13 +4,14 @@ import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
 import { Observable, firstValueFrom, from, throwError } from 'rxjs';
 import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import {
+  ApiHttpError,
+  isUnauthorizedApiResult,
+  toApiHttpError,
+} from '../utils/api-response.util';
 import { AuthService } from './auth.service';
 
-export interface ApiHttpError {
-  status: number;
-  error?: unknown;
-  message?: string;
-}
+export type { ApiHttpError } from '../utils/api-response.util';
 
 @Injectable({ providedIn: 'root' })
 export class ApiHttpService {
@@ -45,11 +46,13 @@ export class ApiHttpService {
     retried = false
   ): Observable<T> {
     return from(this.request<T>(method, path, body, true)).pipe(
-      catchError((err: ApiHttpError) => {
-        if (!retried && err.status === 401) {
+      map(data => this.guardUnauthorizedResponse(data)),
+      catchError((err: unknown) => {
+        const apiErr = this.normalizeToApiError(err);
+        if (!retried && apiErr.status === 401) {
           return this.retryAfterRefresh<T>(method, path, body);
         }
-        return throwError(() => err);
+        return throwError(() => apiErr);
       })
     );
   }
@@ -122,9 +125,7 @@ export class ApiHttpService {
       throw this.buildApiHttpError(response.status, data);
     }
 
-    if (withAuth && this.isUnauthorizedPayload(data)) {
-      throw this.buildApiHttpError(401, data);
-    }
+    this.guardUnauthorizedResponse(data, withAuth);
 
     return data;
   }
@@ -158,13 +159,11 @@ export class ApiHttpService {
           : http.post<T>(url, body ?? {}, { headers })
       );
 
-      if (withAuth && this.isUnauthorizedPayload(data)) {
-        throw this.buildApiHttpError(401, data);
-      }
+      this.guardUnauthorizedResponse(data, withAuth);
 
       return data;
     } catch (error) {
-      throw this.toApiHttpError(error);
+      throw this.normalizeToApiError(error);
     }
   }
 
@@ -196,7 +195,14 @@ export class ApiHttpService {
     return path;
   }
 
-  private toApiHttpError(error: unknown): ApiHttpError {
+  private guardUnauthorizedResponse<T>(data: T, withAuth = true): T {
+    if (withAuth && isUnauthorizedApiResult(data)) {
+      throw toApiHttpError(data, 401);
+    }
+    return data;
+  }
+
+  private normalizeToApiError(error: unknown): ApiHttpError {
     if (this.isApiHttpError(error)) {
       return error;
     }
@@ -204,11 +210,15 @@ export class ApiHttpService {
     if (error instanceof HttpErrorResponse) {
       const payload = error.error;
       const status =
-        error.status === 401 || this.isUnauthorizedPayload(payload)
+        error.status === 401 || isUnauthorizedApiResult(payload)
           ? 401
           : error.status;
 
       return this.buildApiHttpError(status, payload);
+    }
+
+    if (error instanceof Error && isUnauthorizedApiResult({ message: error.message })) {
+      return toApiHttpError({ message: error.message }, 401);
     }
 
     return {
@@ -223,31 +233,6 @@ export class ApiHttpService {
       error !== null &&
       'status' in error &&
       typeof (error as ApiHttpError).status === 'number'
-    );
-  }
-
-  private isUnauthorizedPayload(data: unknown): boolean {
-    if (!data || typeof data !== 'object') {
-      return false;
-    }
-
-    const body = data as {
-      success?: boolean;
-      code?: number | string;
-      message?: string;
-    };
-
-    if (body.code === 401 || body.code === '401') {
-      return true;
-    }
-
-    const message = body.message?.toLowerCase() ?? '';
-    return (
-      message.includes('token') &&
-      (message.includes('expirado') ||
-        message.includes('no válido') ||
-        message.includes('no valido') ||
-        message.includes('invalid'))
     );
   }
 

@@ -20,7 +20,6 @@ export interface EstacionamientoListResponse {
   estacionamientos: EstacionamientoItem[];
 }
 
-/** Vista para tarjetas en Home. */
 export interface EstacionamientoCard {
   id: number;
   nombre: string;
