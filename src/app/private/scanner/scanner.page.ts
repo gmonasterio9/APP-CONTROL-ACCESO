@@ -15,14 +15,16 @@ import { ValidarPatenteResponse } from '../../core/models/validar-patente.model'
 import { PatenteUtil } from '../../core/utils/patente.util';
 import { ValidarPatenteUtil } from '../../core/utils/validar-patente.util';
 import { ValidarPerfilUtil } from '../../core/utils/validar-perfil.util';
+import { ScanPerfilUtil } from '../../core/utils/scan-perfil.util';
+import { RutUtil } from '../../core/utils/rut.util';
 import { ApiHttpError } from '../../core/services/api-http.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ControlIngresoService } from '../../core/services/control-ingreso.service';
+import { PeatonalService } from '../../core/services/peatonal.service';
 import {
-  ControlIngresoOrigen,
-  ControlIngresoRequest,
-} from '../../core/models/control-ingreso.model';
-import { ScanResultModalComponent, ScanTipo, ScanEstado } from './scan-result-modal/scan-result-modal.component';
+  ModalResultadoEscaneoComponent,
+  TipoEscaneo,
+  EstadoEscaneo,
+} from './modal-resultado-escaneo/modal-resultado-escaneo.component';
 
 type CamaraTrackCapabilities = MediaTrackCapabilities & {
   torch?: boolean;
@@ -74,7 +76,7 @@ export class ScannerPage implements OnDestroy {
     private plateService: PlateRecognizerService,
     private validarPerfilService: ValidarPerfilService,
     private validarPatenteService: ValidarPatenteService,
-    private controlIngresoService: ControlIngresoService,
+    private peatonalService: PeatonalService,
     private authService: AuthService,
     private zone: NgZone,
   ) {}
@@ -230,15 +232,24 @@ export class ScannerPage implements OnDestroy {
 
       const loading = await this.ui.presentLoading('Validando perfil...');
 
+      const contextoEscaneo = {
+        rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
+        tipo: ScanPerfilUtil.resolveTipoEscaneo(codigo),
+      };
+
       try {
         const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
         await this.ui.dismissLoading(loading);
-        await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
+        await this.mostrarResultadoModal(
+          this.mapValidarPerfilToModal(res, contextoEscaneo)
+        );
       } catch (err: unknown) {
         await this.ui.dismissLoading(loading);
         const res = ValidarPerfilUtil.extraerResponse(err);
         if (res) {
-          await this.mostrarResultadoModal(this.mapValidarPerfilToModal(res));
+          await this.mostrarResultadoModal(
+            this.mapValidarPerfilToModal(res, contextoEscaneo)
+          );
         } else {
           const mensaje = this.extraerMensajeError(err) || 'No se pudo validar el código.';
           await this.mostrarResultadoModal({
@@ -394,20 +405,22 @@ export class ScannerPage implements OnDestroy {
   }
 
   async mostrarResultadoModal(data: {
-    tipo: ScanTipo;
-    estado?: ScanEstado;
+    tipo: TipoEscaneo;
+    estado?: EstadoEscaneo;
     nombre?: string;
     credencial?: string;
     rut?: string;
     perfil?: string;
     perfilDescripcion?: string;
+    persNcorr?: number;
+    code?: string;
     titulo?: string;
     mensaje?: string;
     plateResult?: any;
     fotoPreview?: string;
   }) {
     const modal = await this.modalCtrl.create({
-      component: ScanResultModalComponent,
+      component: ModalResultadoEscaneoComponent,
       cssClass:  'modal-75',
       componentProps: {
         tipo:        data.tipo,
@@ -417,6 +430,8 @@ export class ScannerPage implements OnDestroy {
         rut:         data.rut,
         perfil:      data.perfil,
         perfilDescripcion: data.perfilDescripcion,
+        persNcorr:   data.persNcorr,
+        code:        data.code,
         titulo:      data.titulo,
         mensaje:     data.mensaje,
         plateResult: data.plateResult,
@@ -449,33 +464,33 @@ export class ScannerPage implements OnDestroy {
 
   private async registrarControlIngresoPeatonal(resp: {
     nombre?: string;
-    rut?: string;
-    credencial?: string;
+    persNcorr?: number;
     perfil?: string;
     perfilDescripcion?: string;
-    tipo?: ScanTipo;
   }): Promise<void> {
-    const rut = String(resp.rut ?? '').trim();
+    const persNcorr = resp.persNcorr;
     const nombre = String(resp.nombre ?? '').trim();
 
-    if (!rut || !nombre) {
-      await this.ui.presentToast('Faltan datos para registrar el ingreso.', {
-        color: 'warning',
-      });
+    if (persNcorr == null || persNcorr <= 0) {
+      await this.ui.presentToast(
+        'Faltan datos de la persona para confirmar el ingreso.',
+        { color: 'warning' }
+      );
       await this.reanudarEscaneoTrasModal();
       return;
     }
 
-    const loading = await this.ui.presentLoading('Registrando ingreso...');
+    const loading = await this.ui.presentLoading('Confirmando ingreso...');
 
     try {
-      const body = this.buildControlIngresoBody(resp, { tipoMedio: 'peatonal' });
-      const res = await firstValueFrom(this.controlIngresoService.registrar(body));
+      const res = await firstValueFrom(
+        this.peatonalService.registrarControlIngreso({ persNcorr })
+      );
       await this.ui.dismissLoading(loading);
 
       if (!res.success) {
         await this.ui.presentToast(
-          res.message || 'No se pudo registrar el ingreso.',
+          res.message || 'No se pudo confirmar el ingreso.',
           { color: 'warning' }
         );
         await this.reanudarEscaneoTrasModal();
@@ -483,15 +498,12 @@ export class ScannerPage implements OnDestroy {
       }
 
       const sede = await this.authService.getSede();
-      const perfil =
-        resp.perfilDescripcion ??
-        resp.perfil ??
-        null;
+      const perfil = resp.perfilDescripcion ?? resp.perfil ?? null;
 
       await this.apagarScanner();
       await this.navCtrl.navigateRoot('/confirmacion', {
         queryParams: {
-          nombre,
+          nombre: nombre || null,
           sede: sede?.nombre ?? null,
           perfil,
         },
@@ -499,51 +511,11 @@ export class ScannerPage implements OnDestroy {
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        this.extraerMensajeError(err) || 'Error al registrar el ingreso.',
+        this.extraerMensajeError(err) || 'Error al confirmar el ingreso.',
         { color: 'danger' }
       );
       await this.reanudarEscaneoTrasModal();
     }
-  }
-
-  private buildControlIngresoBody(
-    resp: {
-      nombre?: string;
-      rut?: string;
-      credencial?: string;
-      perfil?: string;
-      perfilDescripcion?: string;
-      patente?: string;
-      tipo?: ScanTipo;
-    },
-    opts: { tipoMedio: 'peatonal' | 'auto'; aeseNcorr?: number }
-  ): ControlIngresoRequest {
-    const body: ControlIngresoRequest = {
-      rut: String(resp.rut ?? '').trim(),
-      nombre: String(resp.nombre ?? '').trim(),
-      tipoMedio: opts.tipoMedio,
-    };
-
-    if (resp.perfil) {
-      body.perfil = resp.perfil;
-    }
-    if (resp.perfilDescripcion) {
-      body.perfilDescripcion = resp.perfilDescripcion;
-    }
-    if (resp.credencial) {
-      body.codigoCredencial = resp.credencial;
-    }
-    if (resp.patente) {
-      body.patente = resp.patente;
-    }
-    if (resp.tipo) {
-      body.origen = resp.tipo as ControlIngresoOrigen;
-    }
-    if (opts.aeseNcorr != null) {
-      body.aeseNcorr = opts.aeseNcorr;
-    }
-
-    return body;
   }
 
   private async salirScannerHacia(
@@ -757,15 +729,16 @@ export class ScannerPage implements OnDestroy {
     await this.ui.presentAlert({
       cssClass: 'alert-salida',
       header: 'Ingresar patente',
-      message: 'No se detectó automáticamente. Ingresa la patente para validar.',
+      message:
+        'Ingresa la patente sin puntos ni espacios.',
       inputs: [
         {
           name: 'patente',
           type: 'text',
-          placeholder: 'Ej: AB1234',
+          placeholder: 'ABC-12 / ABCD-1',
           attributes: {
             autocapitalize: 'characters',
-            maxlength: 8,
+            maxlength: 6,
           },
         },
       ],
@@ -782,12 +755,15 @@ export class ScannerPage implements OnDestroy {
           text: 'Validar',
           cssClass: 'alert-btn-aceptar',
           handler: (data) => {
-            const patente = PatenteUtil.toApi(String(data?.patente ?? ''));
-            if (PatenteUtil.isFormatValid(patente)) {
+            const raw = String(data?.patente ?? '');
+            const patente = PatenteUtil.toApi(raw);
+            if (PatenteUtil.isFormatValidAutoOMoto(patente)) {
               void this.validarPatenteEscaneada(patente);
               return;
             }
-            void this.mostrarError('Ingresa una patente válida de 6 caracteres.');
+            void this.mostrarError(
+              'Patente inválida. Moto: 5 (ABC-12 o ABCD-1). Auto: 6 (22-22-22 o ABCDE-1).'
+            );
             void this.solicitarPatenteManual();
           },
         },
@@ -805,8 +781,8 @@ export class ScannerPage implements OnDestroy {
     res: ValidarPatenteResponse,
     patenteFallback: string
   ): {
-    tipo: ScanTipo;
-    estado: ScanEstado;
+    tipo: TipoEscaneo;
+    estado: EstadoEscaneo;
     nombre?: string;
     perfil?: string;
     perfilDescripcion?: string;
@@ -857,30 +833,39 @@ export class ScannerPage implements OnDestroy {
   }
 
   private esPatente(valor: string): boolean {
-    return PatenteUtil.isFormatValid(valor);
+    return PatenteUtil.isFormatValidAutoOMoto(valor);
   }
 
-  private mapValidarPerfilToModal(res: ValidarPerfilResponse): {
-    tipo: ScanTipo;
-    estado: ScanEstado;
+  private mapValidarPerfilToModal(
+    res: ValidarPerfilResponse,
+    contexto?: { rut?: string | null; tipo?: TipoEscaneo }
+  ): {
+    tipo: TipoEscaneo;
+    estado: EstadoEscaneo;
     nombre?: string;
     credencial?: string;
     rut?: string;
     perfil?: string;
     perfilDescripcion?: string;
+    persNcorr?: number;
     titulo?: string;
     mensaje?: string;
+    code?: string;
   } {
     const textos = ValidarPerfilUtil.extraerTituloYMensaje(res);
+    const nombre = String(res.nombreCompleto ?? '').trim() || undefined;
+    const rut = this.resolverRutParaManual(res, contexto?.rut);
     const base = {
-      tipo: 'credencial' as const,
-      nombre: res.nombreCompleto ?? res.perfilDescripcion,
-      credencial: res.codigoCredencial ?? res.rut ?? undefined,
-      rut: res.rut ?? undefined,
+      tipo: contexto?.tipo ?? ('credencial' as const),
+      nombre,
+      credencial: res.codigoCredencial ?? undefined,
+      rut,
       perfil: res.perfil != null ? String(res.perfil) : undefined,
       perfilDescripcion: res.perfilDescripcion,
+      persNcorr: res.persNcorr,
       titulo: textos.titulo,
       mensaje: textos.mensaje,
+      code: res.code,
     };
 
     if (ValidarPerfilUtil.esCredencialExpirada(res)) {
@@ -925,6 +910,27 @@ export class ScannerPage implements OnDestroy {
     };
   }
 
+  private resolverRutParaManual(
+    res: ValidarPerfilResponse,
+    rutEscaneado?: string | null
+  ): string | undefined {
+    if (rutEscaneado && RutUtil.isFormatValid(rutEscaneado)) {
+      return rutEscaneado;
+    }
+
+    const apiRut = String(res.rut ?? '').trim();
+    if (!apiRut) {
+      return undefined;
+    }
+
+    const normalizado = RutUtil.normalizeFromRun(apiRut);
+    if (normalizado.includes('-') && RutUtil.isFormatValid(normalizado)) {
+      return normalizado;
+    }
+
+    return apiRut || undefined;
+  }
+
   private buildAccesoQueryParams(resp: {
     patente?: string;
     nombre?: string;
@@ -932,14 +938,12 @@ export class ScannerPage implements OnDestroy {
     credencial?: string;
     perfil?: string;
     perfilDescripcion?: string;
-    estado?: ScanEstado;
-    tipo?: ScanTipo;
+    persNcorr?: number;
+    estado?: EstadoEscaneo;
+    tipo?: TipoEscaneo;
+    code?: string;
   }): Record<string, string | null> {
-    const perfil =
-      resp.perfilDescripcion ??
-      (resp.estado === 'no_autorizado' ? 'Visita' : null) ??
-      resp.perfil ??
-      null;
+    const perfil = this.resolverPerfilParaManual(resp);
 
     return {
       patente: resp.patente ?? null,
@@ -947,9 +951,35 @@ export class ScannerPage implements OnDestroy {
       rut: resp.rut ?? null,
       credencial: resp.credencial ?? null,
       perfil,
+      perfilDescripcion: resp.perfilDescripcion ?? null,
+      persNcorr:
+        resp.persNcorr != null && resp.persNcorr > 0
+          ? String(resp.persNcorr)
+          : null,
       origen: resp.tipo ?? null,
       estado: resp.estado ?? null,
     };
+  }
+
+  private resolverPerfilParaManual(resp: {
+    code?: string;
+    estado?: EstadoEscaneo;
+    perfil?: string;
+  }): string | null {
+    if (String(resp.code ?? '').toLowerCase() === 'visita') {
+      return 'visita';
+    }
+
+    if (resp.estado === 'no_autorizado' || resp.estado === 'manual') {
+      return 'visita';
+    }
+
+    const perfil = String(resp.perfil ?? '').trim().toLowerCase();
+    if (['estudiante', 'docente', 'colaborador', 'visita'].includes(perfil)) {
+      return perfil;
+    }
+
+    return null;
   }
 
   private extraerMensajeError(err: unknown): string | null {

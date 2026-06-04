@@ -35,6 +35,31 @@ export class RutUtil {
     return digits?.[1] ?? cleaned.split('-')[0].replace(/\D/g, '');
   }
 
+  static normalizeFromRun(run: string): string {
+    const cleaned = decodeURIComponent(run).replace(/\./g, '').trim().toUpperCase();
+    if (!cleaned) {
+      return '';
+    }
+
+    if (cleaned.includes('-')) {
+      const [bodyPart, dvPart] = cleaned.split('-');
+      const body = bodyPart.replace(/\D/g, '');
+      const dv = dvPart.replace(/[^0-9K]/g, '').slice(0, 1);
+      if (body && dv) {
+        return `${body}-${dv}`;
+      }
+    }
+
+    const digits = cleaned.match(/^(\d{7,8})([0-9K])?$/);
+    if (digits) {
+      const body = digits[1];
+      const dv = digits[2];
+      return dv ? `${body}-${dv}` : body;
+    }
+
+    return cleaned.replace(/\D/g, '');
+  }
+
   static isScannedFormat(value: string): boolean {
     const cleaned = value.replace(/\./g, '').trim().toUpperCase();
     return /^\d{7,8}-[\dkK]$/.test(cleaned) || /^\d{7,9}$/.test(cleaned);

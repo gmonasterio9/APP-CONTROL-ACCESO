@@ -22,7 +22,7 @@ export class ScanSoundService {
       audio.currentTime = 0;
       await audio.play();
     } catch {
-      // Sin audio disponible (permisos, autoplay, etc.)
+      // Sin audio disponible
     }
   }
 

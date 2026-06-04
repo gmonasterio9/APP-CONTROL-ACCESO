@@ -13,6 +13,10 @@ import { AuthService } from './auth.service';
 
 export type { ApiHttpError } from '../utils/api-response.util';
 
+export interface ApiRequestOptions {
+  noCache?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiHttpService {
   private refreshInFlight$: Observable<void> | null = null;
@@ -31,8 +35,8 @@ export class ApiHttpService {
     return from(this.request<T>('GET', path, undefined, false));
   }
 
-  get<T>(path: string): Observable<T> {
-    return this.requestWithAuth<T>('GET', path);
+  get<T>(path: string, options?: ApiRequestOptions): Observable<T> {
+    return this.requestWithAuth<T>('GET', path, undefined, false, options);
   }
 
   post<T>(path: string, body?: unknown): Observable<T> {
@@ -43,14 +47,15 @@ export class ApiHttpService {
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
-    retried = false
+    retried = false,
+    options?: ApiRequestOptions
   ): Observable<T> {
-    return from(this.request<T>(method, path, body, true)).pipe(
+    return from(this.request<T>(method, path, body, true, options)).pipe(
       map(data => this.guardUnauthorizedResponse(data)),
       catchError((err: unknown) => {
         const apiErr = this.normalizeToApiError(err);
         if (!retried && apiErr.status === 401) {
-          return this.retryAfterRefresh<T>(method, path, body);
+          return this.retryAfterRefresh<T>(method, path, body, options);
         }
         return throwError(() => apiErr);
       })
@@ -60,10 +65,11 @@ export class ApiHttpService {
   private retryAfterRefresh<T>(
     method: 'GET' | 'POST',
     path: string,
-    body?: unknown
+    body?: unknown,
+    options?: ApiRequestOptions
   ): Observable<T> {
     return this.ensureRefreshed$().pipe(
-      switchMap(() => this.requestWithAuth<T>(method, path, body, true))
+      switchMap(() => this.requestWithAuth<T>(method, path, body, true, options))
     );
   }
 
@@ -89,15 +95,17 @@ export class ApiHttpService {
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
-    withAuth = false
+    withAuth = false,
+    options?: ApiRequestOptions
   ): Promise<T> {
     if (Capacitor.getPlatform() === 'web') {
-      return this.requestWeb<T>(method, path, body, withAuth);
+      return this.requestWeb<T>(method, path, body, withAuth, options);
     }
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
       ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      ...this.noCacheHeaders(method, options),
     };
 
     if (withAuth) {
@@ -108,7 +116,7 @@ export class ApiHttpService {
     }
 
     const url = this.buildAbsoluteUrl(path);
-    const options = {
+    const httpOptions = {
       url,
       headers,
       ...(body !== undefined ? { data: body } : {}),
@@ -116,9 +124,9 @@ export class ApiHttpService {
 
     const response: HttpResponse =
       method === 'GET'
-        ? await CapacitorHttp.get(options)
-        : await CapacitorHttp.post(options);
-
+        ? await CapacitorHttp.get(httpOptions)
+        : await CapacitorHttp.post(httpOptions);
+    
     const data = this.parseData<T>(response.data);
 
     if (response.status < 200 || response.status >= 300) {
@@ -134,10 +142,14 @@ export class ApiHttpService {
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
-    withAuth = false
+    withAuth = false,
+    options?: ApiRequestOptions
   ): Promise<T> {
     const http = this.injector.get(HttpClient);
-    let headers = new HttpHeaders({ Accept: 'application/json' });
+    let headers = new HttpHeaders({
+      Accept: 'application/json',
+      ...this.noCacheHeaders(method, options),
+    });
 
     if (method === 'POST') {
       headers = headers.set('Content-Type', 'application/json');
@@ -165,6 +177,20 @@ export class ApiHttpService {
     } catch (error) {
       throw this.normalizeToApiError(error);
     }
+  }
+
+  private noCacheHeaders(
+    method: 'GET' | 'POST',
+    options?: ApiRequestOptions
+  ): Record<string, string> {
+    if (method !== 'GET' || !options?.noCache) {
+      return {};
+    }
+
+    return {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+    };
   }
 
   private getApiBase(): string {

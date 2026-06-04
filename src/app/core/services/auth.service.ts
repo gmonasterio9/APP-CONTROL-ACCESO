@@ -93,7 +93,7 @@ export class AuthService {
       this.storage.remove(this.USER_KEY),
       this.storage.remove(this.SEDE_KEY),
     ]);
-    await this.router.navigate(['/auth/login']);
+    await this.router.navigate(['/auth/inicio-sesion']);
   }
 
   async getAccessToken(): Promise<string | null> {

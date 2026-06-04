@@ -4,14 +4,19 @@ import { ActivatedRoute } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import {
+  IngresoManualPeatonalRequest,
   IngresoManualRequest,
+  IngresoManualVehiculosRequest,
+  normalizarObservaciones,
+  resolverTipoQr,
   TipoMedioIngreso,
+  TipoMedioVehiculo,
   TipoPersonaIngreso,
 } from '../../core/models/ingreso-manual.model';
 import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
 import { UiService } from '../../core/services/ui.service';
-import { PatenteUtil } from '../../core/utils/patente.util';
+import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
 import { ApiHttpError } from '../../core/services/api-http.service';
 
@@ -30,7 +35,9 @@ function patenteValidator(control: AbstractControl): ValidationErrors | null {
   if (!value.trim()) {
     return null;
   }
-  return PatenteUtil.isFormatValid(value) ? null : { patenteFormato: true };
+  const medio: PatenteMedio =
+    control.parent?.get('tipoMedio')?.value === 'moto' ? 'moto' : 'auto';
+  return PatenteUtil.isFormatValid(value, medio) ? null : { patenteFormato: true };
 }
 
 @Component({
@@ -42,6 +49,10 @@ function patenteValidator(control: AbstractControl): ValidationErrors | null {
 export class IngresoManualPage implements OnInit {
   form!: FormGroup;
   obsMaxLength = 100;
+
+  private origenScan: string | null = null;
+  private perfilScan: string | null = null;
+  private perfilDescripcionScan: string | null = null;
 
   tiposPersona = [
     { value: 'estudiante' as TipoPersonaIngreso, label: 'Estudiante' },
@@ -68,7 +79,7 @@ export class IngresoManualPage implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      tipoPersona: ['visita' as TipoPersonaIngreso, Validators.required],
+      tipoPersona: ['estudiante' as TipoPersonaIngreso, Validators.required],
       tipoMedio: ['' as TipoMedioIngreso | '', Validators.required],
       patente: [''],
       rut: ['', [Validators.required, rutValidator]],
@@ -77,6 +88,14 @@ export class IngresoManualPage implements OnInit {
     });
 
     this.form.get('tipoMedio')?.valueChanges.subscribe(() => {
+      const patenteCtrl = this.form.get('patente');
+      const raw = String(patenteCtrl?.value ?? '');
+      if (raw.trim()) {
+        patenteCtrl?.setValue(
+          PatenteUtil.formatInput(raw, this.patenteMedio),
+          { emitEvent: false }
+        );
+      }
       this.actualizarValidacionPatente();
     });
     this.actualizarValidacionPatente();
@@ -87,21 +106,40 @@ export class IngresoManualPage implements OnInit {
     const patente = this.route.snapshot.queryParamMap.get('patente');
     const tipoMedio = this.route.snapshot.queryParamMap.get('tipoMedio');
 
-    if (nombre) {
-      this.form.patchValue({ nombre });
+    this.origenScan = this.route.snapshot.queryParamMap.get('origen');
+    this.perfilScan = perfil;
+    const perfilDescripcion =
+      this.route.snapshot.queryParamMap.get('perfilDescripcion');
+    this.perfilDescripcionScan = perfilDescripcion ?? null;
+
+    const nombreLimpio = (nombre ?? '').trim();
+    const noEsPerfilEnNombre =
+      !perfilDescripcion ||
+      nombreLimpio.toLowerCase() !== perfilDescripcion.trim().toLowerCase();
+    if (nombreLimpio && noEsPerfilEnNombre) {
+      this.form.patchValue({ nombre: nombreLimpio });
     }
     if (rut) {
-      this.form.patchValue({ rut: RutUtil.formatInput(RutUtil.normalizeManual(rut)) });
+      const rutNormalizado = RutUtil.normalizeManual(rut);
+      if (RutUtil.isFormatValid(rutNormalizado)) {
+        this.form.patchValue({
+          rut: RutUtil.formatInput(rutNormalizado),
+        });
+      }
     }
     if (patente) {
+      const medio = ((tipoMedio as TipoMedioIngreso) || 'auto') === 'moto' ? 'moto' : 'auto';
       this.form.patchValue({
-        patente: PatenteUtil.formatInput(patente),
         tipoMedio: (tipoMedio as TipoMedioIngreso) || 'auto',
+        patente: PatenteUtil.formatInput(patente, medio),
       });
       this.actualizarValidacionPatente();
     }
     if (perfil) {
-      const tipo = this.tiposPersona.find(t => t.value === perfil.toLowerCase());
+      const clave = perfil.trim().toLowerCase();
+      const tipo = this.tiposPersona.find(
+        t => t.value === clave || t.label.toLowerCase() === clave
+      );
       if (tipo) {
         this.form.patchValue({ tipoPersona: tipo.value });
       }
@@ -111,6 +149,17 @@ export class IngresoManualPage implements OnInit {
   get requierePatente(): boolean {
     const medio = this.form?.get('tipoMedio')?.value as TipoMedioIngreso | '';
     return !!medio && !MEDIOS_SIN_PATENTE.includes(medio);
+  }
+
+  get patenteMedio(): PatenteMedio {
+    return this.form?.get('tipoMedio')?.value === 'moto' ? 'moto' : 'auto';
+  }
+
+
+  get patenteFormatoHint(): string {
+    return this.patenteMedio === 'moto'
+      ? 'Moto: XXX-XX (ej. ABC-12 o 222-22) o ABCD-1 (nueva) — 5 caracteres'
+      : 'Auto: 22-22-22 (actual) o ABCDE-1 (nueva) — 6 caracteres';
   }
 
   get obsLength(): number {
@@ -125,7 +174,7 @@ export class IngresoManualPage implements OnInit {
 
   onPatenteInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const formatted = PatenteUtil.formatInput(input.value);
+    const formatted = PatenteUtil.formatInput(input.value, this.patenteMedio);
     this.form.get('patente')?.setValue(formatted, { emitEvent: false });
   }
 
@@ -193,24 +242,42 @@ export class IngresoManualPage implements OnInit {
     const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
     const rut = RutUtil.normalizeManual(String(this.form.get('rut')?.value ?? ''));
     const nombre = String(this.form.get('nombre')?.value ?? '').trim();
-    const observaciones = String(this.form.get('observaciones')?.value ?? '').trim();
+    const observaciones = normalizarObservaciones(
+      String(this.form.get('observaciones')?.value ?? '')
+    );
 
-    const body: IngresoManualRequest = {
+    if (tipoMedio === 'peatonal') {
+      const peatonal: IngresoManualPeatonalRequest = {
+        tipoPersona,
+        tipoQr: resolverTipoQr({
+          origen: this.origenScan,
+          tipoPersona,
+          perfil: this.perfilScan,
+          perfilDescripcion: this.perfilDescripcionScan,
+        }),
+        estado: 'EXITOSO',
+        rut,
+        nombre,
+        observaciones,
+      };
+      return peatonal;
+    }
+
+    const vehiculos: IngresoManualVehiculosRequest = {
       tipoPersona,
-      tipoMedio,
+      tipoMedio: tipoMedio as TipoMedioVehiculo,
       rut,
       nombre,
+      observaciones,
     };
 
-    if (observaciones) {
-      body.observaciones = observaciones;
-    }
-
     if (this.requierePatente) {
-      body.patente = PatenteUtil.toApi(String(this.form.get('patente')?.value ?? ''));
+      vehiculos.patente = PatenteUtil.toApi(
+        String(this.form.get('patente')?.value ?? '')
+      );
     }
 
-    return body;
+    return vehiculos;
   }
 
   private actualizarValidacionPatente(): void {

@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  esIngresoManualPeatonal,
+  INGRESO_MANUAL_ENDPOINT,
   IngresoManualRequest,
   IngresoManualResponse,
 } from '../models/ingreso-manual.model';
@@ -11,6 +13,9 @@ export class IngresoManualService {
   constructor(private api: ApiHttpService) {}
 
   registrar(body: IngresoManualRequest): Observable<IngresoManualResponse> {
-    return this.api.post<IngresoManualResponse>('/ingreso-manual', body);
+    const path = esIngresoManualPeatonal(body)
+      ? INGRESO_MANUAL_ENDPOINT.peatonal
+      : INGRESO_MANUAL_ENDPOINT.vehiculos;
+    return this.api.post<IngresoManualResponse>(path, body);
   }
 }

@@ -1,14 +1,14 @@
+<ion-header mode="md">
+  <ion-toolbar class="home-toolbar">
+    <ion-title>Sistema Unificado de Control</ion-title>
+  </ion-toolbar>
+</ion-header>
+
 <ion-content class="home-content">
 
-  <ion-refresher slot="fixed" (ionRefresh)="refrescarEstacionamientos($event)">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescarContenido($event)">
     <ion-refresher-content></ion-refresher-content>
   </ion-refresher>
-
-<ion-header mode="md">
-    <ion-toolbar class="home-toolbar">
-      <ion-title>Sistema Unificado de Control</ion-title>
-    </ion-toolbar>
-  </ion-header>
 
   <div class="scan-section">
     <h2 class="scan-title">Escanea para comenzar</h2>
@@ -36,7 +36,11 @@
     </ion-button>
   </div>
 
-  <ion-segment [(ngModel)]="segmentoActivo" class="home-segment" mode="ios">
+  <ion-segment
+    [(ngModel)]="segmentoActivo"
+    (ionChange)="onSegmentoChange()"
+    class="home-segment"
+    mode="ios">
     <ion-segment-button value="estacionamientos">
       <ion-label>Estacionamientos</ion-label>
     </ion-segment-button>
@@ -53,7 +57,7 @@
 
       @if (cargandoEstacionamientos && estacionamientos.length === 0) {
         <p class="lista-estado">Cargando estacionamientos...</p>
-      } @else if (errorEstacionamientos) {
+      } @else if (errorEstacionamientos && estacionamientos.length === 0) {
         <p class="lista-estado lista-estado--error">{{ errorEstacionamientos }}</p>
         <ion-button fill="outline" size="small" (click)="cargarEstacionamientos()">
           Reintentar
@@ -91,15 +95,27 @@
 
   @if (segmentoActivo === 'peatonal') {
     <div class="peatonal-section">
-      <div class="stats-row">
-        @for (s of statsPeatonal; track s.label) {
-          <div class="stat-card">
-            <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
-            <span class="stat-label">{{ s.label }}</span>
-          </div>
+      @if (cargandoResumenPeatonal && statsPeatonal.length === 0) {
+        <p class="lista-estado">Cargando resumen...</p>
+      } @else if (errorResumenPeatonal) {
+        <p class="lista-estado lista-estado--error">{{ errorResumenPeatonal }}</p>
+        <ion-button fill="outline" size="small" (click)="cargarResumenPeatonal()">
+          Reintentar
+        </ion-button>
+      } @else {
+        @if (fechaResumenPeatonal) {
+          <p class="resumen-fecha">Resumen del {{ fechaResumenPeatonal }}</p>
         }
-      </div>
-      <a class="ver-detalles" (click)="verDetallePeatonal()">Ver detalles</a>
+        <div class="stats-row stats-row--grid">
+          @for (s of statsPeatonal; track s.label) {
+            <div class="stat-card">
+              <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
+              <span class="stat-label">{{ s.label }}</span>
+            </div>
+          }
+        </div>
+        <a class="ver-detalles" (click)="verDetallePeatonal()">Ver detalles</a>
+      }
     </div>
   }
 

@@ -6,9 +6,11 @@ import {
 } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
+import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { ApiHttpError } from '../../core/services/api-http.service';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
 
 export interface AccesoPeatonal {
@@ -42,22 +44,23 @@ export class HomePage {
     { id: 2, nombre: 'Entrada Norte', ubicacion: 'Sector Talleres', estado: 'Abierto' },
   ];
 
-  statsPeatonal = [
-    { valor: 142, label: 'Autorizados', color: '#2ECC71' },
-    { valor: 3, label: 'Ingreso Manual', color: '#F39C12' },
-    { valor: 5, label: 'Visitas', color: '#2563EB' },
-  ];
+  statsPeatonal: PeatonalStatCard[] = [];
+  fechaResumenPeatonal: string | null = null;
+  cargandoResumenPeatonal = false;
+  errorResumenPeatonal: string | null = null;
 
   constructor(
     private authService: AuthService,
     private estacionamientoService: EstacionamientoService,
+    private peatonalService: PeatonalService,
     private actionSheetCtrl: ActionSheetController,
     private ui: UiService,
     public navCtrl: NavController
   ) {}
 
   ionViewWillEnter(): void {
-    void this.cargarEstacionamientos();
+    void this.cargarEstacionamientos({ evitarCache: true });
+    void this.cargarResumenPeatonal({ silencioso: true });
   }
 
   porcentaje(item: EstacionamientoCard): number {
@@ -93,16 +96,22 @@ export class HomePage {
     });
   }
 
-  async cargarEstacionamientos(opciones?: { silencioso?: boolean }): Promise<void> {
+  async cargarEstacionamientos(opciones?: {
+    silencioso?: boolean;
+    evitarCache?: boolean;
+  }): Promise<void> {
     if (!opciones?.silencioso) {
       this.cargandoEstacionamientos = true;
     }
     this.errorEstacionamientos = null;
 
     try {
-      this.estacionamientos = await firstValueFrom(
-        this.estacionamientoService.listar()
+      const lista = await firstValueFrom(
+        this.estacionamientoService.listar({
+          evitarCache: opciones?.evitarCache,
+        })
       );
+      this.estacionamientos = [...lista];
     } catch (err: unknown) {
       this.estacionamientos = [];
       this.errorEstacionamientos =
@@ -114,20 +123,51 @@ export class HomePage {
     }
   }
 
-  async refrescarEstacionamientos(event?: RefresherCustomEvent): Promise<void> {
-    if (this.segmentoActivo !== 'estacionamientos') {
-      await event?.target.complete();
+  onSegmentoChange(): void {
+    if (this.segmentoActivo === 'estacionamientos' && this.estacionamientos.length === 0) {
+      void this.cargarEstacionamientos();
       return;
     }
-
-    if (!event) {
-      this.cargandoEstacionamientos = true;
+    if (this.segmentoActivo === 'peatonal' && this.statsPeatonal.length === 0) {
+      void this.cargarResumenPeatonal();
     }
+  }
 
-    await this.cargarEstacionamientos({ silencioso: true });
+  async refrescarContenido(event: RefresherCustomEvent): Promise<void> {
+    try {
+      if (this.segmentoActivo === 'estacionamientos') {
+        await this.cargarEstacionamientos({
+          silencioso: true,
+          evitarCache: true,
+        });
+      } else {
+        await this.cargarResumenPeatonal({ silencioso: true });
+      }
+    } finally {
+      await event.target.complete();
+    }
+  }
 
-    this.cargandoEstacionamientos = false;
-    await event?.target.complete();
+  async cargarResumenPeatonal(opciones?: { silencioso?: boolean }): Promise<void> {
+    if (!opciones?.silencioso) {
+      this.cargandoResumenPeatonal = true;
+    }
+    this.errorResumenPeatonal = null;
+
+    try {
+      const res = await firstValueFrom(this.peatonalService.obtenerResumen());
+      this.statsPeatonal = res.stats;
+      this.fechaResumenPeatonal = res.fecha ?? null;
+    } catch (err: unknown) {
+      this.statsPeatonal = [];
+      this.fechaResumenPeatonal = null;
+      this.errorResumenPeatonal =
+        this.extraerMensajeError(err) || 'No se pudo cargar el resumen peatonal.';
+    } finally {
+      if (!opciones?.silencioso) {
+        this.cargandoResumenPeatonal = false;
+      }
+    }
   }
 
   async cerrarSesion(): Promise<void> {

@@ -3,12 +3,12 @@ import { ActivatedRoute } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
-import { ControlIngresoOrigen } from '../../core/models/control-ingreso.model';
+import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento-ingreso.model';
 import { ApiHttpError } from '../../core/services/api-http.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ControlIngresoService } from '../../core/services/control-ingreso.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { UiService } from '../../core/services/ui.service';
+import { PatenteUtil } from '../../core/utils/patente.util';
 
 @Component({
   selector: 'app-estacionamiento',
@@ -24,6 +24,7 @@ export class EstacionamientoPage {
   perfil: string | null = null;
   origen: string | null = null;
   estadoScan: string | null = null;
+  persNcorr: number | null = null;
 
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;
@@ -34,7 +35,6 @@ export class EstacionamientoPage {
     private navCtrl: NavController,
     private ui: UiService,
     private authService: AuthService,
-    private controlIngresoService: ControlIngresoService,
     private estacionamientoService: EstacionamientoService
   ) {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
@@ -62,10 +62,10 @@ export class EstacionamientoPage {
   }
 
   async ingresar(e: EstacionamientoCard): Promise<void> {
-    const perfil = this.perfil ?? 'Visita';
-    const nombre = this.nombre ?? (this.patente ? this.patente : 'Visitante');
     const rechazado =
       this.estadoScan === 'no_autorizado' || this.estadoScan === 'manual';
+    const perfil = this.perfil ?? (rechazado ? 'visita' : undefined);
+    const nombre = this.nombre ?? (this.patente ? this.patente : 'Visitante');
 
     if (rechazado) {
       await this.navCtrl.navigateForward('/ingreso-manual', {
@@ -83,34 +83,26 @@ export class EstacionamientoPage {
       return;
     }
 
-    const rut = String(this.rut ?? '').trim();
-    if (!rut) {
-      await this.ui.presentToast('Faltan datos para registrar el ingreso.', {
-        color: 'warning',
-      });
+    const body = this.buildIngresoBody();
+    if (!body) {
+      await this.ui.presentToast(
+        'Faltan datos para confirmar el ingreso del vehículo.',
+        { color: 'warning' }
+      );
       return;
     }
 
-    const loading = await this.ui.presentLoading('Registrando ingreso...');
+    const loading = await this.ui.presentLoading('Confirmando ingreso...');
 
     try {
       const res = await firstValueFrom(
-        this.controlIngresoService.registrar({
-          rut,
-          nombre,
-          tipoMedio: 'auto',
-          perfil,
-          patente: this.patente ?? undefined,
-          codigoCredencial: this.credencial ?? undefined,
-          aeseNcorr: e.id,
-          origen: this.origen as ControlIngresoOrigen | undefined,
-        })
+        this.estacionamientoService.registrarIngreso(body)
       );
       await this.ui.dismissLoading(loading);
 
       if (!res.success) {
         await this.ui.presentToast(
-          res.message || 'No se pudo registrar el ingreso.',
+          res.message || 'No se pudo confirmar el ingreso.',
           { color: 'warning' }
         );
         return;
@@ -129,10 +121,21 @@ export class EstacionamientoPage {
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        this.extraerMensajeError(err) || 'Error al registrar el ingreso.',
+        this.extraerMensajeError(err) || 'Error al confirmar el ingreso.',
         { color: 'danger' }
       );
     }
+  }
+
+  private buildIngresoBody(): EstacionamientoIngresoRequest | null {
+    const patente = PatenteUtil.toApi(String(this.patente ?? ''));
+    if (patente) {
+      return { patente };
+    }
+    if (this.persNcorr != null && this.persNcorr > 0) {
+      return { persNcorr: this.persNcorr };
+    }
+    return null;
   }
 
   registrarAcompanante(): void {

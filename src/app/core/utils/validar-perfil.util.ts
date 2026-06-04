@@ -11,6 +11,22 @@ export class ValidarPerfilUtil {
     return value === true || value === 'true' || value === 1 || value === '1';
   }
 
+  static esFlujoVisita(res: ValidarPerfilResponse): boolean {
+    if (String(res.code ?? '').toLowerCase() === 'visita') {
+      return true;
+    }
+
+    const texto = [
+      res.message,
+      ...(res.messages ?? []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return texto.includes('visita');
+  }
+
   static esCredencialExpirada(res: ValidarPerfilResponse): boolean {
     const value = res.credencialExpirada;
     return value === true || value === 'true' || value === 1 || value === '1';

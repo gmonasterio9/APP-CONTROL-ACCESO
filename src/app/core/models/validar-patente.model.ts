@@ -14,4 +14,5 @@ export interface ValidarPatenteResponse {
   message?: string;
   messages?: string[];
   patente?: string;
+  persNcorr?: number;
 }

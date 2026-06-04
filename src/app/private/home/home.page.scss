@@ -360,6 +360,19 @@
   display: flex;
   gap: var(--spacing-sm);
   width: 100%;
+
+  &--grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.resumen-fecha {
+  width: 100%;
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-subtitle);
+  text-align: center;
 }
 
 .stat-card {

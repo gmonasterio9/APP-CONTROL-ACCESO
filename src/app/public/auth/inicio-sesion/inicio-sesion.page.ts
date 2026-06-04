@@ -5,16 +5,17 @@ import { AuthService } from '../../../core/services/auth.service';
 import { SedesService } from '../../../core/services/sedes.service';
 import { UiService } from '../../../core/services/ui.service';
 import { Sede } from '../../../core/models/sede.model';
-type LoginStep = 'sede' | 'pin';
+
+type InicioSesionStep = 'sede' | 'pin';
 
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.page.html',
-  styleUrls: ['./login.page.scss'],
+  selector: 'app-inicio-sesion',
+  templateUrl: './inicio-sesion.page.html',
+  styleUrls: ['./inicio-sesion.page.scss'],
   standalone: false,
 })
-export class LoginPage implements OnInit {
-  step: LoginStep = 'sede';
+export class InicioSesionPage implements OnInit {
+  step: InicioSesionStep = 'sede';
   sedes: Sede[] = [];
   loadingSedes = false;
   sedesLoadError = false;

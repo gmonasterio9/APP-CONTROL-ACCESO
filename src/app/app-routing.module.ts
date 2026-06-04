@@ -5,12 +5,15 @@ import { AuthGuard } from './core/guards/auth.guard';
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'auth/login',
+    redirectTo: 'auth/inicio-sesion',
     pathMatch: 'full'
   },
   {
-    path: 'auth/login',
-    loadChildren: () => import('./public/auth/login/login.module').then(m => m.LoginPageModule)
+    path: 'auth/inicio-sesion',
+    loadChildren: () =>
+      import('./public/auth/inicio-sesion/inicio-sesion.module').then(
+        m => m.InicioSesionPageModule
+      )
   },
   {
     path: 'home',
@@ -49,7 +52,7 @@ const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'auth/login'
+    redirectTo: 'auth/inicio-sesion'
   }
 ];
 

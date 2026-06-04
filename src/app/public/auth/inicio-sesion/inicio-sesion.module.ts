@@ -2,8 +2,8 @@ import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
-import { LoginPageRoutingModule } from './login-routing.module';
-import { LoginPage } from './login.page';
+import { InicioSesionPageRoutingModule } from './inicio-sesion-routing.module';
+import { InicioSesionPage } from './inicio-sesion.page';
 import { SedesModalComponent } from './components/sedes-modal/sedes-modal.component';
 
 @NgModule({
@@ -11,9 +11,9 @@ import { SedesModalComponent } from './components/sedes-modal/sedes-modal.compon
     CommonModule,
     ReactiveFormsModule,
     IonicModule,
-    LoginPageRoutingModule
+    InicioSesionPageRoutingModule
   ],
-  declarations: [LoginPage, SedesModalComponent],
+  declarations: [InicioSesionPage, SedesModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class LoginPageModule {}
+export class InicioSesionPageModule {}

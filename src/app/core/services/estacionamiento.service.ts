@@ -10,6 +10,11 @@ import {
   EstacionamientoListResponse,
   mapEstacionamientoCard,
 } from '../models/estacionamiento.model';
+import {
+  assertEstacionamientoIngresoOk,
+  EstacionamientoIngresoRequest,
+  EstacionamientoIngresoResponse,
+} from '../models/estacionamiento-ingreso.model';
 import { EstacionamientoSalidaResponse } from '../models/estacionamiento-salida.model';
 import { assertApiSuccess } from '../utils/api-response.util';
 import {
@@ -25,10 +30,17 @@ import { ApiHttpService } from './api-http.service';
 export class EstacionamientoService {
   constructor(private api: ApiHttpService) {}
 
-  listar(): Observable<EstacionamientoCard[]> {
-    return this.api.get<EstacionamientoListResponse>('/estacionamiento').pipe(
-      map(res => (res.estacionamientos ?? []).map(mapEstacionamientoCard))
-    );
+  listar(opciones?: { evitarCache?: boolean }): Observable<EstacionamientoCard[]> {
+    return this.api
+      .get<EstacionamientoListResponse>('/estacionamiento', {
+        noCache: opciones?.evitarCache,
+      })
+      .pipe(
+        switchMap(res => {
+          assertApiSuccess(res);
+          return of((res.estacionamientos ?? []).map(mapEstacionamientoCard));
+        })
+      );
   }
 
   obtenerDisponibilidad(
@@ -60,6 +72,14 @@ export class EstacionamientoService {
           return of(mapVehiculosActivos(res));
         })
       );
+  }
+
+  registrarIngreso(
+    body: EstacionamientoIngresoRequest
+  ): Observable<EstacionamientoIngresoResponse> {
+    return this.api
+      .post<EstacionamientoIngresoResponse>('/estacionamiento/ingreso', body)
+      .pipe(map(assertEstacionamientoIngresoOk));
   }
 
   registrarSalida(patente: string): Observable<EstacionamientoSalidaResponse> {

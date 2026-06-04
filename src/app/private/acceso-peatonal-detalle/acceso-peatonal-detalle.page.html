@@ -9,37 +9,94 @@
 
 <ion-content class="det-content">
 
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
   <div class="det-header">
     <h1 class="det-titulo">Acceso Peatonal</h1>
-    <p class="det-subtitulo">Control de ingreso de personas</p>
+    <p class="det-subtitulo">
+      @if (fecha) {
+        Control de ingreso · {{ fecha }}
+      } @else {
+        Control de ingreso de personas
+      }
+    </p>
   </div>
 
-  <div class="stats-row">
-    @for (s of stats; track s.label) {
-      <div class="stat-card">
-        <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
-        <span class="stat-label">{{ s.label }}</span>
-      </div>
-    }
-  </div>
-
-  <div class="accesos-section">
-    <p class="accesos-titulo">Accesos Recientes</p>
-
-    <div class="accesos-lista">
-      @for (a of accesos; track $index) {
-        <div class="acceso-item">
-          <div class="acceso-info">
-            <p class="acceso-nombre">{{ a.nombre }}</p>
-            <p class="acceso-rut">{{ a.rut }}</p>
-            <p class="acceso-credencial">{{ a.credencial }}</p>
-          </div>
-          <span [class]="'chip-estado chip-' + a.estado">
-            {{ chipLabel(a.estado) }}
-          </span>
+  @if (cargando && stats.length === 0) {
+    <p class="lista-estado">Cargando resumen...</p>
+  } @else if (error && stats.length === 0) {
+    <p class="lista-estado lista-estado--error">{{ error }}</p>
+    <div class="estado-acciones">
+      <ion-button fill="outline" size="small" (click)="reintentar()">
+        Reintentar
+      </ion-button>
+    </div>
+  } @else {
+    <div class="stats-row stats-row--grid">
+      @for (s of stats; track s.label) {
+        <div class="stat-card">
+          <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
+          <span class="stat-label">{{ s.label }}</span>
         </div>
       }
     </div>
+  }
+
+  <div class="accesos-section">
+    <p class="accesos-titulo">Accesos recientes</p>
+
+    @if (cargando && accesos.length === 0) {
+      <p class="lista-estado">Cargando accesos...</p>
+    } @else if (error && accesos.length === 0) {
+      <p class="lista-estado lista-estado--error">{{ error }}</p>
+    } @else {
+      <div class="accesos-lista">
+        @for (a of accesos; track a.apesNcorr) {
+          <div class="acceso-item">
+            <div class="acceso-info">
+              <div class="acceso-top">
+                <p class="acceso-nombre">{{ a.nombre }}</p>
+                <span class="acceso-hora">
+                  <ion-icon name="time-outline"></ion-icon>
+                  {{ a.hora }}
+                </span>
+              </div>
+              <p class="acceso-rut">{{ a.rut }}</p>
+            </div>
+            <span [class]="'chip-estado chip-' + a.estado">
+              {{ chipLabel(a.estado) }}
+            </span>
+          </div>
+        }
+      </div>
+
+      @if (!cargando && !error && accesos.length === 0) {
+        <p class="sin-resultados">Sin accesos registrados</p>
+      }
+    }
+
+    @if (cargandoMas) {
+      <p class="lista-estado lista-estado--cargando-mas">Cargando más accesos...</p>
+    }
+
+    @if (hayMasAccesos && !cargandoMas) {
+      <button type="button" class="btn-cargar-mas" (click)="cargarMasManual()">
+        Cargar más accesos
+      </button>
+    }
   </div>
+
+  <ion-infinite-scroll
+    threshold="100px"
+    position="bottom"
+    [disabled]="!hayMasAccesos || cargandoMas"
+    (ionInfinite)="cargarMasAccesos($event)">
+    <ion-infinite-scroll-content
+      loadingSpinner="crescent"
+      loadingText="Cargando más accesos...">
+    </ion-infinite-scroll-content>
+  </ion-infinite-scroll>
 
 </ion-content>

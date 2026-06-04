@@ -51,10 +51,10 @@ ion-header ion-toolbar:first-of-type {
 ion-tab-bar,
 ion-footer {
   padding-bottom: env(safe-area-inset-bottom);
-}
+} 
 
 .modal-75 {
-  --height: 58%;
+  --height: 60%;
   --width: calc(100% - 48px);
   --border-radius: 16px;
   --box-shadow: 0 8px 32px rgba(0,0,0,0.18);

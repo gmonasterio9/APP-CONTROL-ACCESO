@@ -2,39 +2,42 @@ import { Component, Input } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 
-export type ScanTipo    = 'credencial' | 'cedula' | 'patente';
-export type ScanEstado  = 'autorizado' | 'no_autorizado' | 'manual';
+export type TipoEscaneo = 'credencial' | 'cedula' | 'patente';
+export type EstadoEscaneo = 'autorizado' | 'no_autorizado' | 'manual';
 
-export interface ScanResultData {
-  tipo:        ScanTipo;
-  estado:      ScanEstado;
-  nombre?:     string;
+export interface DatosResultadoEscaneo {
+  tipo: TipoEscaneo;
+  estado: EstadoEscaneo;
+  nombre?: string;
   credencial?: string;
-  rut?:        string;
-  perfil?:     string;
+  rut?: string;
+  perfil?: string;
   perfilDescripcion?: string;
-  titulo?:     string;
-  mensaje?:    string;
+  persNcorr?: number;
+  titulo?: string;
+  mensaje?: string;
   plateResult?: PlateResult;
   fotoPreview?: string;
 }
 
 @Component({
-  selector: 'app-scan-result-modal',
-  templateUrl: 'scan-result-modal.component.html',
-  styleUrls: ['scan-result-modal.component.scss'],
+  selector: 'app-modal-resultado-escaneo',
+  templateUrl: 'modal-resultado-escaneo.component.html',
+  styleUrls: ['modal-resultado-escaneo.component.scss'],
   standalone: false,
 })
-export class ScanResultModalComponent {
-  @Input() tipo:        ScanTipo   = 'credencial';
-  @Input() estado:      ScanEstado = 'autorizado';
-  @Input() nombre?:     string;
+export class ModalResultadoEscaneoComponent {
+  @Input() tipo: TipoEscaneo = 'credencial';
+  @Input() estado: EstadoEscaneo = 'autorizado';
+  @Input() nombre?: string;
   @Input() credencial?: string;
-  @Input() rut?:        string;
-  @Input() perfil?:     string;
+  @Input() rut?: string;
+  @Input() perfil?: string;
   @Input() perfilDescripcion?: string;
-  @Input() titulo?:     string;
-  @Input() mensaje?:    string;
+  @Input() persNcorr?: number;
+  @Input() code?: string;
+  @Input() titulo?: string;
+  @Input() mensaje?: string;
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
 
@@ -73,8 +76,8 @@ export class ScanResultModalComponent {
       return this.mensaje;
     }
     return {
-      autorizado:      '',
-      no_autorizado:   'La persona no pertenece a INACAP. Debe ingresarla como visita.',
+      autorizado: '',
+      no_autorizado: 'La persona no pertenece a INACAP. Debe ingresarla como visita.',
       manual:
         'Solicitar mostrar la credencial desde la APP INACAP. Si el problema persiste solicitar Cédula de Identidad.',
     }[this.estado];
@@ -100,6 +103,8 @@ export class ScanResultModalComponent {
         credencial: this.credencial,
         perfil: this.perfil,
         perfilDescripcion: this.perfilDescripcion,
+        persNcorr: this.persNcorr,
+        code: this.code,
         patente: this.plateResult?.plate,
       },
       'accion'

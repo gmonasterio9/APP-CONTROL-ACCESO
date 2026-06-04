@@ -7,6 +7,7 @@
 
 .det-content {
   --background: #F5F5F5;
+  --padding-bottom: 24px;
 }
 
 .det-header {
@@ -60,10 +61,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-
-  &.full-width {
-    grid-column: 1 / -1;
-  }
 }
 
 .cupo-icono-wrap {
@@ -75,6 +72,11 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.cupo-svg {
+  display: block;
   flex-shrink: 0;
 }
 
@@ -306,4 +308,23 @@
   &--error {
     color: #cc0000;
   }
+
+  &--cargando-mas {
+    padding: 16px 0;
+  }
+}
+
+.btn-cargar-mas {
+  display: block;
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #1d78bf;
+  background: #ffffff;
+  color: #1d78bf;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }

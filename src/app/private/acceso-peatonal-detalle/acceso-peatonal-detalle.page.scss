@@ -44,6 +44,11 @@
   gap:           10px;
   padding:       0 16px;
   margin-bottom: 20px;
+
+  &--grid {
+    display:               grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .stat-card {
@@ -110,21 +115,88 @@
   gap:            2px;
 }
 
+.acceso-top {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             8px;
+  width:           100%;
+}
+
 .acceso-nombre {
   color:       #040B15;
   font-family: Roboto, sans-serif;
   font-size:   15px;
   font-weight: 600;
   margin:      0;
+  flex:        1;
 }
 
-.acceso-rut,
-.acceso-credencial {
+.acceso-hora {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+  color:       #6A7282;
+  font-family: Roboto, sans-serif;
+  font-size:   12px;
+  font-weight: 400;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 14px;
+  }
+}
+
+.acceso-rut {
   color:       #6A7282;
   font-family: Roboto, sans-serif;
   font-size:   12px;
   font-weight: 400;
   margin:      0;
+}
+
+.lista-estado {
+  padding:    0 16px 12px;
+  margin:     0;
+  color:      #6A7282;
+  font-size:  14px;
+  text-align: center;
+
+  &--error {
+    color: #CC0000;
+  }
+
+  &--cargando-mas {
+    padding-top: 8px;
+  }
+}
+
+.estado-acciones {
+  display:         flex;
+  justify-content: center;
+  padding:         0 16px 16px;
+}
+
+.sin-resultados {
+  color:      #6A7282;
+  font-size:  14px;
+  text-align: center;
+  margin:     8px 0 0;
+}
+
+.btn-cargar-mas {
+  display:         block;
+  width:           100%;
+  margin-top:      12px;
+  padding:         12px;
+  border:          1px solid #1D78BF;
+  border-radius:   8px;
+  background:      transparent;
+  color:           #1D78BF;
+  font-family:     Roboto, sans-serif;
+  font-size:       14px;
+  font-weight:     500;
+  cursor:          pointer;
 }
 
 .chip-estado {
@@ -156,5 +228,11 @@
     color:        #1565C0;
     border:       0.817px solid #1565C0;
     background:   #E1EDFA;
+  }
+
+  &.chip-rechazado {
+    color:        #CC0000;
+    border:       0.817px solid #CC0000;
+    background:   #FFEBEE;
   }
 }

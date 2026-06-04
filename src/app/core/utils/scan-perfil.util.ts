@@ -6,6 +6,37 @@ const SIDIV_HOST = 'portal.sidiv.registrocivil.cl';
 export class ScanPerfilUtil {
   private constructor() {}
 
+  static resolveTipoEscaneo(raw: string): 'cedula' | 'credencial' {
+    const value = raw.trim();
+    if (ScanPerfilUtil.isSidivUrl(value) || RutUtil.isScannedFormat(value)) {
+      return 'cedula';
+    }
+    return 'credencial';
+  }
+
+  static extractRutCompletoFromEscaneo(raw: string): string | null {
+    const value = raw.trim();
+    if (!value) {
+      return null;
+    }
+
+    if (ScanPerfilUtil.isSidivUrl(value)) {
+      const run = ScanPerfilUtil.readRunParam(value);
+      if (!run) {
+        return null;
+      }
+      const normalizado = RutUtil.normalizeFromRun(run);
+      return normalizado.includes('-') ? normalizado : null;
+    }
+
+    if (RutUtil.isScannedFormat(value)) {
+      const normalizado = RutUtil.normalizeManual(value);
+      return RutUtil.isFormatValid(normalizado) ? normalizado : null;
+    }
+
+    return null;
+  }
+
   static buildValidarPerfilBody(raw: string): ValidarPerfilRequest {
     const value = raw.trim();
     if (!value) {
@@ -52,11 +83,21 @@ export class ScanPerfilUtil {
       if (!url.hostname.toLowerCase().includes(SIDIV_HOST)) {
         return null;
       }
-      const run = url.searchParams.get('RUN');
+      const run = ScanPerfilUtil.readRunParam(value);
       return run ? RutUtil.extractBodyOnly(run) : null;
     } catch {
+      const run = ScanPerfilUtil.readRunParam(value);
+      return run ? RutUtil.extractBodyOnly(run) : null;
+    }
+  }
+
+  private static readRunParam(value: string): string | null {
+    try {
+      const url = new URL(value);
+      return url.searchParams.get('RUN');
+    } catch {
       const match = value.match(/[?&]RUN=([^&]+)/i);
-      return match?.[1] ? RutUtil.extractBodyOnly(decodeURIComponent(match[1])) : null;
+      return match?.[1] ? decodeURIComponent(match[1]) : null;
     }
   }
 

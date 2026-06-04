@@ -62,12 +62,11 @@
         <input
           class="im-input"
           formControlName="patente"
-          placeholder="XX-XX-XX"
-          maxlength="8"
+          [placeholder]="patenteMedio === 'moto' ? 'ABC-12 / 222-22 / ABCD-1' : '22-22-22 / ABCDE-1'"
           autocapitalize="characters"
           (input)="onPatenteInput($event)" />
         @if (form.get('patente')?.touched && form.get('patente')?.hasError('patenteFormato')) {
-          <p class="im-hint im-hint--error">Formato: PT-CL-21 (6 caracteres)</p>
+          <p class="im-hint im-hint--error">{{ patenteFormatoHint }}</p>
         }
         <div class="im-divider"></div>
       </div>

@@ -18,8 +18,11 @@ import { UiService } from '../../core/services/ui.service';
 const COLORES: Record<CategoriaTipo, { circulo: string; barra: string }> = {
   estudiante: { circulo: '#EDF3F8', barra: '#A0C3D9' },
   docente: { circulo: '#DCDFF9', barra: '#717FE8' },
+  colaborador: { circulo: '#FFF4E5', barra: '#FFB066' },
   visita: { circulo: '#DCF9F8', barra: '#99D1CF' },
 };
+
+const COLORES_DEFAULT = COLORES.estudiante;
 
 const BUSQUEDA_DEBOUNCE_MS = 400;
 
@@ -85,15 +88,21 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   get hayMasVehiculos(): boolean {
-    return this.paginaVehiculos < this.totalPaginasVehiculos;
+    if (this.totalPaginasVehiculos > 0) {
+      return this.paginaVehiculos < this.totalPaginasVehiculos;
+    }
+    return (
+      this.totalRegistrosVehiculos > 0 &&
+      this.vehiculos.length < this.totalRegistrosVehiculos
+    );
   }
 
   colorCirculo(c: CupoCategoriaView): string {
-    return COLORES[c.categoria].circulo;
+    return (COLORES[c.categoria] ?? COLORES_DEFAULT).circulo;
   }
 
   colorBarra(c: CupoCategoriaView): string {
-    return COLORES[c.categoria].barra;
+    return (COLORES[c.categoria] ?? COLORES_DEFAULT).barra;
   }
 
   porcentaje(c: CupoCategoriaView): number {
@@ -113,15 +122,26 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }, BUSQUEDA_DEBOUNCE_MS);
   }
 
-  async cargarMasVehiculos(event: InfiniteScrollCustomEvent): Promise<void> {
+  async cargarMasVehiculosManual(): Promise<void> {
     if (!this.hayMasVehiculos || this.cargandoMasVehiculos) {
-      await event.target.complete();
       return;
     }
 
     this.paginaVehiculos += 1;
     await this.cargarVehiculosActivos(false);
-    await event.target.complete();
+  }
+
+  async cargarMasVehiculos(event: InfiniteScrollCustomEvent): Promise<void> {
+    try {
+      if (!this.hayMasVehiculos || this.cargandoMasVehiculos) {
+        return;
+      }
+
+      this.paginaVehiculos += 1;
+      await this.cargarVehiculosActivos(false);
+    } finally {
+      await event.target.complete();
+    }
   }
 
   async marcarSalida(v: VehiculoActivoView): Promise<void> {

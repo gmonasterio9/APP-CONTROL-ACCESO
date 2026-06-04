@@ -5,6 +5,7 @@ export type ValidarPerfilRequest =
 
 export interface ValidarPerfilResponse {
   success: boolean;
+  code?: string;
   perfil?: string | number;
   perfilDescripcion?: string;
   rut?: string | null;

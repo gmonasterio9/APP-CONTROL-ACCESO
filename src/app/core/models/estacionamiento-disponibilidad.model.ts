@@ -1,6 +1,16 @@
-export type CategoriaTipo = 'estudiante' | 'docente' | 'visita';
+import {
+  CupoVehiculoIcono,
+  iconoPorTipoVehiculo,
+} from './tipo-vehiculo.model';
 
-export type CupoIcono = 'auto' | 'moto' | 'visita';
+export type { CupoVehiculoIcono };
+export type CupoIcono = CupoVehiculoIcono;
+
+export type CategoriaTipo =
+  | 'estudiante'
+  | 'docente'
+  | 'colaborador'
+  | 'visita';
 
 export interface EstacionamientoDisponibilidadDetalleApi {
   aepeNcorr: number;
@@ -31,12 +41,12 @@ export interface EstacionamientoDisponibilidadResponse {
 }
 
 export interface CupoCategoriaView {
+  trackId: string;
   icono: CupoIcono;
   label: string;
   disponibles: number;
   total: number;
   categoria: CategoriaTipo;
-  fullWidth?: boolean;
 }
 
 export interface VehiculoActivoView {
@@ -59,13 +69,14 @@ export interface EstacionamientoDisponibilidadView {
 const ORDEN_PERSONA: Record<CategoriaTipo, number> = {
   estudiante: 0,
   docente: 1,
-  visita: 2,
+  colaborador: 2,
+  visita: 3,
 };
 
 const ORDEN_VEHICULO: Record<string, number> = {
   auto: 0,
   moto: 1,
-  visita: 2,
+  bicicleta: 2,
 };
 
 function normalizarClave(valor?: string): string {
@@ -81,21 +92,17 @@ function resolverCategoria(tipoPersona: string): CategoriaTipo {
   if (n.includes('docent')) {
     return 'docente';
   }
+  if (n.includes('colabor')) {
+    return 'colaborador';
+  }
   if (n.includes('visit')) {
     return 'visita';
   }
   return 'estudiante';
 }
 
-function resolverIcono(tipoVehiculo: string, categoria: CategoriaTipo): CupoIcono {
-  if (categoria === 'visita') {
-    return 'visita';
-  }
-  const n = normalizarClave(tipoVehiculo);
-  if (n.includes('moto')) {
-    return 'moto';
-  }
-  return 'auto';
+function resolverIcono(tipoVehiculo: string): CupoIcono {
+  return iconoPorTipoVehiculo(tipoVehiculo);
 }
 
 function etiquetaCupo(item: EstacionamientoDisponibilidadDetalleApi): string {
@@ -115,7 +122,13 @@ function ordenarDetalle(
 
     const vehA = normalizarClave(a.tipoVehiculo);
     const vehB = normalizarClave(b.tipoVehiculo);
-    return (ORDEN_VEHICULO[vehA] ?? 99) - (ORDEN_VEHICULO[vehB] ?? 99);
+    const porVehiculo =
+      (ORDEN_VEHICULO[vehA] ?? 99) - (ORDEN_VEHICULO[vehB] ?? 99);
+    if (porVehiculo !== 0) {
+      return porVehiculo;
+    }
+
+    return a.aeveNcorr - b.aeveNcorr;
   });
 }
 
@@ -126,12 +139,12 @@ function mapDetalleToCupos(
     const categoria = resolverCategoria(item.tipoPersona);
 
     return {
-      icono: resolverIcono(item.tipoVehiculo, categoria),
+      trackId: `${item.aepeNcorr}-${item.aeveNcorr}`,
+      icono: resolverIcono(item.tipoVehiculo),
       label: etiquetaCupo(item),
       disponibles: item.disponibles,
       total: item.cupos,
       categoria,
-      fullWidth: categoria === 'visita',
     };
   });
 }
