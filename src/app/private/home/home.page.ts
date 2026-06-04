@@ -7,7 +7,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
-import { ApiHttpError } from '../../core/services/api-http.service';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
@@ -34,6 +34,9 @@ export class HomePage {
     { id: 'cedula', label: 'Cédula', svg: 'assets/svg/cedula.svg', color: '#A7B0F1' },
     { id: 'patente', label: 'Patente', svg: 'assets/svg/patente.svg', color: '#FFB066' },
   ];
+
+  readonly estacionamientosSkeleton = [0, 1, 2];
+  readonly statsSkeleton = [0, 1, 2, 3, 4];
 
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;
@@ -114,8 +117,10 @@ export class HomePage {
       this.estacionamientos = [...lista];
     } catch (err: unknown) {
       this.estacionamientos = [];
-      this.errorEstacionamientos =
-        this.extraerMensajeError(err) || 'No se pudieron cargar los estacionamientos.';
+      this.errorEstacionamientos = mensajeErrorUsuario(
+        err,
+        'No se pudieron cargar los estacionamientos.'
+      );
     } finally {
       if (!opciones?.silencioso) {
         this.cargandoEstacionamientos = false;
@@ -161,8 +166,10 @@ export class HomePage {
     } catch (err: unknown) {
       this.statsPeatonal = [];
       this.fechaResumenPeatonal = null;
-      this.errorResumenPeatonal =
-        this.extraerMensajeError(err) || 'No se pudo cargar el resumen peatonal.';
+      this.errorResumenPeatonal = mensajeErrorUsuario(
+        err,
+        'No se pudo cargar el resumen peatonal.'
+      );
     } finally {
       if (!opciones?.silencioso) {
         this.cargandoResumenPeatonal = false;
@@ -199,14 +206,4 @@ export class HomePage {
     await sheet.present();
   }
 
-  private extraerMensajeError(err: unknown): string | null {
-    const apiErr = err as ApiHttpError;
-    if (apiErr?.message) {
-      return apiErr.message;
-    }
-    if (err instanceof Error && err.message) {
-      return err.message;
-    }
-    return null;
-  }
 }

@@ -67,6 +67,92 @@ export function toApiHttpError(
   };
 }
 
+function esMensajeTecnico(mensaje: string): boolean {
+  const m = mensaje.trim();
+  if (!m) {
+    return true;
+  }
+
+  return (
+    /^Http failure response/i.test(m) ||
+    /Unknown Error/i.test(m) ||
+    /^Network Error/i.test(m) ||
+    /^Error de red$/i.test(m) ||
+    (m.includes('/api/v1/') && m.includes('Http failure')) ||
+    m.includes('Sin conexión con el servidor')
+  );
+}
+
+function extraerMensajeCrudo(err: unknown): string | null {
+  const apiErr = err as ApiHttpError;
+
+  if (typeof apiErr?.message === 'string' && apiErr.message.trim()) {
+    return apiErr.message.trim();
+  }
+
+  const body = apiErr?.error;
+  if (
+    body &&
+    typeof body === 'object' &&
+    'message' in body &&
+    typeof (body as ApiResultBase).message === 'string'
+  ) {
+    const msg = (body as ApiResultBase).message?.trim();
+    if (msg) {
+      return msg;
+    }
+  }
+
+  if (err instanceof Error && err.message.trim()) {
+    return err.message.trim();
+  }
+
+  return null;
+}
+
+export const MENSAJE_ERROR_SIN_CONEXION =
+  'Revise su internet o intente más tarde.';
+
+export function mensajePorEstadoHttp(
+  status: number,
+  fallback: string
+): string {
+  if (status === 0) {
+    return MENSAJE_ERROR_SIN_CONEXION;
+  }
+
+  if (status === 401 || status === 403) {
+    return 'Sesión expirada o sin permisos. Vuelva a iniciar sesión.';
+  }
+
+  if (status >= 500) {
+    return 'El servidor no está disponible. Intente más tarde.';
+  }
+
+  if (status === 404) {
+    return 'No se encontró la información solicitada.';
+  }
+
+  return fallback;
+}
+
+/** Mensaje legible para pantallas; oculta errores técnicos de HttpClient/Capacitor. */
+export function mensajeErrorUsuario(err: unknown, fallback: string): string {
+  const apiErr = err as ApiHttpError;
+  const status = typeof apiErr?.status === 'number' ? apiErr.status : 0;
+  const crudo = extraerMensajeCrudo(err);
+
+  if (status === 0 || (crudo && esMensajeTecnico(crudo))) {
+    return MENSAJE_ERROR_SIN_CONEXION;
+  }
+
+  if (crudo) {
+    return crudo;
+  }
+
+  return mensajePorEstadoHttp(status, fallback);
+}
+
 export function assertApiSuccess<T extends ApiResultBase>(res: T): T {
   if (res.success !== false) {
     return res;

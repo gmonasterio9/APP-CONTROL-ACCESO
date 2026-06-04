@@ -17,11 +17,13 @@
       <p class="modal-patente">{{ plateResult.plate }}</p>
     }
 
-    <p class="modal-pregunta">{{ preguntaAcceso }}</p>
+    @if (mostrarOpcionesAcceso) {
+      <p class="modal-pregunta">{{ preguntaAcceso }}</p>
+    }
 
     <div class="acceso-lista">
 
-      @if (tipo !== 'patente') {
+      @if (mostrarAccesoPeatonal) {
       <div class="acceso-item" (click)="accesoAccion('peatonal')">
         <div class="acceso-icon" style="background: #E381AB;">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -36,6 +38,7 @@
       </div>
       }
 
+      @if (mostrarAccesoEstacionamiento) {
       <div class="acceso-item" (click)="accesoAccion('estacionamiento')">
         <div class="acceso-icon" style="background: #FFB066;">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -48,6 +51,7 @@
         </div>
         <img src="assets/svg/arrow-right.svg" class="acceso-arrow" />
       </div>
+      }
 
     </div>
 

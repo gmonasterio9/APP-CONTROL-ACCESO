@@ -9,12 +9,15 @@ export type PeatonalAccesoEstado =
   | 'permitido'
   | 'manual'
   | 'visita'
-  | 'rechazado';
+  | 'rechazado'
+  | 'expirado';
 
 export interface PeatonalAccesoApi {
   apesNcorr: number;
+  apexNcorr?: number | null;
   rut: string | null;
   nombre: string | null;
+  tipoQr?: string | null;
   estado: string;
   hora: string;
 }
@@ -41,6 +44,7 @@ export interface PeatonalAccesoView {
   apesNcorr: number;
   rut: string;
   nombre: string;
+  tipoQrLabel: string | null;
   estado: PeatonalAccesoEstado;
   hora: string;
 }
@@ -58,29 +62,68 @@ export interface PeatonalDetalleQuery {
   pageSize?: number;
 }
 
+const ESTADO_API_MAP: Record<string, PeatonalAccesoEstado> = {
+  permitido: 'permitido',
+  autorizado: 'permitido',
+  exitoso: 'permitido',
+  manual: 'manual',
+  ingreso_manual: 'manual',
+  visita: 'visita',
+  rechazado: 'rechazado',
+  rechazada: 'rechazado',
+  no_autorizado: 'rechazado',
+  denegado: 'rechazado',
+  expirado: 'expirado',
+  expirada: 'expirado',
+};
+
 function normalizarEstado(raw?: string): PeatonalAccesoEstado {
   const n = String(raw ?? '')
     .trim()
     .toLowerCase();
 
-  if (
-    n === 'permitido' ||
-    n === 'manual' ||
-    n === 'visita' ||
-    n === 'rechazado'
-  ) {
-    return n;
+  if (!n) {
+    return 'rechazado';
   }
-  if (n.includes('rechaz')) {
+
+  const exacto = ESTADO_API_MAP[n];
+  if (exacto) {
+    return exacto;
+  }
+
+  if (n.includes('expir')) {
+    return 'expirado';
+  }
+  if (n.includes('rechaz') || n.includes('deneg') || n.includes('no_autor')) {
     return 'rechazado';
   }
   if (n.includes('visit')) {
     return 'visita';
   }
-  if (n.includes('manual')) {
+  if (n.includes('manual') || n.includes('ingreso_manual')) {
     return 'manual';
   }
-  return 'permitido';
+  if (n.includes('autoriz') || n.includes('permit') || n.includes('exitos')) {
+    return 'permitido';
+  }
+
+  return 'rechazado';
+}
+
+const TIPO_QR_LABELS: Record<string, string> = {
+  cedula: 'Cédula',
+  app: 'APP INACAP',
+  credencial_colaborador: 'Credencial colaborador',
+};
+
+export function labelTipoQrPeatonal(raw?: string | null): string | null {
+  const clave = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (!clave) {
+    return null;
+  }
+  return TIPO_QR_LABELS[clave] ?? clave;
 }
 
 function mapAcceso(item: PeatonalAccesoApi): PeatonalAccesoView {
@@ -88,6 +131,7 @@ function mapAcceso(item: PeatonalAccesoApi): PeatonalAccesoView {
     apesNcorr: item.apesNcorr,
     rut: item.rut?.trim() || '—',
     nombre: item.nombre?.trim() || '—',
+    tipoQrLabel: labelTipoQrPeatonal(item.tipoQr),
     estado: normalizarEstado(item.estado),
     hora: item.hora?.trim() || '—',
   };

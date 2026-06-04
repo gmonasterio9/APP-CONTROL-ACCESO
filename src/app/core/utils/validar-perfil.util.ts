@@ -1,5 +1,6 @@
 import { ValidarPerfilResponse } from '../models/validar-perfil.model';
 import { ApiHttpError } from '../services/api-http.service';
+import { RutUtil } from './rut.util';
 
 const TITULOS_ACCESO = new Set(['Acceso Autorizado', 'Acceso No Autorizado']);
 
@@ -28,8 +29,50 @@ export class ValidarPerfilUtil {
   }
 
   static esCredencialExpirada(res: ValidarPerfilResponse): boolean {
+    if (String(res.code ?? '').toLowerCase() === 'expirado') {
+      return true;
+    }
+
     const value = res.credencialExpirada;
     return value === true || value === 'true' || value === 1 || value === '1';
+  }
+
+  static normalizarPersNcorr(value: unknown): number | undefined {
+    const n =
+      typeof value === 'string'
+        ? Number(value.trim())
+        : typeof value === 'number'
+          ? value
+          : NaN;
+
+    if (!Number.isFinite(n) || n <= 0) {
+      return undefined;
+    }
+
+    return Math.trunc(n);
+  }
+
+  static normalizarEmail(value: unknown): string | undefined {
+    const email = String(value ?? '').trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return undefined;
+    }
+    return email;
+  }
+
+  static normalizarRut(value: unknown): string | undefined {
+    const raw = String(value ?? '').trim();
+    if (!raw) {
+      return undefined;
+    }
+
+    const normalizado = RutUtil.normalizeFromRun(raw);
+    if (normalizado.includes('-') && RutUtil.isFormatValid(normalizado)) {
+      return normalizado;
+    }
+
+    const manual = RutUtil.normalizeManual(raw);
+    return RutUtil.isFormatValid(manual) ? manual : undefined;
   }
 
   static extraerTituloYMensajeDesdeMessages(

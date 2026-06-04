@@ -56,7 +56,22 @@
       </div>
 
       @if (cargandoEstacionamientos && estacionamientos.length === 0) {
-        <p class="lista-estado">Cargando estacionamientos...</p>
+        <div class="lista-skeleton" aria-busy="true" aria-label="Cargando estacionamientos">
+          @for (i of estacionamientosSkeleton; track i) {
+            <div class="item-card item-card--skeleton">
+              <div class="item-header">
+                <ion-skeleton-text class="sk-item-icono" [animated]="true"></ion-skeleton-text>
+                <div class="item-info">
+                  <ion-skeleton-text class="sk-item-nombre" [animated]="true"></ion-skeleton-text>
+                  <ion-skeleton-text class="sk-item-ubicacion" [animated]="true"></ion-skeleton-text>
+                </div>
+                <ion-skeleton-text class="sk-item-arrow" [animated]="true"></ion-skeleton-text>
+              </div>
+              <ion-skeleton-text class="sk-item-cupos" [animated]="true"></ion-skeleton-text>
+              <ion-skeleton-text class="sk-item-barra" [animated]="true"></ion-skeleton-text>
+            </div>
+          }
+        </div>
       } @else if (errorEstacionamientos && estacionamientos.length === 0) {
         <p class="lista-estado lista-estado--error">{{ errorEstacionamientos }}</p>
         <ion-button fill="outline" size="small" (click)="cargarEstacionamientos()">
@@ -96,7 +111,18 @@
   @if (segmentoActivo === 'peatonal') {
     <div class="peatonal-section">
       @if (cargandoResumenPeatonal && statsPeatonal.length === 0) {
-        <p class="lista-estado">Cargando resumen...</p>
+        <div class="peatonal-skeleton" aria-busy="true" aria-label="Cargando resumen">
+          <ion-skeleton-text class="sk-resumen-fecha" [animated]="true"></ion-skeleton-text>
+          <div class="stats-row stats-row--grid">
+            @for (i of statsSkeleton; track i) {
+              <div class="stat-card stat-card--skeleton">
+                <ion-skeleton-text class="sk-stat-valor" [animated]="true"></ion-skeleton-text>
+                <ion-skeleton-text class="sk-stat-label" [animated]="true"></ion-skeleton-text>
+              </div>
+            }
+          </div>
+          <ion-skeleton-text class="sk-ver-detalles" [animated]="true"></ion-skeleton-text>
+        </div>
       } @else if (errorResumenPeatonal) {
         <p class="lista-estado lista-estado--error">{{ errorResumenPeatonal }}</p>
         <ion-button fill="outline" size="small" (click)="cargarResumenPeatonal()">

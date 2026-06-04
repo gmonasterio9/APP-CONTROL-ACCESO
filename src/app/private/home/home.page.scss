@@ -253,8 +253,14 @@
   margin: 12px 0;
 
   &--error {
-    color: #cc0000;
+    color: #040b15;
   }
+}
+
+.lista-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
 .item-card {
@@ -263,6 +269,10 @@
   padding: var(--spacing-md);
   box-shadow: var(--shadow-card);
 
+  &--skeleton {
+    pointer-events: none;
+  }
+
   .item-header {
     display: flex;
     align-items: center;
@@ -270,6 +280,98 @@
     margin-bottom: var(--spacing-xs);
   }
 
+  .item-info {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.sk-item-icono {
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+  --border-radius: 50%;
+}
+
+.sk-item-nombre {
+  width: 75%;
+  height: 16px;
+  margin: 0 0 6px;
+  border-radius: 4px;
+}
+
+.sk-item-ubicacion {
+  width: 55%;
+  height: 12px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-item-arrow {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sk-item-cupos {
+  width: 50%;
+  height: 12px;
+  margin: var(--spacing-xs) 0;
+  border-radius: 4px;
+}
+
+.sk-item-barra {
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  border-radius: 2px;
+}
+
+.peatonal-skeleton {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.sk-resumen-fecha {
+  width: 160px;
+  height: 14px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-stat-valor {
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-stat-label {
+  width: 72%;
+  height: 12px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-ver-detalles {
+  width: 100px;
+  height: 16px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.stat-card--skeleton {
+  pointer-events: none;
+}
+
+.item-card:not(.item-card--skeleton) {
   .item-icon-wrap {
     width: 40px;
     height: 40px;
@@ -289,11 +391,6 @@
       font-size: 22px;
       color: #4CAF50;
     }
-  }
-
-  .item-info {
-    flex: 1;
-    min-width: 0;
   }
 
   .item-nombre {
@@ -364,6 +461,13 @@
   &--grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
+
+    .stat-card:last-child:nth-child(2n + 1):not(:only-child) {
+      grid-column: 1 / -1;
+      justify-self: center;
+      width: calc(50% - var(--spacing-sm) / 2);
+      max-width: calc(50% - var(--spacing-sm) / 2);
+    }
   }
 }
 
@@ -385,6 +489,10 @@
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
+
+  &--skeleton {
+    pointer-events: none;
+  }
 
   .stat-valor {
     font-size: 28px;

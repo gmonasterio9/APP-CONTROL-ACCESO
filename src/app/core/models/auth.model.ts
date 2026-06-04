@@ -1,3 +1,5 @@
+import { LoginEstacionamientoSesion } from './login-sesion.model';
+
 export interface LoginApiResponse {
   success: boolean;
   code: number;
@@ -9,6 +11,7 @@ export interface LoginApiResponse {
   sedeCcod: number;
   sedeTdesc: string;
   apeuTnombre: string;
+  estacionamiento?: LoginEstacionamientoSesion;
   message?: string;
 }
 

@@ -23,9 +23,23 @@
     <p class="det-section-titulo">Disponibilidad de Cupos</p>
 
     @if (cargandoCupos && cupos.length === 0) {
-      <p class="lista-estado">Cargando disponibilidad...</p>
+      <div class="cupos-grid cupos-grid--skeleton" aria-busy="true" aria-label="Cargando disponibilidad">
+        @for (i of cuposSkeleton; track i) {
+          <div class="cupo-card cupo-card--skeleton">
+            <ion-skeleton-text class="sk-cupo-icono" [animated]="true"></ion-skeleton-text>
+            <ion-skeleton-text class="sk-cupo-label" [animated]="true"></ion-skeleton-text>
+            <ion-skeleton-text class="sk-cupo-count" [animated]="true"></ion-skeleton-text>
+            <ion-skeleton-text class="sk-cupo-barra" [animated]="true"></ion-skeleton-text>
+          </div>
+        }
+      </div>
     } @else if (errorCupos) {
       <p class="lista-estado lista-estado--error">{{ errorCupos }}</p>
+      <div class="estado-acciones">
+        <ion-button fill="outline" size="small" (click)="reintentarCupos()">
+          Reintentar
+        </ion-button>
+      </div>
     } @else {
     <div class="cupos-grid">
       @for (c of cupos; track c.trackId) {
@@ -79,13 +93,35 @@
       </div>
     </div>
 
-    @if (cargandoVehiculos && vehiculos.length === 0) {
-      <p class="lista-estado">Cargando vehículos...</p>
-    } @else if (errorVehiculos) {
+    @if (errorVehiculos && vehiculos.length === 0) {
       <p class="lista-estado lista-estado--error">{{ errorVehiculos }}</p>
+      <div class="estado-acciones">
+        <ion-button fill="outline" size="small" (click)="reintentarVehiculos()">
+          Reintentar
+        </ion-button>
+      </div>
     }
 
     <div class="vehiculos-lista">
+      @if (cargandoVehiculos && vehiculos.length === 0) {
+        @for (i of vehiculosSkeleton; track i) {
+          <div class="vehiculo-item vehiculo-item--skeleton" aria-hidden="true">
+            <div class="vehiculo-top">
+              <ion-skeleton-text class="sk-patente" [animated]="true"></ion-skeleton-text>
+              <ion-skeleton-text class="sk-hora" [animated]="true"></ion-skeleton-text>
+            </div>
+            <ion-skeleton-text class="sk-nombre" [animated]="true"></ion-skeleton-text>
+            <ion-skeleton-text class="sk-rut" [animated]="true"></ion-skeleton-text>
+            <div class="vehiculo-bottom sk-bottom">
+              <div class="chips-row">
+                <ion-skeleton-text class="sk-chip" [animated]="true"></ion-skeleton-text>
+                <ion-skeleton-text class="sk-chip" [animated]="true"></ion-skeleton-text>
+              </div>
+              <ion-skeleton-text class="sk-btn-salida" [animated]="true"></ion-skeleton-text>
+            </div>
+          </div>
+        }
+      }
       @for (v of vehiculos; track $index) {
         <div class="vehiculo-item">
           <div class="vehiculo-top">
@@ -113,7 +149,16 @@
     </div>
 
     @if (cargandoMasVehiculos) {
-      <p class="lista-estado lista-estado--cargando-mas">Cargando más vehículos...</p>
+      <div class="vehiculos-lista vehiculos-lista--mas" aria-busy="true" aria-label="Cargando más vehículos">
+        <div class="vehiculo-item vehiculo-item--skeleton" aria-hidden="true">
+          <div class="vehiculo-top">
+            <ion-skeleton-text class="sk-patente" [animated]="true"></ion-skeleton-text>
+            <ion-skeleton-text class="sk-hora" [animated]="true"></ion-skeleton-text>
+          </div>
+          <ion-skeleton-text class="sk-nombre" [animated]="true"></ion-skeleton-text>
+          <ion-skeleton-text class="sk-rut" [animated]="true"></ion-skeleton-text>
+        </div>
+      </div>
     }
 
     @if (hayMasVehiculos && !cargandoMasVehiculos) {

@@ -6,6 +6,47 @@ const SIDIV_HOST = 'portal.sidiv.registrocivil.cl';
 export class ScanPerfilUtil {
   private constructor() {}
 
+  static esEscaneoQrPerfil(raw: string): boolean {
+    const value = raw.trim();
+    if (!value) {
+      return false;
+    }
+
+    if (ScanPerfilUtil.isCredencialVirtualQr(value)) {
+      return true;
+    }
+
+    if (ScanPerfilUtil.isSidivUrl(value)) {
+      return true;
+    }
+
+    if (value.includes('BEGIN:VCARD')) {
+      return true;
+    }
+
+    if (value.startsWith('http')) {
+      return true;
+    }
+
+    if (RutUtil.isScannedFormat(value)) {
+      return false;
+    }
+
+    return value.length >= 8;
+  }
+
+  static extractEmailFromEscaneo(raw: string): string | null {
+    const value = raw.trim();
+    if (!value.includes('BEGIN:VCARD')) {
+      return null;
+    }
+    return ScanPerfilUtil.extractVCardEmail(value);
+  }
+
+  static esEscaneoPorEmail(raw: string): boolean {
+    return !!ScanPerfilUtil.extractEmailFromEscaneo(raw);
+  }
+
   static resolveTipoEscaneo(raw: string): 'cedula' | 'credencial' {
     const value = raw.trim();
     if (ScanPerfilUtil.isSidivUrl(value) || RutUtil.isScannedFormat(value)) {

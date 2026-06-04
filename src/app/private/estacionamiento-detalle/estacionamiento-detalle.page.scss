@@ -61,6 +61,39 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  &--skeleton {
+    pointer-events: none;
+  }
+}
+
+.sk-cupo-icono {
+  width: 42px;
+  height: 42px;
+  margin: 0 0 6px;
+  border-radius: 50%;
+  --border-radius: 50%;
+}
+
+.sk-cupo-label {
+  width: 72%;
+  height: 11px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-cupo-count {
+  width: 48%;
+  height: 16px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-cupo-barra {
+  width: 100%;
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 2px;
 }
 
 .cupo-icono-wrap {
@@ -178,6 +211,61 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  &--skeleton {
+    pointer-events: none;
+  }
+}
+
+.sk-patente {
+  width: 88px;
+  height: 18px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-hora {
+  width: 56px;
+  height: 14px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-nombre {
+  width: 70%;
+  height: 14px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-rut {
+  width: 45%;
+  height: 12px;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.sk-bottom {
+  margin-top: 4px;
+}
+
+.sk-chip {
+  width: 64px;
+  height: 28px;
+  margin: 0;
+  border-radius: 5px;
+}
+
+.sk-btn-salida {
+  width: 88px;
+  height: 32px;
+  margin: -28px 0 0;
+  border-radius: 35px;
+  flex-shrink: 0;
+}
+
+.vehiculos-lista--mas {
+  margin-top: 8px;
 }
 
 .vehiculo-top {
@@ -300,18 +388,21 @@
 }
 
 .lista-estado {
+  padding: 0 16px 12px;
+  margin: 0;
   text-align: center;
   color: #6a7282;
   font-size: 14px;
-  margin: 12px 0;
 
   &--error {
-    color: #cc0000;
+    color: #040b15;
   }
+}
 
-  &--cargando-mas {
-    padding: 16px 0;
-  }
+.estado-acciones {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 16px;
 }
 
 .btn-cargar-mas {

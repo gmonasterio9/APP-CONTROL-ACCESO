@@ -16,8 +16,10 @@ import { PatenteUtil } from '../../core/utils/patente.util';
 import { ValidarPatenteUtil } from '../../core/utils/validar-patente.util';
 import { ValidarPerfilUtil } from '../../core/utils/validar-perfil.util';
 import { ScanPerfilUtil } from '../../core/utils/scan-perfil.util';
+import { PeatonalEscaneoUtil } from '../../core/utils/peatonal-escaneo.util';
 import { RutUtil } from '../../core/utils/rut.util';
-import { ApiHttpError } from '../../core/services/api-http.service';
+import { PeatonalControlIngresoRequest } from '../../core/models/peatonal-control-ingreso.model';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import {
@@ -230,35 +232,17 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      const loading = await this.ui.presentLoading('Validando perfil...');
-
-      const contextoEscaneo = {
-        rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
-        tipo: ScanPerfilUtil.resolveTipoEscaneo(codigo),
-      };
-
-      try {
-        const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
-        await this.ui.dismissLoading(loading);
-        await this.mostrarResultadoModal(
-          this.mapValidarPerfilToModal(res, contextoEscaneo)
+      if (!ScanPerfilUtil.esEscaneoQrPerfil(codigo)) {
+        await this.ui.presentToast(
+          'Escanee un código QR de credencial INACAP o cédula de identidad.',
+          { color: 'warning', position: 'top' }
         );
-      } catch (err: unknown) {
-        await this.ui.dismissLoading(loading);
-        const res = ValidarPerfilUtil.extraerResponse(err);
-        if (res) {
-          await this.mostrarResultadoModal(
-            this.mapValidarPerfilToModal(res, contextoEscaneo)
-          );
-        } else {
-          const mensaje = this.extraerMensajeError(err) || 'No se pudo validar el código.';
-          await this.mostrarResultadoModal({
-            tipo: 'credencial',
-            estado: 'no_autorizado',
-            mensaje,
-          });
-        }
+        this.procesando = false;
+        await this.reanudarEscaneoTrasModal();
+        return;
       }
+
+      await this.flujoEscaneoQr(codigo);
     } catch {
       this.procesando = false;
     }
@@ -404,6 +388,48 @@ export class ScannerPage implements OnDestroy {
     return idx >= 0 ? idx : 0;
   }
 
+  private async flujoEscaneoQr(codigo: string): Promise<void> {
+    const loading = await this.ui.presentLoading('Validando perfil...');
+    const contextoEscaneo = {
+      codigoEscaneado: codigo,
+      rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
+      email: ScanPerfilUtil.extractEmailFromEscaneo(codigo),
+      tipo: ScanPerfilUtil.resolveTipoEscaneo(codigo),
+      escaneoPorEmail: ScanPerfilUtil.esEscaneoPorEmail(codigo),
+    };
+
+    try {
+      const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
+      await this.ui.dismissLoading(loading);
+      const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
+      const controlPeatonalRegistrado =
+        await this.registrarEscaneoPeatonalInmediato(modalData);
+      await this.mostrarResultadoModal({
+        ...modalData,
+        controlPeatonalRegistrado,
+      });
+    } catch (err: unknown) {
+      await this.ui.dismissLoading(loading);
+      const res = ValidarPerfilUtil.extraerResponse(err);
+      if (res) {
+        const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
+        const controlPeatonalRegistrado =
+          await this.registrarEscaneoPeatonalInmediato(modalData);
+        await this.mostrarResultadoModal({
+          ...modalData,
+          controlPeatonalRegistrado,
+        });
+      } else {
+        const mensaje = mensajeErrorUsuario(err, 'No se pudo validar el código.');
+        await this.mostrarResultadoModal({
+          tipo: contextoEscaneo.tipo,
+          estado: 'no_autorizado',
+          mensaje,
+        });
+      }
+    }
+  }
+
   async mostrarResultadoModal(data: {
     tipo: TipoEscaneo;
     estado?: EstadoEscaneo;
@@ -418,6 +444,7 @@ export class ScannerPage implements OnDestroy {
     mensaje?: string;
     plateResult?: any;
     fotoPreview?: string;
+    controlPeatonalRegistrado?: boolean;
   }) {
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
@@ -436,6 +463,7 @@ export class ScannerPage implements OnDestroy {
         mensaje:     data.mensaje,
         plateResult: data.plateResult,
         fotoPreview: data.fotoPreview,
+        controlPeatonalRegistrado: data.controlPeatonalRegistrado ?? false,
       },
     });
 
@@ -446,32 +474,193 @@ export class ScannerPage implements OnDestroy {
     const { data: resp, role } = await modal.onDidDismiss();
 
     if (role === 'accion') {
-      if (resp?.estado === 'autorizado' && resp?.via === 'peatonal') {
-        await this.registrarControlIngresoPeatonal(resp);
+      const esPatente = resp?.tipo === 'patente';
+
+      if (resp?.via === 'peatonal' && !esPatente) {
+        if (resp.estado === 'autorizado') {
+          if (resp.controlPeatonalRegistrado) {
+            await this.irConfirmacionTrasEscaneo(resp);
+          } else {
+            await this.registrarControlIngresoPeatonal(resp);
+          }
+        } else if (resp.estado === 'manual') {
+          await this.confirmarEscaneoPeatonalExpirado(resp);
+        } else {
+          await this.salirScannerHacia(
+            '/ingreso-manual',
+            this.buildAccesoQueryParams(resp)
+          );
+        }
         return;
       }
 
       const params = this.buildAccesoQueryParams(resp);
-      const ruta =
-        resp?.via === 'estacionamiento' || resp?.tipo === 'patente'
-          ? '/estacionamiento'
-          : '/ingreso-manual';
+      const ruta = esPatente || resp?.via === 'estacionamiento'
+        ? '/estacionamiento'
+        : '/ingreso-manual';
       await this.salirScannerHacia(ruta, params);
     } else {
       await this.reanudarEscaneoTrasModal();
     }
   }
 
-  private async registrarControlIngresoPeatonal(resp: {
-    nombre?: string;
+  private buildControlIngresoPeatonal(data: {
+    tipo: TipoEscaneo;
+    estado?: EstadoEscaneo;
+    codigoEscaneado?: string;
+    persNcorr?: number;
+    rut?: string;
+    email?: string;
+    perfil?: string;
+    perfilDescripcion?: string;
+    escaneoPorEmail?: boolean;
+  }): PeatonalControlIngresoRequest | null {
+    const identificador = PeatonalEscaneoUtil.resolverIdentificadorControlIngreso(
+      data.codigoEscaneado ?? '',
+      {
+        persNcorr: data.persNcorr,
+        rut: data.rut,
+        email: data.email,
+      }
+    );
+
+    if (!identificador) {
+      return null;
+    }
+
+    const origen: 'cedula' | 'credencial' =
+      data.tipo === 'cedula' ? 'cedula' : 'credencial';
+
+    return {
+      ...identificador,
+      tipoQr: PeatonalEscaneoUtil.resolverTipoQrEscaneo({
+        origen,
+        escaneoPorEmail: data.escaneoPorEmail,
+        perfil: data.perfil,
+        perfilDescripcion: data.perfilDescripcion,
+      }),
+      estado: PeatonalEscaneoUtil.mapEstadoControlIngreso(
+        data.estado ?? 'no_autorizado'
+      ),
+    };
+  }
+
+  /** Registra APP_PEATONAL_ESCANEOS al validar QR (éxito, rechazo o expirado). */
+  private async registrarEscaneoPeatonalInmediato(data: {
+    tipo: TipoEscaneo;
+    estado: EstadoEscaneo;
+    codigoEscaneado?: string;
+    persNcorr?: number;
+    rut?: string;
+    email?: string;
+    perfil?: string;
+    perfilDescripcion?: string;
+    escaneoPorEmail?: boolean;
+  }): Promise<boolean> {
+    const body = this.buildControlIngresoPeatonal(data);
+    if (!body) {
+      return false;
+    }
+
+    return this.enviarControlIngresoPeatonal(body);
+  }
+
+  private async enviarControlIngresoPeatonal(
+    body: PeatonalControlIngresoRequest
+  ): Promise<boolean> {
+    try {
+      const res = await firstValueFrom(
+        this.peatonalService.registrarControlIngreso(body)
+      );
+      return res.success !== false;
+    } catch {
+      try {
+        if ('persNcorr' in body) {
+          const res = await firstValueFrom(
+            this.peatonalService.registrarControlIngresoPorPersona(
+              body.persNcorr
+            )
+          );
+          return res.success !== false;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  private async confirmarEscaneoPeatonalExpirado(resp: {
+    tipo?: TipoEscaneo;
+    estado?: EstadoEscaneo;
     persNcorr?: number;
     perfil?: string;
     perfilDescripcion?: string;
+    controlPeatonalRegistrado?: boolean;
+    rut?: string;
+    nombre?: string;
+    credencial?: string;
+    code?: string;
+    email?: string;
+    codigoEscaneado?: string;
+    escaneoPorEmail?: boolean;
   }): Promise<void> {
-    const persNcorr = resp.persNcorr;
-    const nombre = String(resp.nombre ?? '').trim();
+    if (!resp.controlPeatonalRegistrado) {
+      const ok = await this.registrarEscaneoPeatonalInmediato({
+        tipo: resp.tipo ?? 'credencial',
+        estado: 'manual',
+        codigoEscaneado: resp.codigoEscaneado,
+        persNcorr: resp.persNcorr,
+        rut: resp.rut,
+        email: resp.email,
+        perfil: resp.perfil,
+        perfilDescripcion: resp.perfilDescripcion,
+        escaneoPorEmail: resp.escaneoPorEmail,
+      });
 
-    if (persNcorr == null || persNcorr <= 0) {
+      if (!ok) {
+        await this.registrarControlIngresoPeatonal({
+          ...resp,
+          tipo: resp.tipo ?? 'credencial',
+          estado: 'manual',
+        });
+        return;
+      }
+    }
+
+    await this.ui.presentToast('Escaneo registrado.', {
+      color: 'success',
+      position: 'top',
+      duration: 2500,
+    });
+    await this.reanudarEscaneoTrasModal();
+  }
+
+  private async registrarControlIngresoPeatonal(resp: {
+    nombre?: string;
+    persNcorr?: number;
+    rut?: string;
+    perfil?: string;
+    perfilDescripcion?: string;
+    tipo?: TipoEscaneo;
+    estado?: EstadoEscaneo;
+    email?: string;
+    codigoEscaneado?: string;
+    escaneoPorEmail?: boolean;
+  }): Promise<void> {
+    const body = this.buildControlIngresoPeatonal({
+      tipo: resp.tipo ?? 'credencial',
+      estado: resp.estado ?? 'autorizado',
+      codigoEscaneado: resp.codigoEscaneado,
+      persNcorr: resp.persNcorr,
+      rut: resp.rut,
+      email: resp.email,
+      perfil: resp.perfil,
+      perfilDescripcion: resp.perfilDescripcion,
+      escaneoPorEmail: resp.escaneoPorEmail,
+    });
+
+    if (!body) {
       await this.ui.presentToast(
         'Faltan datos de la persona para confirmar el ingreso.',
         { color: 'warning' }
@@ -484,7 +673,7 @@ export class ScannerPage implements OnDestroy {
 
     try {
       const res = await firstValueFrom(
-        this.peatonalService.registrarControlIngreso({ persNcorr })
+        this.peatonalService.registrarControlIngreso(body)
       );
       await this.ui.dismissLoading(loading);
 
@@ -497,25 +686,34 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      const sede = await this.authService.getSede();
-      const perfil = resp.perfilDescripcion ?? resp.perfil ?? null;
-
-      await this.apagarScanner();
-      await this.navCtrl.navigateRoot('/confirmacion', {
-        queryParams: {
-          nombre: nombre || null,
-          sede: sede?.nombre ?? null,
-          perfil,
-        },
-      });
+      await this.irConfirmacionTrasEscaneo(resp);
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        this.extraerMensajeError(err) || 'Error al confirmar el ingreso.',
+        mensajeErrorUsuario(err, 'Error al confirmar el ingreso.'),
         { color: 'danger' }
       );
       await this.reanudarEscaneoTrasModal();
     }
+  }
+
+  private async irConfirmacionTrasEscaneo(resp: {
+    nombre?: string;
+    perfil?: string;
+    perfilDescripcion?: string;
+  }): Promise<void> {
+    const sede = await this.authService.getSede();
+    const perfil = resp.perfilDescripcion ?? resp.perfil ?? null;
+    const nombre = String(resp.nombre ?? '').trim();
+
+    await this.apagarScanner();
+    await this.navCtrl.navigateRoot('/confirmacion', {
+      queryParams: {
+        nombre: nombre || null,
+        sede: sede?.nombre ?? null,
+        perfil,
+      },
+    });
   }
 
   private async salirScannerHacia(
@@ -698,7 +896,7 @@ export class ScannerPage implements OnDestroy {
       if (res) {
         await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
       } else {
-        const mensaje = this.extraerMensajeError(err) || 'No se pudo validar la patente.';
+        const mensaje = mensajeErrorUsuario(err, 'No se pudo validar la patente.');
         await this.mostrarResultadoModal({
           tipo: 'patente',
           estado: 'no_autorizado',
@@ -762,7 +960,7 @@ export class ScannerPage implements OnDestroy {
               return;
             }
             void this.mostrarError(
-              'Patente inválida. Moto: 5 (ABC-12 o ABCD-1). Auto: 6 (22-22-22 o ABCDE-1).'
+              'Patente inválida.'
             );
             void this.solicitarPatenteManual();
           },
@@ -797,6 +995,7 @@ export class ScannerPage implements OnDestroy {
       nombre: res.nombreCompleto ?? undefined,
       perfil: res.perfil != null ? String(res.perfil) : undefined,
       perfilDescripcion: res.perfilDescripcion,
+      persNcorr: res.persNcorr,
     };
 
     if (ValidarPatenteUtil.esAutorizada(res)) {
@@ -838,34 +1037,49 @@ export class ScannerPage implements OnDestroy {
 
   private mapValidarPerfilToModal(
     res: ValidarPerfilResponse,
-    contexto?: { rut?: string | null; tipo?: TipoEscaneo }
+    contexto?: {
+      codigoEscaneado?: string;
+      rut?: string | null;
+      email?: string | null;
+      tipo?: TipoEscaneo;
+      escaneoPorEmail?: boolean;
+    }
   ): {
     tipo: TipoEscaneo;
     estado: EstadoEscaneo;
     nombre?: string;
     credencial?: string;
     rut?: string;
+    email?: string;
+    codigoEscaneado?: string;
     perfil?: string;
     perfilDescripcion?: string;
     persNcorr?: number;
     titulo?: string;
     mensaje?: string;
     code?: string;
+    escaneoPorEmail?: boolean;
   } {
     const textos = ValidarPerfilUtil.extraerTituloYMensaje(res);
     const nombre = String(res.nombreCompleto ?? '').trim() || undefined;
     const rut = this.resolverRutParaManual(res, contexto?.rut);
+    const email =
+      ValidarPerfilUtil.normalizarEmail(contexto?.email) ??
+      ValidarPerfilUtil.normalizarEmail(res.email);
     const base = {
       tipo: contexto?.tipo ?? ('credencial' as const),
       nombre,
       credencial: res.codigoCredencial ?? undefined,
       rut,
+      email,
+      codigoEscaneado: contexto?.codigoEscaneado,
       perfil: res.perfil != null ? String(res.perfil) : undefined,
       perfilDescripcion: res.perfilDescripcion,
-      persNcorr: res.persNcorr,
+      persNcorr: ValidarPerfilUtil.normalizarPersNcorr(res.persNcorr),
       titulo: textos.titulo,
       mensaje: textos.mensaje,
       code: res.code,
+      escaneoPorEmail: contexto?.escaneoPorEmail === true,
     };
 
     if (ValidarPerfilUtil.esCredencialExpirada(res)) {
@@ -979,23 +1193,6 @@ export class ScannerPage implements OnDestroy {
       return perfil;
     }
 
-    return null;
-  }
-
-  private extraerMensajeError(err: unknown): string | null {
-    const apiErr = err as ApiHttpError;
-    if (apiErr?.message) {
-      return apiErr.message;
-    }
-    if (apiErr?.error && typeof apiErr.error === 'object' && apiErr.error !== null) {
-      const body = apiErr.error as { message?: string };
-      if (body.message) {
-        return body.message;
-      }
-    }
-    if (err instanceof Error && err.message) {
-      return err.message;
-    }
     return null;
   }
 

@@ -19,7 +19,7 @@
     <div class="im-field-block">
       <p class="im-label">Tipo de Persona <span class="req">(*)</span></p>
       <div class="im-chip-group">
-        @for (t of tiposPersona; track t.value) {
+        @for (t of tiposPersonaActivos; track t.value) {
           <button class="im-chip"
             [class.active]="form.get('tipoPersona')?.value === t.value"
             (click)="form.get('tipoPersona')?.setValue(t.value)">

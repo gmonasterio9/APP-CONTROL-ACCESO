@@ -7,6 +7,8 @@ import { environment } from '../../../environments/environment';
 import {
   ApiHttpError,
   isUnauthorizedApiResult,
+  MENSAJE_ERROR_SIN_CONEXION,
+  mensajePorEstadoHttp,
   toApiHttpError,
 } from '../utils/api-response.util';
 import { AuthService } from './auth.service';
@@ -249,7 +251,10 @@ export class ApiHttpService {
 
     return {
       status: 0,
-      message: error instanceof Error ? error.message : 'Error de red',
+      message: mensajePorEstadoHttp(
+        0,
+        MENSAJE_ERROR_SIN_CONEXION
+      ),
     };
   }
 
@@ -263,16 +268,24 @@ export class ApiHttpService {
   }
 
   private buildApiHttpError(status: number, data: unknown): ApiHttpError {
+    let message: string | undefined;
+
+    if (
+      typeof data === 'object' &&
+      data !== null &&
+      'message' in data &&
+      typeof (data as { message: unknown }).message === 'string'
+    ) {
+      message = (data as { message: string }).message;
+    }
+
     return {
       status,
       error: data,
-      message:
-        typeof data === 'object' &&
-        data !== null &&
-        'message' in data &&
-        typeof (data as { message: unknown }).message === 'string'
-          ? (data as { message: string }).message
-          : undefined,
+      message: mensajePorEstadoHttp(
+        status,
+        message?.trim() || 'No se pudo completar la operación.'
+      ),
     };
   }
 

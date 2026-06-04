@@ -31,6 +31,16 @@ export class PeatonalService {
       .pipe(map(assertPeatonalControlIngresoOk));
   }
 
+  registrarControlIngresoPorPersona(
+    persNcorr: number
+  ): Observable<PeatonalControlIngresoResponse> {
+    return this.api
+      .post<PeatonalControlIngresoResponse>('/peatonal/control-ingreso', {
+        persNcorr,
+      })
+      .pipe(map(assertPeatonalControlIngresoOk));
+  }
+
   obtenerResumen(): Observable<PeatonalResumenView> {
     return this.api
       .get<PeatonalResumenResponse>('/peatonal/resumen')

@@ -4,7 +4,7 @@ import { NavController } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento-ingreso.model';
-import { ApiHttpError } from '../../core/services/api-http.service';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { UiService } from '../../core/services/ui.service';
@@ -44,6 +44,10 @@ export class EstacionamientoPage {
     this.perfil = this.route.snapshot.queryParamMap.get('perfil');
     this.origen = this.route.snapshot.queryParamMap.get('origen');
     this.estadoScan = this.route.snapshot.queryParamMap.get('estado');
+    const persNcorrParam = this.route.snapshot.queryParamMap.get('persNcorr');
+    const persParsed = persNcorrParam != null ? Number(persNcorrParam) : NaN;
+    this.persNcorr =
+      Number.isFinite(persParsed) && persParsed > 0 ? persParsed : null;
   }
 
   ionViewWillEnter(): void {
@@ -121,7 +125,7 @@ export class EstacionamientoPage {
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        this.extraerMensajeError(err) || 'Error al confirmar el ingreso.',
+        mensajeErrorUsuario(err, 'Error al confirmar el ingreso.'),
         { color: 'danger' }
       );
     }
@@ -156,21 +160,13 @@ export class EstacionamientoPage {
       );
     } catch (err: unknown) {
       this.estacionamientos = [];
-      this.errorEstacionamientos =
-        this.extraerMensajeError(err) || 'No se pudieron cargar los estacionamientos.';
+      this.errorEstacionamientos = mensajeErrorUsuario(
+        err,
+        'No se pudieron cargar los estacionamientos.'
+      );
     } finally {
       this.cargandoEstacionamientos = false;
     }
   }
 
-  private extraerMensajeError(err: unknown): string | null {
-    const apiErr = err as ApiHttpError;
-    if (apiErr?.message) {
-      return apiErr.message;
-    }
-    if (err instanceof Error && err.message) {
-      return err.message;
-    }
-    return null;
-  }
 }

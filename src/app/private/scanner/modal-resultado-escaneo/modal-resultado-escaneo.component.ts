@@ -40,6 +40,7 @@ export class ModalResultadoEscaneoComponent {
   @Input() mensaje?: string;
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
+  @Input() controlPeatonalRegistrado = false;
 
   constructor(private modalCtrl: ModalController) {}
 
@@ -83,13 +84,27 @@ export class ModalResultadoEscaneoComponent {
     }[this.estado];
   }
 
+  /** Expirado: sin acciones; rechazado: peatonal + estacionamiento; autorizado: solo estacionamiento. */
+  get mostrarAccesoPeatonal(): boolean {
+    return this.tipo !== 'patente' && this.estado === 'no_autorizado';
+  }
+
+  get mostrarAccesoEstacionamiento(): boolean {
+    return this.estado !== 'manual';
+  }
+
+  get mostrarOpcionesAcceso(): boolean {
+    return this.mostrarAccesoPeatonal || this.mostrarAccesoEstacionamiento;
+  }
+
   get preguntaAcceso(): string {
-    if (this.tipo === 'patente') {
+    if (!this.mostrarOpcionesAcceso) {
+      return '';
+    }
+    if (this.tipo === 'patente' || this.estado === 'autorizado') {
       return '¿Dónde registra el vehículo?';
     }
-    return this.estado === 'no_autorizado' || this.estado === 'manual'
-      ? '¿Cómo ingresa el visitante?'
-      : '¿Cómo ingresa?';
+    return '¿Cómo ingresa el visitante?';
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
@@ -106,6 +121,7 @@ export class ModalResultadoEscaneoComponent {
         persNcorr: this.persNcorr,
         code: this.code,
         patente: this.plateResult?.plate,
+        controlPeatonalRegistrado: this.controlPeatonalRegistrado,
       },
       'accion'
     );

@@ -9,6 +9,7 @@ export interface ValidarPerfilResponse {
   perfil?: string | number;
   perfilDescripcion?: string;
   rut?: string | null;
+  email?: string | null;
   nombreCompleto?: string | null;
   persNcorr?: number;
   codigoCredencial?: string | null;

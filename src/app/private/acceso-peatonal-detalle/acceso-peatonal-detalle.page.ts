@@ -10,7 +10,7 @@ import {
   PeatonalAccesoView,
 } from '../../core/models/peatonal-detalle.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
-import { ApiHttpError } from '../../core/services/api-http.service';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
 
@@ -21,6 +21,9 @@ import { UiService } from '../../core/services/ui.service';
   standalone: false,
 })
 export class AccesoPeatonalDetallePage {
+  readonly statsSkeleton = [0, 1, 2, 3, 4];
+  readonly accesosSkeleton = [0, 1, 2];
+
   stats: PeatonalStatCard[] = [];
   accesos: PeatonalAccesoView[] = [];
   fecha: string | null = null;
@@ -57,7 +60,23 @@ export class AccesoPeatonalDetallePage {
       manual: 'Manual',
       visita: 'Visita',
       rechazado: 'Rechazado',
+      expirado: 'Expirado',
     }[estado];
+  }
+
+  muestraNombreRut(acceso: PeatonalAccesoView): boolean {
+    return acceso.estado === 'manual' || acceso.estado === 'visita';
+  }
+
+  muestraTipoQr(acceso: PeatonalAccesoView): boolean {
+    if (!acceso.tipoQrLabel) {
+      return false;
+    }
+    return (
+      acceso.estado === 'permitido' ||
+      acceso.estado === 'rechazado' ||
+      acceso.estado === 'expirado'
+    );
   }
 
   volver(): void {
@@ -132,14 +151,14 @@ export class AccesoPeatonalDetallePage {
         this.fecha = null;
         this.totalRegistros = 0;
         this.totalPaginas = 0;
-        this.error =
-          this.extraerMensajeError(err) ||
-          'No se pudo cargar el detalle peatonal.';
+        this.error = mensajeErrorUsuario(
+          err,
+          'No se pudo cargar el detalle peatonal.'
+        );
       } else {
         this.pagina = Math.max(1, this.pagina - 1);
         await this.ui.presentToast(
-          this.extraerMensajeError(err) ||
-            'No se pudieron cargar más accesos.',
+          mensajeErrorUsuario(err, 'No se pudieron cargar más accesos.'),
           { color: 'warning' }
         );
       }
@@ -154,14 +173,4 @@ export class AccesoPeatonalDetallePage {
     }
   }
 
-  private extraerMensajeError(err: unknown): string | null {
-    const apiErr = err as ApiHttpError;
-    if (apiErr?.message) {
-      return apiErr.message;
-    }
-    if (err instanceof Error && err.message) {
-      return err.message;
-    }
-    return null;
-  }
 }

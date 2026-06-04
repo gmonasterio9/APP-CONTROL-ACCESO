@@ -11,7 +11,7 @@ import {
   CupoCategoriaView,
   VehiculoActivoView,
 } from '../../core/models/estacionamiento-disponibilidad.model';
-import { ApiHttpError } from '../../core/services/api-http.service';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { UiService } from '../../core/services/ui.service';
 
@@ -46,6 +46,9 @@ export class EstacionamientoDetallePage implements OnDestroy {
   readonly pageSizeVehiculos = 10;
   totalRegistrosVehiculos = 0;
   totalPaginasVehiculos = 0;
+
+  readonly cuposSkeleton = [0, 1, 2, 3];
+  readonly vehiculosSkeleton = [0, 1, 2];
 
   cargandoCupos = false;
   cargandoVehiculos = false;
@@ -186,7 +189,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        this.extraerMensajeError(err) || 'No se pudo registrar la salida.',
+        mensajeErrorUsuario(err, 'No se pudo registrar la salida.'),
         { color: 'danger' }
       );
     }
@@ -194,6 +197,14 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
   volver(): void {
     this.navCtrl.back();
+  }
+
+  reintentarCupos(): void {
+    void this.cargarDisponibilidad();
+  }
+
+  reintentarVehiculos(): void {
+    void this.cargarVehiculosActivos(true);
   }
 
   async refrescarDetalle(event?: RefresherCustomEvent): Promise<void> {
@@ -237,9 +248,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
       this.subtitulo = data.jornada ? `${base} · ${data.jornada}` : base;
     } catch (err: unknown) {
       this.cupos = [];
-      this.errorCupos =
-        this.extraerMensajeError(err) ||
-        'No se pudo cargar la disponibilidad.';
+      this.errorCupos = mensajeErrorUsuario(
+        err,
+        'No se pudo cargar la disponibilidad.'
+      );
     } finally {
       if (!opciones?.silencioso) {
         this.cargandoCupos = false;
@@ -284,14 +296,14 @@ export class EstacionamientoDetallePage implements OnDestroy {
         this.vehiculos = [];
         this.totalRegistrosVehiculos = 0;
         this.totalPaginasVehiculos = 0;
-        this.errorVehiculos =
-          this.extraerMensajeError(err) ||
-          'No se pudieron cargar los vehículos activos.';
+        this.errorVehiculos = mensajeErrorUsuario(
+          err,
+          'No se pudieron cargar los vehículos activos.'
+        );
       } else {
         this.paginaVehiculos = Math.max(1, this.paginaVehiculos - 1);
         await this.ui.presentToast(
-          this.extraerMensajeError(err) ||
-            'No se pudieron cargar más vehículos.',
+          mensajeErrorUsuario(err, 'No se pudieron cargar más vehículos.'),
           { color: 'warning' }
         );
       }
@@ -306,14 +318,4 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
   }
 
-  private extraerMensajeError(err: unknown): string | null {
-    const apiErr = err as ApiHttpError;
-    if (apiErr?.message) {
-      return apiErr.message;
-    }
-    if (err instanceof Error && err.message) {
-      return err.message;
-    }
-    return null;
-  }
 }

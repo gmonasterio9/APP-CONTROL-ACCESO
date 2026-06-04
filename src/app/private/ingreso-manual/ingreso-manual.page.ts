@@ -13,12 +13,17 @@ import {
   TipoMedioVehiculo,
   TipoPersonaIngreso,
 } from '../../core/models/ingreso-manual.model';
+import {
+  mapCatalogoIngresoManual,
+  OpcionTipoMedioIngreso,
+  OpcionTipoPersonaIngreso,
+} from '../../core/models/login-sesion.model';
 import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
 import { UiService } from '../../core/services/ui.service';
+import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
-import { ApiHttpError } from '../../core/services/api-http.service';
 
 const MEDIOS_SIN_PATENTE: TipoMedioIngreso[] = ['bicicleta', 'peatonal'];
 
@@ -54,19 +59,9 @@ export class IngresoManualPage implements OnInit {
   private perfilScan: string | null = null;
   private perfilDescripcionScan: string | null = null;
 
-  tiposPersona = [
-    { value: 'estudiante' as TipoPersonaIngreso, label: 'Estudiante' },
-    { value: 'docente' as TipoPersonaIngreso, label: 'Docente' },
-    { value: 'colaborador' as TipoPersonaIngreso, label: 'Colaborador' },
-    { value: 'visita' as TipoPersonaIngreso, label: 'Visita' },
-  ];
-
-  tiposMedio = [
-    { value: 'auto' as TipoMedioIngreso, label: 'Auto' },
-    { value: 'moto' as TipoMedioIngreso, label: 'Moto' },
-    { value: 'bicicleta' as TipoMedioIngreso, label: 'Bicicleta' },
-    { value: 'peatonal' as TipoMedioIngreso, label: 'Peatonal' },
-  ];
+  tiposPersonaVehicular: OpcionTipoPersonaIngreso[] = [];
+  tiposPersonaPeatonal: OpcionTipoPersonaIngreso[] = [];
+  tiposMedio: OpcionTipoMedioIngreso[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -77,7 +72,7 @@ export class IngresoManualPage implements OnInit {
     private authService: AuthService
   ) {}
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     this.form = this.fb.group({
       tipoPersona: ['estudiante' as TipoPersonaIngreso, Validators.required],
       tipoMedio: ['' as TipoMedioIngreso | '', Validators.required],
@@ -87,7 +82,7 @@ export class IngresoManualPage implements OnInit {
       observaciones: ['', Validators.maxLength(this.obsMaxLength)],
     });
 
-    this.form.get('tipoMedio')?.valueChanges.subscribe(() => {
+    this.form.get('tipoMedio')?.valueChanges.subscribe(medio => {
       const patenteCtrl = this.form.get('patente');
       const raw = String(patenteCtrl?.value ?? '');
       if (raw.trim()) {
@@ -96,8 +91,11 @@ export class IngresoManualPage implements OnInit {
           { emitEvent: false }
         );
       }
+      this.sincronizarTipoPersonaConMedio(medio as TipoMedioIngreso | '');
       this.actualizarValidacionPatente();
     });
+
+    await this.cargarCatalogosDesdeSesion();
     this.actualizarValidacionPatente();
 
     const nombre = this.route.snapshot.queryParamMap.get('nombre');
@@ -127,23 +125,40 @@ export class IngresoManualPage implements OnInit {
         });
       }
     }
-    if (patente) {
-      const medio = ((tipoMedio as TipoMedioIngreso) || 'auto') === 'moto' ? 'moto' : 'auto';
-      this.form.patchValue({
-        tipoMedio: (tipoMedio as TipoMedioIngreso) || 'auto',
-        patente: PatenteUtil.formatInput(patente, medio),
-      });
-      this.actualizarValidacionPatente();
-    }
     if (perfil) {
       const clave = perfil.trim().toLowerCase();
-      const tipo = this.tiposPersona.find(
+      const tipo = this.tiposPersonaActivos.find(
         t => t.value === clave || t.label.toLowerCase() === clave
       );
       if (tipo) {
         this.form.patchValue({ tipoPersona: tipo.value });
       }
     }
+
+    if (patente) {
+      const medioParam = (tipoMedio as TipoMedioIngreso) || 'auto';
+      const medioPatente: PatenteMedio =
+        medioParam === 'moto' ? 'moto' : 'auto';
+      const medioIngreso: TipoMedioIngreso =
+        medioParam === 'moto' || medioParam === 'auto'
+          ? medioParam
+          : 'auto';
+      this.form.patchValue({
+        tipoMedio: medioIngreso,
+        patente: PatenteUtil.formatInput(patente, medioPatente),
+      });
+      this.actualizarValidacionPatente();
+    } else if (tipoMedio) {
+      this.form.patchValue({ tipoMedio: tipoMedio as TipoMedioIngreso });
+      this.actualizarValidacionPatente();
+    }
+  }
+
+  get tiposPersonaActivos(): OpcionTipoPersonaIngreso[] {
+    if (this.form?.get('tipoMedio')?.value === 'peatonal') {
+      return this.tiposPersonaPeatonal;
+    }
+    return this.tiposPersonaVehicular;
   }
 
   get requierePatente(): boolean {
@@ -207,7 +222,7 @@ export class IngresoManualPage implements OnInit {
 
       const sede = await this.authService.getSede();
       const tipoPersonaLabel =
-        this.tiposPersona.find(t => t.value === body.tipoPersona)?.label ??
+        this.tiposPersonaActivos.find(t => t.value === body.tipoPersona)?.label ??
         body.tipoPersona;
 
       await this.navCtrl.navigateForward('/confirmacion', {
@@ -219,17 +234,10 @@ export class IngresoManualPage implements OnInit {
       });
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
-      const apiErr = err as ApiHttpError;
-      const mensaje =
-        apiErr?.message ||
-        (typeof apiErr?.error === 'object' &&
-        apiErr.error !== null &&
-        'message' in apiErr.error &&
-        typeof (apiErr.error as { message: unknown }).message === 'string'
-          ? (apiErr.error as { message: string }).message
-          : null) ||
-        'Error al registrar el ingreso.';
-      await this.ui.presentToast(mensaje, { color: 'danger' });
+      await this.ui.presentToast(
+        mensajeErrorUsuario(err, 'Error al registrar el ingreso.'),
+        { color: 'danger' }
+      );
     }
   }
 
@@ -278,6 +286,33 @@ export class IngresoManualPage implements OnInit {
     }
 
     return vehiculos;
+  }
+
+  private async cargarCatalogosDesdeSesion(): Promise<void> {
+    const sesion = await this.authService.getEstacionamientoSesion();
+    const catalogo = mapCatalogoIngresoManual(sesion);
+
+    this.tiposPersonaVehicular = catalogo.vehicular.tiposPersona;
+    this.tiposPersonaPeatonal = catalogo.peatonal.tiposPersona;
+    this.tiposMedio = catalogo.medios;
+
+    const personaDefault = this.tiposPersonaVehicular[0]?.value ?? 'estudiante';
+    this.form.patchValue({ tipoPersona: personaDefault });
+  }
+
+  private sincronizarTipoPersonaConMedio(medio: TipoMedioIngreso | ''): void {
+    if (!medio) {
+      return;
+    }
+
+    const opciones = medio === 'peatonal'
+      ? this.tiposPersonaPeatonal
+      : this.tiposPersonaVehicular;
+    const actual = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
+
+    if (!opciones.some(o => o.value === actual) && opciones[0]) {
+      this.form.patchValue({ tipoPersona: opciones[0].value });
+    }
   }
 
   private actualizarValidacionPatente(): void {

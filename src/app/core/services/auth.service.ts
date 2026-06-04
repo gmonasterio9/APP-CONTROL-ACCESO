@@ -9,6 +9,7 @@ import {
   LogoutApiResponse,
   RefreshApiResponse,
 } from '../models/auth.model';
+import { LoginEstacionamientoSesion } from '../models/login-sesion.model';
 import { AppStorageService } from './app-storage.service';
 import { ApiHttpService } from './api-http.service';
 
@@ -18,6 +19,7 @@ export class AuthService {
   private readonly REFRESH_TOKEN_KEY = 'auth_refresh_token';
   private readonly USER_KEY = 'auth_user';
   private readonly SEDE_KEY = 'auth_sede';
+  private readonly ESTACIONAMIENTO_SESION_KEY = 'auth_estacionamiento_sesion';
 
   constructor(
     private router: Router,
@@ -72,6 +74,12 @@ export class AuthService {
     return this.storage.get<Sede>(this.SEDE_KEY);
   }
 
+  async getEstacionamientoSesion(): Promise<LoginEstacionamientoSesion | null> {
+    return this.storage.get<LoginEstacionamientoSesion>(
+      this.ESTACIONAMIENTO_SESION_KEY
+    );
+  }
+
   async logout(): Promise<void> {
     const token = await this.getAccessToken();
     if (token) {
@@ -92,6 +100,7 @@ export class AuthService {
       this.storage.remove(this.REFRESH_TOKEN_KEY),
       this.storage.remove(this.USER_KEY),
       this.storage.remove(this.SEDE_KEY),
+      this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY),
     ]);
     await this.router.navigate(['/auth/inicio-sesion']);
   }
@@ -133,6 +142,16 @@ export class AuthService {
     await this.persistTokens(response.access_token, refreshToken);
     await this.storage.set(this.USER_KEY, user);
     await this.storage.set(this.SEDE_KEY, sede);
+
+    if (response.estacionamiento) {
+      await this.storage.set(
+        this.ESTACIONAMIENTO_SESION_KEY,
+        response.estacionamiento
+      );
+    } else {
+      await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
+    }
+
     return response;
   }
 
