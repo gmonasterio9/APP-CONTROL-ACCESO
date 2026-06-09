@@ -8,6 +8,7 @@ import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { UiService } from '../../core/services/ui.service';
+import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { PatenteUtil } from '../../core/utils/patente.util';
 
 @Component({
@@ -68,13 +69,19 @@ export class EstacionamientoPage {
   async ingresar(e: EstacionamientoCard): Promise<void> {
     const rechazado =
       this.estadoScan === 'no_autorizado' || this.estadoScan === 'manual';
-    const perfil = this.perfil ?? (rechazado ? 'visita' : undefined);
-    const nombre = this.nombre ?? (this.patente ? this.patente : 'Visitante');
+    const perfil = rechazado
+      ? resolverPerfilIngresoManual({
+          perfil: this.perfil,
+          estado: 'no_autorizado',
+          origen: this.origen,
+        }) ?? undefined
+      : this.perfil ?? undefined;
+    const nombreReal = (this.nombre ?? '').trim() || null;
 
     if (rechazado) {
       await this.navCtrl.navigateForward('/ingreso-manual', {
         queryParams: {
-          nombre,
+          nombre: nombreReal,
           rut: this.rut,
           patente: this.patente,
           perfil,
@@ -86,6 +93,8 @@ export class EstacionamientoPage {
       });
       return;
     }
+
+    const nombre = nombreReal ?? (this.patente ? this.patente : 'Visitante');
 
     const body = this.buildIngresoBody();
     if (!body) {

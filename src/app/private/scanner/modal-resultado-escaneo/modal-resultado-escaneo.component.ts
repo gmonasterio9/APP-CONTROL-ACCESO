@@ -41,6 +41,7 @@ export class ModalResultadoEscaneoComponent {
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
   @Input() controlPeatonalRegistrado = false;
+  @Input() escaneoPorEmail = false;
 
   constructor(private modalCtrl: ModalController) {}
 
@@ -122,6 +123,7 @@ export class ModalResultadoEscaneoComponent {
         code: this.code,
         patente: this.plateResult?.plate,
         controlPeatonalRegistrado: this.controlPeatonalRegistrado,
+        escaneoPorEmail: this.escaneoPorEmail,
       },
       'accion'
     );

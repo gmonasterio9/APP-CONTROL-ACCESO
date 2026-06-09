@@ -4,11 +4,11 @@ import { ActivatedRoute } from '@angular/router';
 import { NavController } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
 import {
+  ingresoManualFueRegistrado,
   IngresoManualPeatonalRequest,
   IngresoManualRequest,
   IngresoManualVehiculosRequest,
   normalizarObservaciones,
-  resolverTipoQr,
   TipoMedioIngreso,
   TipoMedioVehiculo,
   TipoPersonaIngreso,
@@ -26,6 +26,23 @@ import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
 
 const MEDIOS_SIN_PATENTE: TipoMedioIngreso[] = ['bicicleta', 'peatonal'];
+
+const NOMBRES_PLACEHOLDER = new Set(['visitante', 'visita']);
+
+function esNombreRealIngreso(nombre: string, perfilDescripcion?: string | null): boolean {
+  const limpio = nombre.trim();
+  if (!limpio) {
+    return false;
+  }
+  const clave = limpio.toLowerCase();
+  if (NOMBRES_PLACEHOLDER.has(clave)) {
+    return false;
+  }
+  if (perfilDescripcion && clave === perfilDescripcion.trim().toLowerCase()) {
+    return false;
+  }
+  return true;
+}
 
 function rutValidator(control: AbstractControl): ValidationErrors | null {
   const value = String(control.value ?? '');
@@ -54,10 +71,6 @@ function patenteValidator(control: AbstractControl): ValidationErrors | null {
 export class IngresoManualPage implements OnInit {
   form!: FormGroup;
   obsMaxLength = 100;
-
-  private origenScan: string | null = null;
-  private perfilScan: string | null = null;
-  private perfilDescripcionScan: string | null = null;
 
   tiposPersonaVehicular: OpcionTipoPersonaIngreso[] = [];
   tiposPersonaPeatonal: OpcionTipoPersonaIngreso[] = [];
@@ -104,17 +117,11 @@ export class IngresoManualPage implements OnInit {
     const patente = this.route.snapshot.queryParamMap.get('patente');
     const tipoMedio = this.route.snapshot.queryParamMap.get('tipoMedio');
 
-    this.origenScan = this.route.snapshot.queryParamMap.get('origen');
-    this.perfilScan = perfil;
     const perfilDescripcion =
       this.route.snapshot.queryParamMap.get('perfilDescripcion');
-    this.perfilDescripcionScan = perfilDescripcion ?? null;
 
     const nombreLimpio = (nombre ?? '').trim();
-    const noEsPerfilEnNombre =
-      !perfilDescripcion ||
-      nombreLimpio.toLowerCase() !== perfilDescripcion.trim().toLowerCase();
-    if (nombreLimpio && noEsPerfilEnNombre) {
+    if (esNombreRealIngreso(nombreLimpio, perfilDescripcion)) {
       this.form.patchValue({ nombre: nombreLimpio });
     }
     if (rut) {
@@ -127,11 +134,18 @@ export class IngresoManualPage implements OnInit {
     }
     if (perfil) {
       const clave = perfil.trim().toLowerCase();
-      const tipo = this.tiposPersonaActivos.find(
-        t => t.value === clave || t.label.toLowerCase() === clave
-      );
+      const buscarEn = (lista: OpcionTipoPersonaIngreso[]) =>
+        lista.find(t => t.value === clave || t.label.toLowerCase() === clave);
+      const tipo =
+        buscarEn(this.tiposPersonaPeatonal) ?? buscarEn(this.tiposPersonaVehicular);
+
       if (tipo) {
         this.form.patchValue({ tipoPersona: tipo.value });
+      }
+
+      if (tipo && !patente && !tipoMedio) {
+        this.form.patchValue({ tipoMedio: 'peatonal' });
+        this.actualizarValidacionPatente();
       }
     }
 
@@ -212,7 +226,7 @@ export class IngresoManualPage implements OnInit {
       const res = await firstValueFrom(this.ingresoManualService.registrar(body));
       await this.ui.dismissLoading(loading);
 
-      if (!res.success) {
+      if (!ingresoManualFueRegistrado(res)) {
         await this.ui.presentToast(
           res.message || 'No se pudo registrar el ingreso.',
           { color: 'warning' }
@@ -257,13 +271,6 @@ export class IngresoManualPage implements OnInit {
     if (tipoMedio === 'peatonal') {
       const peatonal: IngresoManualPeatonalRequest = {
         tipoPersona,
-        tipoQr: resolverTipoQr({
-          origen: this.origenScan,
-          tipoPersona,
-          perfil: this.perfilScan,
-          perfilDescripcion: this.perfilDescripcionScan,
-        }),
-        estado: 'EXITOSO',
         rut,
         nombre,
         observaciones,

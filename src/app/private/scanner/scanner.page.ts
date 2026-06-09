@@ -14,6 +14,7 @@ import { ValidarPerfilResponse } from '../../core/models/validar-perfil.model';
 import { ValidarPatenteResponse } from '../../core/models/validar-patente.model';
 import { PatenteUtil } from '../../core/utils/patente.util';
 import { ValidarPatenteUtil } from '../../core/utils/validar-patente.util';
+import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { ValidarPerfilUtil } from '../../core/utils/validar-perfil.util';
 import { ScanPerfilUtil } from '../../core/utils/scan-perfil.util';
 import { PeatonalEscaneoUtil } from '../../core/utils/peatonal-escaneo.util';
@@ -445,6 +446,7 @@ export class ScannerPage implements OnDestroy {
     plateResult?: any;
     fotoPreview?: string;
     controlPeatonalRegistrado?: boolean;
+    escaneoPorEmail?: boolean;
   }) {
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
@@ -464,6 +466,7 @@ export class ScannerPage implements OnDestroy {
         plateResult: data.plateResult,
         fotoPreview: data.fotoPreview,
         controlPeatonalRegistrado: data.controlPeatonalRegistrado ?? false,
+        escaneoPorEmail: data.escaneoPorEmail ?? false,
       },
     });
 
@@ -515,34 +518,21 @@ export class ScannerPage implements OnDestroy {
     perfilDescripcion?: string;
     escaneoPorEmail?: boolean;
   }): PeatonalControlIngresoRequest | null {
-    const identificador = PeatonalEscaneoUtil.resolverIdentificadorControlIngreso(
-      data.codigoEscaneado ?? '',
-      {
-        persNcorr: data.persNcorr,
-        rut: data.rut,
-        email: data.email,
-      }
-    );
-
-    if (!identificador) {
+    if (data.tipo === 'patente') {
       return null;
     }
 
-    const origen: 'cedula' | 'credencial' =
-      data.tipo === 'cedula' ? 'cedula' : 'credencial';
-
-    return {
-      ...identificador,
-      tipoQr: PeatonalEscaneoUtil.resolverTipoQrEscaneo({
-        origen,
-        escaneoPorEmail: data.escaneoPorEmail,
-        perfil: data.perfil,
-        perfilDescripcion: data.perfilDescripcion,
-      }),
-      estado: PeatonalEscaneoUtil.mapEstadoControlIngreso(
-        data.estado ?? 'no_autorizado'
-      ),
-    };
+    return PeatonalEscaneoUtil.buildControlIngresoRequest({
+      tipo: data.tipo,
+      estado: data.estado,
+      codigoEscaneado: data.codigoEscaneado,
+      persNcorr: data.persNcorr,
+      rut: data.rut,
+      email: data.email,
+      perfil: data.perfil,
+      perfilDescripcion: data.perfilDescripcion,
+      escaneoPorEmail: data.escaneoPorEmail,
+    });
   }
 
   /** Registra APP_PEATONAL_ESCANEOS al validar QR (éxito, rechazo o expirado). */
@@ -574,19 +564,7 @@ export class ScannerPage implements OnDestroy {
       );
       return res.success !== false;
     } catch {
-      try {
-        if ('persNcorr' in body) {
-          const res = await firstValueFrom(
-            this.peatonalService.registrarControlIngresoPorPersona(
-              body.persNcorr
-            )
-          );
-          return res.success !== false;
-        }
-        return false;
-      } catch {
-        return false;
-      }
+      return false;
     }
   }
 
@@ -1156,15 +1134,23 @@ export class ScannerPage implements OnDestroy {
     estado?: EstadoEscaneo;
     tipo?: TipoEscaneo;
     code?: string;
+    escaneoPorEmail?: boolean;
   }): Record<string, string | null> {
-    const perfil = this.resolverPerfilParaManual(resp);
+    const perfil = resolverPerfilIngresoManual({
+      code: resp.code,
+      estado: resp.estado,
+      perfil: resp.perfil,
+      perfilDescripcion: resp.perfilDescripcion,
+      origen: resp.tipo,
+      escaneoPorEmail: resp.escaneoPorEmail,
+    });
 
     return {
       patente: resp.patente ?? null,
       nombre: resp.nombre ?? null,
       rut: resp.rut ?? null,
       credencial: resp.credencial ?? null,
-      perfil,
+      perfil: perfil ?? null,
       perfilDescripcion: resp.perfilDescripcion ?? null,
       persNcorr:
         resp.persNcorr != null && resp.persNcorr > 0
@@ -1173,27 +1159,6 @@ export class ScannerPage implements OnDestroy {
       origen: resp.tipo ?? null,
       estado: resp.estado ?? null,
     };
-  }
-
-  private resolverPerfilParaManual(resp: {
-    code?: string;
-    estado?: EstadoEscaneo;
-    perfil?: string;
-  }): string | null {
-    if (String(resp.code ?? '').toLowerCase() === 'visita') {
-      return 'visita';
-    }
-
-    if (resp.estado === 'no_autorizado' || resp.estado === 'manual') {
-      return 'visita';
-    }
-
-    const perfil = String(resp.perfil ?? '').trim().toLowerCase();
-    if (['estudiante', 'docente', 'colaborador', 'visita'].includes(perfil)) {
-      return perfil;
-    }
-
-    return null;
   }
 
   private async mostrarError(msg: string) {

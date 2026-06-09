@@ -5,6 +5,7 @@ import {
 import {
   EstadoControlPeatonalEscaneo,
   IdentificadorControlIngresoPeatonal,
+  PeatonalControlIngresoRequest,
 } from '../models/peatonal-control-ingreso.model';
 import { ScanPerfilUtil } from './scan-perfil.util';
 import { ValidarPerfilUtil } from './validar-perfil.util';
@@ -33,11 +34,16 @@ export class PeatonalEscaneoUtil {
       persNcorr?: unknown;
       rut?: unknown;
       email?: unknown;
-    } = {}
+    } = {},
+    opciones?: { incluirPersNcorr?: boolean }
   ): IdentificadorControlIngresoPeatonal | null {
-    const persNcorr = ValidarPerfilUtil.normalizarPersNcorr(data.persNcorr);
-    if (persNcorr != null) {
-      return { persNcorr };
+    const incluirPersNcorr = opciones?.incluirPersNcorr !== false;
+
+    if (incluirPersNcorr) {
+      const persNcorr = ValidarPerfilUtil.normalizarPersNcorr(data.persNcorr);
+      if (persNcorr != null) {
+        return { persNcorr };
+      }
     }
 
     const rutDesdeDatos = ValidarPerfilUtil.normalizarRut(data.rut);
@@ -103,5 +109,51 @@ export class PeatonalEscaneoUtil {
       perfil: params.perfil,
       perfilDescripcion: params.perfilDescripcion,
     });
+  }
+
+  static buildControlIngresoRequest(data: {
+    tipo: OrigenEscaneoQr;
+    estado?: 'autorizado' | 'no_autorizado' | 'manual';
+    codigoEscaneado?: string;
+    persNcorr?: unknown;
+    rut?: unknown;
+    email?: unknown;
+    perfil?: string | null;
+    perfilDescripcion?: string | null;
+    escaneoPorEmail?: boolean;
+  }): PeatonalControlIngresoRequest | null {
+    const estado = PeatonalEscaneoUtil.mapEstadoControlIngreso(
+      data.estado ?? 'no_autorizado'
+    );
+    const tipoQr = PeatonalEscaneoUtil.resolverTipoQrEscaneo({
+      origen: data.tipo,
+      escaneoPorEmail: data.escaneoPorEmail,
+      perfil: data.perfil,
+      perfilDescripcion: data.perfilDescripcion,
+    });
+
+    if (estado === 'EXITOSO') {
+      const persNcorr = ValidarPerfilUtil.normalizarPersNcorr(data.persNcorr);
+      if (persNcorr == null) {
+        return null;
+      }
+      return { persNcorr, tipoQr, estado };
+    }
+
+    const identificador = PeatonalEscaneoUtil.resolverIdentificadorControlIngreso(
+      data.codigoEscaneado ?? '',
+      {
+        persNcorr: data.persNcorr,
+        rut: data.rut,
+        email: data.email,
+      },
+      { incluirPersNcorr: false }
+    );
+
+    if (!identificador) {
+      return null;
+    }
+
+    return { ...identificador, tipoQr, estado };
   }
 }

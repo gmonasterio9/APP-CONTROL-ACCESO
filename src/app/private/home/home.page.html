@@ -31,7 +31,7 @@
     </ion-button>
 
     <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
-      <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg btn-svg-blue" />
+      <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg" />
       Ingreso manual
     </ion-button>
   </div>
@@ -129,9 +129,9 @@
           Reintentar
         </ion-button>
       } @else {
-        @if (fechaResumenPeatonal) {
+        <!-- @if (fechaResumenPeatonal) {    
           <p class="resumen-fecha">Resumen del {{ fechaResumenPeatonal }}</p>
-        }
+        } -->
         <div class="stats-row stats-row--grid">
           @for (s of statsPeatonal; track s.label) {
             <div class="stat-card">
