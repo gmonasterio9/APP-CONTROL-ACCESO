@@ -81,14 +81,25 @@
         maxlength="12"
         (input)="onRutInput($event)" />
       @if (form.get('rut')?.touched && form.get('rut')?.hasError('rutFormato')) {
-        <p class="im-hint im-hint--error">Formato: 20.497.490-K</p>
+        <p class="im-hint im-hint--error">XX.XXX.XXX-X</p>
       }
       <div class="im-divider"></div>
     </div>
 
     <div class="im-field-block">
-      <p class="im-label">Nombre <span class="req">(*)</span></p>
-      <input class="im-input" formControlName="nombre" placeholder="Ingrese nombre" />
+      <div class="im-obs-header">
+        <p class="im-label">Nombre <span class="req">(*)</span></p>
+        <span class="im-obs-counter">{{ nombreLength }}/{{ nombreMaxLength }}</span>
+      </div>
+      <input
+        class="im-input"
+        formControlName="nombre"
+        placeholder="Ingrese nombre"
+        [maxlength]="nombreMaxLength"
+        (input)="onNombreInput($event)" />
+      @if (form.get('nombre')?.touched && form.get('nombre')?.hasError('nombreLetras')) {
+        <p class="im-hint im-hint--error">Solo se permiten letras</p>
+      }
       <div class="im-divider"></div>
     </div>
 

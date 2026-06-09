@@ -1,4 +1,5 @@
 import { assertApiSuccess } from '../utils/api-response.util';
+import { RutUtil } from '../utils/rut.util';
 import {
   mapPeatonalTotalesToStats,
   PeatonalResumenTotalesApi,
@@ -129,7 +130,9 @@ export function labelTipoQrPeatonal(raw?: string | null): string | null {
 function mapAcceso(item: PeatonalAccesoApi): PeatonalAccesoView {
   return {
     apesNcorr: item.apesNcorr,
-    rut: item.rut?.trim() || '—',
+    rut: item.rut?.trim()
+      ? RutUtil.formatDisplay(item.rut)
+      : '—',
     nombre: item.nombre?.trim() || '—',
     tipoQrLabel: labelTipoQrPeatonal(item.tipoQr),
     estado: normalizarEstado(item.estado),

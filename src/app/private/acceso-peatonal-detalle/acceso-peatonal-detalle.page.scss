@@ -127,6 +127,7 @@
   display:         flex;
   align-items:     center;
   justify-content: space-between;
+  gap:             12px;
   padding:         14px 16px;
   background:      #FEFFFE;
   border-radius:   14px;
@@ -139,7 +140,7 @@
 }
 
 .sk-acceso-nombre {
-  flex: 1;
+  width: 100%;
   height: 16px;
   margin: 0;
   border-radius: 4px;
@@ -175,24 +176,29 @@
 .acceso-info {
   display:        flex;
   flex-direction: column;
-  gap:            2px;
+  flex:           1;
+  gap:            4px;
+  min-width:      0;
 }
 
-.acceso-top {
+.acceso-meta {
   display:         flex;
-  align-items:     flex-start;
+  align-items:     center;
   justify-content: space-between;
   gap:             8px;
   width:           100%;
 }
 
 .acceso-nombre {
-  color:       #040B15;
-  font-family: Roboto, sans-serif;
-  font-size:   15px;
-  font-weight: 600;
-  margin:      0;
-  flex:        1;
+  color:          #040B15;
+  font-family:    Roboto, sans-serif;
+  font-size:      15px;
+  font-weight:    600;
+  line-height:    1.35;
+  margin:         0;
+  min-width:      0;
+  word-break:     break-word;
+  overflow-wrap:  anywhere;
 }
 
 .acceso-hora {
@@ -216,6 +222,8 @@
   font-size:   12px;
   font-weight: 400;
   margin:      0;
+  min-width:   0;
+  flex:        1;
 }
 
 .acceso-tipo-qr-titulo {
@@ -275,6 +283,7 @@
   border-radius:    5px;
   white-space:      nowrap;
   flex-shrink:      0;
+  margin-top:       2px;
 
   &.chip-permitido {
     color:        #0A7F0F;

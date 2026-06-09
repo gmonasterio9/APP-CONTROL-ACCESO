@@ -21,7 +21,7 @@ import { UiService } from '../../core/services/ui.service';
   standalone: false,
 })
 export class AccesoPeatonalDetallePage {
-  readonly statsSkeleton = [0, 1, 2, 3, 4];
+  readonly statsSkeleton = [0, 1, 2];
   readonly accesosSkeleton = [0, 1, 2];
 
   stats: PeatonalStatCard[] = [];
@@ -65,17 +65,33 @@ export class AccesoPeatonalDetallePage {
   }
 
   muestraNombreRut(acceso: PeatonalAccesoView): boolean {
-    return acceso.estado === 'manual' || acceso.estado === 'visita';
+    if (!this.tieneNombreRut(acceso)) {
+      return false;
+    }
+    return (
+      acceso.estado === 'permitido' ||
+      acceso.estado === 'manual' ||
+      acceso.estado === 'visita'
+    );
   }
 
   muestraTipoQr(acceso: PeatonalAccesoView): boolean {
-    if (!acceso.tipoQrLabel) {
+    if (!acceso.tipoQrLabel || this.muestraNombreRut(acceso)) {
       return false;
     }
     return (
       acceso.estado === 'permitido' ||
       acceso.estado === 'rechazado' ||
       acceso.estado === 'expirado'
+    );
+  }
+
+  private tieneNombreRut(acceso: PeatonalAccesoView): boolean {
+    const nombre = acceso.nombre?.trim();
+    const rut = acceso.rut?.trim();
+    return (
+      (!!nombre && nombre !== '—') ||
+      (!!rut && rut !== '—')
     );
   }
 

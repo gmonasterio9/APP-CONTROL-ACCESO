@@ -72,7 +72,6 @@
                 <ion-skeleton-text class="sk-acceso-nombre" [animated]="true"></ion-skeleton-text>
                 <ion-skeleton-text class="sk-acceso-hora" [animated]="true"></ion-skeleton-text>
               </div>
-              <ion-skeleton-text class="sk-acceso-rut" [animated]="true"></ion-skeleton-text>
             </div>
             <ion-skeleton-text class="sk-acceso-chip" [animated]="true"></ion-skeleton-text>
           </div>
@@ -81,22 +80,22 @@
       @for (a of accesos; track a.apesNcorr) {
         <div class="acceso-item">
           <div class="acceso-info">
-            <div class="acceso-top">
+            @if (muestraNombreRut(a)) {
+              <p class="acceso-nombre">{{ a.nombre }}</p>
+            } @else if (muestraTipoQr(a)) {
+              <p class="acceso-nombre acceso-tipo-qr-titulo">{{ a.tipoQrLabel }}</p>
+            } @else {
+              <p class="acceso-nombre">—</p>
+            }
+            <div class="acceso-meta">
               @if (muestraNombreRut(a)) {
-                <p class="acceso-nombre">{{ a.nombre }}</p>
-              } @else if (muestraTipoQr(a)) {
-                <p class="acceso-nombre acceso-tipo-qr-titulo">{{ a.tipoQrLabel }}</p>
-              } @else {
-                <p class="acceso-nombre">—</p>
+                <p class="acceso-rut">{{ a.rut }}</p>
               }
               <span class="acceso-hora">
                 <ion-icon name="time-outline"></ion-icon>
                 {{ a.hora }}
               </span>
             </div>
-            @if (muestraNombreRut(a)) {
-              <p class="acceso-rut">{{ a.rut }}</p>
-            }
           </div>
           <span [class]="'chip-estado chip-' + a.estado">
             {{ chipLabel(a.estado) }}

@@ -12,6 +12,7 @@ import {
 import { LoginEstacionamientoSesion } from '../models/login-sesion.model';
 import { AppStorageService } from './app-storage.service';
 import { ApiHttpService } from './api-http.service';
+import { OfflineService } from './offline.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -24,7 +25,8 @@ export class AuthService {
   constructor(
     private router: Router,
     private storage: AppStorageService,
-    private api: ApiHttpService
+    private api: ApiHttpService,
+    private offlineService: OfflineService
   ) {}
 
   loginWithPin(pin: string, sedeId: number): Observable<LoginApiResponse> {
@@ -93,7 +95,7 @@ export class AuthService {
     }
     await this.clearLocalSession();
   }
-  
+
   async clearLocalSession(): Promise<void> {
     await Promise.all([
       this.storage.remove(this.ACCESS_TOKEN_KEY),
@@ -101,6 +103,7 @@ export class AuthService {
       this.storage.remove(this.USER_KEY),
       this.storage.remove(this.SEDE_KEY),
       this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY),
+      this.offlineService.clearCatalogo(),
     ]);
     await this.router.navigate(['/auth/inicio-sesion']);
   }
@@ -150,6 +153,12 @@ export class AuthService {
       );
     } else {
       await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
+    }
+
+    try {
+      await firstValueFrom(this.offlineService.sincronizarCatalogoAcceso());
+    } catch {
+      console.warn('No se pudo sincronizar el catálogo offline.');
     }
 
     return response;

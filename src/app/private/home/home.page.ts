@@ -36,7 +36,7 @@ export class HomePage {
   ];
 
   readonly estacionamientosSkeleton = [0, 1, 2];
-  readonly statsSkeleton = [0, 1, 2, 3, 4];
+  readonly statsSkeleton = [0, 1, 2];
 
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;

@@ -20,6 +20,7 @@ import {
 } from '../../core/models/login-sesion.model';
 import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
+import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
@@ -52,6 +53,24 @@ function rutValidator(control: AbstractControl): ValidationErrors | null {
   return RutUtil.isFormatValid(value) ? null : { rutFormato: true };
 }
 
+const NOMBRE_MAX_LENGTH = 20;
+const NOMBRE_SOLO_LETRAS = /^[\p{L}\s]+$/u;
+
+function filtrarNombreSoloLetras(value: string): string {
+  return value
+    .replace(/[^\p{L}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, NOMBRE_MAX_LENGTH);
+}
+
+function nombreValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (!value) {
+    return null;
+  }
+  return NOMBRE_SOLO_LETRAS.test(value) ? null : { nombreLetras: true };
+}
+
 function patenteValidator(control: AbstractControl): ValidationErrors | null {
   const value = String(control.value ?? '');
   if (!value.trim()) {
@@ -71,6 +90,7 @@ function patenteValidator(control: AbstractControl): ValidationErrors | null {
 export class IngresoManualPage implements OnInit {
   form!: FormGroup;
   obsMaxLength = 100;
+  nombreMaxLength = NOMBRE_MAX_LENGTH;
 
   tiposPersonaVehicular: OpcionTipoPersonaIngreso[] = [];
   tiposPersonaPeatonal: OpcionTipoPersonaIngreso[] = [];
@@ -82,7 +102,8 @@ export class IngresoManualPage implements OnInit {
     private navCtrl: NavController,
     private ui: UiService,
     private ingresoManualService: IngresoManualService,
-    private authService: AuthService
+    private authService: AuthService,
+    private offlineService: OfflineService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -91,7 +112,14 @@ export class IngresoManualPage implements OnInit {
       tipoMedio: ['' as TipoMedioIngreso | '', Validators.required],
       patente: [''],
       rut: ['', [Validators.required, rutValidator]],
-      nombre: ['', Validators.required],
+      nombre: [
+        '',
+        [
+          Validators.required,
+          Validators.maxLength(this.nombreMaxLength),
+          nombreValidator,
+        ],
+      ],
       observaciones: ['', Validators.maxLength(this.obsMaxLength)],
     });
 
@@ -122,7 +150,9 @@ export class IngresoManualPage implements OnInit {
 
     const nombreLimpio = (nombre ?? '').trim();
     if (esNombreRealIngreso(nombreLimpio, perfilDescripcion)) {
-      this.form.patchValue({ nombre: nombreLimpio });
+      this.form.patchValue({
+        nombre: filtrarNombreSoloLetras(nombreLimpio),
+      });
     }
     if (rut) {
       const rutNormalizado = RutUtil.normalizeManual(rut);
@@ -191,8 +221,18 @@ export class IngresoManualPage implements OnInit {
       : 'Auto: 22-22-22 (actual) o ABCDE-1 (nueva) — 6 caracteres';
   }
 
+  get nombreLength(): number {
+    return (this.form.get('nombre')?.value ?? '').length;
+  }
+
   get obsLength(): number {
     return (this.form.get('observaciones')?.value ?? '').length;
+  }
+
+  onNombreInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const filtrado = filtrarNombreSoloLetras(input.value);
+    this.form.get('nombre')?.setValue(filtrado, { emitEvent: false });
   }
 
   onRutInput(event: Event): void {
@@ -263,7 +303,9 @@ export class IngresoManualPage implements OnInit {
     const tipoPersona = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
     const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
     const rut = RutUtil.normalizeManual(String(this.form.get('rut')?.value ?? ''));
-    const nombre = String(this.form.get('nombre')?.value ?? '').trim();
+    const nombre = filtrarNombreSoloLetras(
+      String(this.form.get('nombre')?.value ?? '')
+    ).trim();
     const observaciones = normalizarObservaciones(
       String(this.form.get('observaciones')?.value ?? '')
     );
@@ -296,7 +338,10 @@ export class IngresoManualPage implements OnInit {
   }
 
   private async cargarCatalogosDesdeSesion(): Promise<void> {
-    const sesion = await this.authService.getEstacionamientoSesion();
+    const usarOffline = await this.offlineService.debeUsarModoOffline();
+    const sesion = usarOffline
+      ? await this.offlineService.getEstacionamientoOffline()
+      : await this.authService.getEstacionamientoSesion();
     const catalogo = mapCatalogoIngresoManual(sesion);
 
     this.tiposPersonaVehicular = catalogo.vehicular.tiposPersona;

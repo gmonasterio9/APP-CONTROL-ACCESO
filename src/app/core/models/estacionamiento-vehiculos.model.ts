@@ -1,3 +1,4 @@
+import { RutUtil } from '../utils/rut.util';
 import { VehiculoActivoView } from './estacionamiento-disponibilidad.model';
 
 export interface VehiculoActivoApi {
@@ -41,7 +42,9 @@ function mapVehiculo(item: VehiculoActivoApi): VehiculoActivoView {
   return {
     patente: item.patente?.toUpperCase() ?? '',
     nombre: item.nombre ?? '—',
-    rut: item.rut ?? '—',
+    rut: item.rut?.trim()
+      ? RutUtil.formatDisplay(item.rut)
+      : '—',
     tipo: item.tipoPerfil ?? '—',
     vehiculo: item.tipoVehiculo ?? '—',
     horaIngreso: item.horaIngreso ?? '—',

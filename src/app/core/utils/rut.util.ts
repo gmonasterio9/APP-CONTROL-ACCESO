@@ -65,6 +65,26 @@ export class RutUtil {
     return /^\d{7,8}-[\dkK]$/.test(cleaned) || /^\d{7,9}$/.test(cleaned);
   }
 
+  static formatDisplay(value: string | null | undefined): string {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed || trimmed === '—') {
+      return trimmed;
+    }
+
+    const digits = trimmed.replace(/[^0-9kK]/gi, '').toUpperCase();
+    if (digits.length < 2) {
+      return trimmed;
+    }
+
+    const dv = digits.slice(-1);
+    const body = digits.slice(0, -1);
+    if (!/^[0-9]{7,8}$/.test(body) || !/^[0-9K]$/.test(dv)) {
+      return trimmed;
+    }
+
+    return `${RutUtil.formatBodyDots(body)}-${dv}`;
+  }
+
   private static formatBodyDots(body: string): string {
     return body
       .split('')
