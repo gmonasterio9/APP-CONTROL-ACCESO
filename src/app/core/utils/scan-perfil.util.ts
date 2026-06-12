@@ -24,15 +24,11 @@ export class ScanPerfilUtil {
       return true;
     }
 
-    if (value.startsWith('http')) {
-      return true;
-    }
-
     if (RutUtil.isScannedFormat(value)) {
       return false;
     }
 
-    return value.length >= 8;
+    return false;
   }
 
   static extractEmailFromEscaneo(raw: string): string | null {
@@ -147,7 +143,7 @@ export class ScanPerfilUtil {
     return match?.[1]?.trim() ?? null;
   }
 
-  private static isCredencialVirtualQr(value: string): boolean {
+  static isCredencialVirtualQr(value: string): boolean {
     if (value.startsWith('http') || value.includes('BEGIN:VCARD')) {
       return false;
     }

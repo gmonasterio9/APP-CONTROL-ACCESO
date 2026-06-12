@@ -11,6 +11,8 @@ import {
 } from '../../core/models/peatonal-detalle.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import { NetworkService } from '../../core/services/network.service';
+import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
 
@@ -39,6 +41,8 @@ export class AccesoPeatonalDetallePage {
 
   constructor(
     private navCtrl: NavController,
+    private network: NetworkService,
+    private offlineService: OfflineService,
     private peatonalService: PeatonalService,
     private ui: UiService
   ) {}
@@ -141,6 +145,19 @@ export class AccesoPeatonalDetallePage {
       this.cargandoMas = true;
     }
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      await this.cargarDetalleDesdeCache(reset);
+      if (reset) {
+        if (!opciones?.silencioso) {
+          this.cargando = false;
+        }
+      } else {
+        this.cargandoMas = false;
+      }
+      return;
+    }
+
     try {
       const data = await firstValueFrom(
         this.peatonalService.obtenerDetalle({
@@ -161,6 +178,9 @@ export class AccesoPeatonalDetallePage {
         this.accesos = [...this.accesos, ...data.accesos];
       }
     } catch (err: unknown) {
+      if (reset && (await this.cargarDetalleDesdeCache(true))) {
+        return;
+      }
       if (reset) {
         this.stats = [];
         this.accesos = [];
@@ -187,6 +207,37 @@ export class AccesoPeatonalDetallePage {
         this.cargandoMas = false;
       }
     }
+  }
+
+  private async cargarDetalleDesdeCache(reset: boolean): Promise<boolean> {
+    if (!reset) {
+      await this.ui.presentToast(
+        'Solo se muestra el historial guardado al iniciar sesión.',
+        { color: 'warning' }
+      );
+      return true;
+    }
+
+    const cache = await this.offlineService.getDetallePeatonalOffline();
+    if (!cache) {
+      this.stats = [];
+      this.accesos = [];
+      this.fecha = null;
+      this.totalRegistros = 0;
+      this.totalPaginas = 0;
+      this.error =
+        'No hay detalle peatonal guardado.';
+      return false;
+    }
+
+    this.stats = cache.stats;
+    this.fecha = cache.fecha ?? null;
+    this.totalRegistros = cache.paginacion.totalRegistros;
+    this.totalPaginas = cache.paginacion.totalPaginas;
+    this.pagina = cache.paginacion.pagina;
+    this.accesos = cache.accesos;
+    this.error = null;
+    return true;
   }
 
 }

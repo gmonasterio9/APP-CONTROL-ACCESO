@@ -40,8 +40,10 @@ export class ModalResultadoEscaneoComponent {
   @Input() mensaje?: string;
   @Input() plateResult?: PlateResult;
   @Input() fotoPreview?: string;
-  @Input() controlPeatonalRegistrado = false;
+  @Input() controlPeatonalExito = false;
   @Input() escaneoPorEmail = false;
+  @Input() codigoEscaneado?: string;
+  @Input() email?: string;
 
   constructor(private modalCtrl: ModalController) {}
 
@@ -85,13 +87,13 @@ export class ModalResultadoEscaneoComponent {
     }[this.estado];
   }
 
-  /** Expirado: sin acciones; rechazado: peatonal + estacionamiento; autorizado: solo estacionamiento. */
+  /** Autorizado, rechazado y expirado: peatonal + estacionamiento (excepto escaneo de patente). */
   get mostrarAccesoPeatonal(): boolean {
-    return this.tipo !== 'patente' && this.estado === 'no_autorizado';
+    return this.tipo !== 'patente';
   }
 
   get mostrarAccesoEstacionamiento(): boolean {
-    return this.estado !== 'manual';
+    return true;
   }
 
   get mostrarOpcionesAcceso(): boolean {
@@ -102,10 +104,10 @@ export class ModalResultadoEscaneoComponent {
     if (!this.mostrarOpcionesAcceso) {
       return '';
     }
-    if (this.tipo === 'patente' || this.estado === 'autorizado') {
+    if (this.tipo === 'patente') {
       return '¿Dónde registra el vehículo?';
     }
-    return '¿Cómo ingresa el visitante?';
+    return '¿Cómo desea registrar el ingreso?';
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
@@ -122,8 +124,10 @@ export class ModalResultadoEscaneoComponent {
         persNcorr: this.persNcorr,
         code: this.code,
         patente: this.plateResult?.plate,
-        controlPeatonalRegistrado: this.controlPeatonalRegistrado,
+        controlPeatonalExito: this.controlPeatonalExito,
         escaneoPorEmail: this.escaneoPorEmail,
+        codigoEscaneado: this.codigoEscaneado,
+        email: this.email,
       },
       'accion'
     );

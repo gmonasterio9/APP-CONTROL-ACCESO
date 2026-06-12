@@ -11,8 +11,11 @@ import {
   CupoCategoriaView,
   VehiculoActivoView,
 } from '../../core/models/estacionamiento-disponibilidad.model';
+import { esPostEncoladoOffline } from '../../core/models/offline-cola.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { NetworkService } from '../../core/services/network.service';
+import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
 
 const COLORES: Record<CategoriaTipo, { circulo: string; barra: string }> = {
@@ -61,6 +64,8 @@ export class EstacionamientoDetallePage implements OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private navCtrl: NavController,
+    private network: NetworkService,
+    private offlineService: OfflineService,
     private ui: UiService,
     private estacionamientoService: EstacionamientoService
   ) {}
@@ -180,7 +185,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
       await this.ui.presentToast(
         res.message ?? 'Salida registrada correctamente.',
-        { color: 'success', duration: 2500 }
+        {
+          color: esPostEncoladoOffline(res) ? 'warning' : 'success',
+          duration: 2500,
+        }
       );
 
       this.vehiculos = this.vehiculos.filter(x => x.patente !== v.patente);
@@ -231,6 +239,15 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
     this.errorCupos = null;
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      await this.cargarDisponibilidadDesdeCache();
+      if (!opciones?.silencioso) {
+        this.cargandoCupos = false;
+      }
+      return;
+    }
+
     try {
       const data = await firstValueFrom(
         this.estacionamientoService.obtenerDisponibilidad(
@@ -239,14 +256,11 @@ export class EstacionamientoDetallePage implements OnDestroy {
         )
       );
 
-      this.nombre = data.nombre;
-      this.jornada = data.jornada;
-      this.cupos = data.cupos;
-
-      const ubicacion = this.route.snapshot.queryParamMap.get('ubicacion');
-      const base = ubicacion?.trim() || 'Registro de vehículos';
-      this.subtitulo = data.jornada ? `${base} · ${data.jornada}` : base;
+      this.aplicarDisponibilidad(data);
     } catch (err: unknown) {
+      if (await this.cargarDisponibilidadDesdeCache()) {
+        return;
+      }
       this.cupos = [];
       this.errorCupos = mensajeErrorUsuario(
         err,
@@ -273,6 +287,19 @@ export class EstacionamientoDetallePage implements OnDestroy {
       this.cargandoMasVehiculos = true;
     }
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      await this.cargarVehiculosDesdeCache(reset);
+      if (reset) {
+        if (!opciones?.silencioso) {
+          this.cargandoVehiculos = false;
+        }
+      } else {
+        this.cargandoMasVehiculos = false;
+      }
+      return;
+    }
+
     try {
       const data = await firstValueFrom(
         this.estacionamientoService.listarVehiculosActivos({
@@ -282,16 +309,11 @@ export class EstacionamientoDetallePage implements OnDestroy {
         })
       );
 
-      this.totalRegistrosVehiculos = data.paginacion.totalRegistros;
-      this.totalPaginasVehiculos = data.paginacion.totalPaginas;
-      this.paginaVehiculos = data.paginacion.pagina;
-
-      if (reset) {
-        this.vehiculos = data.vehiculos;
-      } else {
-        this.vehiculos = [...this.vehiculos, ...data.vehiculos];
-      }
+      this.aplicarVehiculosActivos(data, reset);
     } catch (err: unknown) {
+      if (reset && (await this.cargarVehiculosDesdeCache(true))) {
+        return;
+      }
       if (reset) {
         this.vehiculos = [];
         this.totalRegistrosVehiculos = 0;
@@ -316,6 +338,108 @@ export class EstacionamientoDetallePage implements OnDestroy {
         this.cargandoMasVehiculos = false;
       }
     }
+  }
+
+  private aplicarDisponibilidad(
+    data: { nombre: string; jornada: string | null; cupos: CupoCategoriaView[] }
+  ): void {
+    this.nombre = data.nombre;
+    this.jornada = data.jornada;
+    this.cupos = data.cupos;
+
+    const ubicacion = this.route.snapshot.queryParamMap.get('ubicacion');
+    const base = ubicacion?.trim() || 'Registro de vehículos';
+    this.subtitulo = data.jornada ? `${base} · ${data.jornada}` : base;
+  }
+
+  private aplicarVehiculosActivos(
+    data: {
+      paginacion: {
+        totalRegistros: number;
+        totalPaginas: number;
+        pagina: number;
+      };
+      vehiculos: VehiculoActivoView[];
+    },
+    reset: boolean
+  ): void {
+    this.totalRegistrosVehiculos = data.paginacion.totalRegistros;
+    this.totalPaginasVehiculos = data.paginacion.totalPaginas;
+    this.paginaVehiculos = data.paginacion.pagina;
+
+    if (reset) {
+      this.vehiculos = data.vehiculos;
+    } else {
+      this.vehiculos = [...this.vehiculos, ...data.vehiculos];
+    }
+  }
+
+  private async cargarDisponibilidadDesdeCache(): Promise<boolean> {
+    if (this.aeseNcorr == null) {
+      return false;
+    }
+
+    const cache = await this.offlineService.getEstacionamientoDetalleOffline(
+      this.aeseNcorr
+    );
+    if (!cache?.disponibilidad) {
+      this.cupos = [];
+      this.errorCupos = 'No hay disponibilidad guardada para este estacionamiento.';
+      return false;
+    }
+
+    this.aplicarDisponibilidad(cache.disponibilidad);
+    this.errorCupos = null;
+    return true;
+  }
+
+  private async cargarVehiculosDesdeCache(reset: boolean): Promise<boolean> {
+    if (this.aeseNcorr == null) {
+      return false;
+    }
+
+    if (!reset) {
+      await this.ui.presentToast(
+        'Solo se muestran los vehículos guardados al iniciar sesión.',
+        { color: 'warning' }
+      );
+      return true;
+    }
+
+    const cache = await this.offlineService.getEstacionamientoDetalleOffline(
+      this.aeseNcorr
+    );
+    if (!cache?.vehiculosActivos) {
+      this.vehiculos = [];
+      this.totalRegistrosVehiculos = 0;
+      this.totalPaginasVehiculos = 0;
+      this.errorVehiculos =
+        'No hay vehículos activos guardados para este estacionamiento.';
+      return false;
+    }
+
+    const patente = this.busqueda.trim().toUpperCase();
+    let vehiculos = cache.vehiculosActivos.vehiculos;
+    if (patente) {
+      vehiculos = vehiculos.filter(v =>
+        v.patente.toUpperCase().includes(patente)
+      );
+    }
+
+    this.aplicarVehiculosActivos(
+      {
+        paginacion: {
+          ...cache.vehiculosActivos.paginacion,
+          totalRegistros: patente ? vehiculos.length : cache.vehiculosActivos.paginacion.totalRegistros,
+          totalPaginas: patente ? 1 : cache.vehiculosActivos.paginacion.totalPaginas,
+          pagina: 1,
+        },
+        vehiculos,
+      },
+      true
+    );
+    this.errorVehiculos = null;
+    return true;
   }
 
 }

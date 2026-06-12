@@ -74,9 +74,11 @@
         </div>
       } @else if (errorEstacionamientos && estacionamientos.length === 0) {
         <p class="lista-estado lista-estado--error">{{ errorEstacionamientos }}</p>
-        <ion-button fill="outline" size="small" (click)="cargarEstacionamientos()">
-          Reintentar
-        </ion-button>
+        <div class="estado-acciones">
+          <ion-button fill="outline" size="small" class="btn-reintentar" (click)="cargarEstacionamientos()">
+            Reintentar
+          </ion-button>
+        </div>
       } @else if (estacionamientos.length === 0) {
         <p class="lista-estado">No hay estacionamientos para esta sede.</p>
       } @else {
@@ -95,10 +97,18 @@
               </div>
               <img src="assets/svg/arrow-right.svg" class="item-arrow" />
             </div>
-            <p class="item-cupos">{{ e.cuposDisponibles }} de {{ e.cuposTotales }} cupos disponibles</p>
+            <p class="item-cupos" [class.sin-cupos]="e.cuposDisponibles === 0">
+              @if (e.cuposDisponibles > 0) {
+                {{ e.cuposDisponibles }} de {{ e.cuposTotales }} cupos disponibles
+              } @else {
+                No hay cupos disponibles
+              }
+            </p>
             <div class="barra-fondo">
-              <div class="barra-fill"
-                [style.width.%]="porcentaje(e)"
+              <div
+                class="barra-fill"
+                [class.barra-fill--sin-cupos]="e.cuposDisponibles === 0"
+                [style.width.%]="e.cuposDisponibles === 0 ? 100 : porcentaje(e)"
                 [style.background]="colorBarra(e)">
               </div>
             </div>
@@ -125,9 +135,11 @@
         </div>
       } @else if (errorResumenPeatonal) {
         <p class="lista-estado lista-estado--error">{{ errorResumenPeatonal }}</p>
-        <ion-button fill="outline" size="small" (click)="cargarResumenPeatonal()">
-          Reintentar
-        </ion-button>
+        <div class="estado-acciones">
+          <ion-button fill="outline" size="small" class="btn-reintentar" (click)="cargarResumenPeatonal()">
+            Reintentar
+          </ion-button>
+        </div>
       } @else {
         <!-- @if (fechaResumenPeatonal) {    
           <p class="resumen-fecha">Resumen del {{ fechaResumenPeatonal }}</p>

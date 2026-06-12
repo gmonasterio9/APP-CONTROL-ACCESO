@@ -76,9 +76,26 @@
       }
 
       <div class="scanner-bottom">
-        <button type="button" class="btn-captura" (click)="capturarPatente()" [disabled]="procesando">
-          <div class="btn-captura-inner"></div>
-        </button>
+        @if (hayInternet) {
+          <button
+            type="button"
+            class="btn-captura"
+            (click)="capturarPatente()"
+            [disabled]="procesando"
+            aria-label="Escanear patente">
+            <div class="btn-captura-inner"></div>
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="btn-ingreso-manual"
+            (click)="ingresarPatenteManual()"
+            [disabled]="procesando"
+            aria-label="Ingresar patente manualmente">
+            <img src="assets/svg/keyboard.svg" alt="" class="btn-ingreso-manual-icon" />
+            Ingresar patente
+          </button>
+        }
       </div>
 
     </div>

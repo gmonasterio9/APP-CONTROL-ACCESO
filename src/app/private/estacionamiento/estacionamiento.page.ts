@@ -7,6 +7,12 @@ import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { NetworkService } from '../../core/services/network.service';
+import { OfflineService } from '../../core/services/offline.service';
+import {
+  esPostEncoladoOffline,
+  MENSAJE_POST_ENCOLADO,
+} from '../../core/models/offline-cola.model';
 import { UiService } from '../../core/services/ui.service';
 import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { PatenteUtil } from '../../core/utils/patente.util';
@@ -36,6 +42,8 @@ export class EstacionamientoPage {
     private navCtrl: NavController,
     private ui: UiService,
     private authService: AuthService,
+    private network: NetworkService,
+    private offlineService: OfflineService,
     private estacionamientoService: EstacionamientoService
   ) {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
@@ -63,7 +71,7 @@ export class EstacionamientoPage {
   }
 
   colorBarra(e: EstacionamientoCard): string {
-    return e.cuposDisponibles > 0 ? '#4CAF50' : '#CC0000';
+    return e.cuposDisponibles > 0 ? '#4CAF50' : '#C00';
   }
 
   async ingresar(e: EstacionamientoCard): Promise<void> {
@@ -121,6 +129,13 @@ export class EstacionamientoPage {
         return;
       }
 
+      if (esPostEncoladoOffline(res)) {
+        await this.ui.presentToast(res.message ?? MENSAJE_POST_ENCOLADO, {
+          color: 'warning',
+          duration: 3000,
+        });
+      }
+
       const sede = await this.authService.getSede();
 
       await this.navCtrl.navigateForward('/confirmacion', {
@@ -163,19 +178,42 @@ export class EstacionamientoPage {
     this.cargandoEstacionamientos = true;
     this.errorEstacionamientos = null;
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      await this.cargarEstacionamientosDesdeCache();
+      this.cargandoEstacionamientos = false;
+      return;
+    }
+
     try {
       this.estacionamientos = await firstValueFrom(
         this.estacionamientoService.listar()
       );
     } catch (err: unknown) {
-      this.estacionamientos = [];
-      this.errorEstacionamientos = mensajeErrorUsuario(
-        err,
-        'No se pudieron cargar los estacionamientos.'
-      );
+      if (!(await this.cargarEstacionamientosDesdeCache())) {
+        this.estacionamientos = [];
+        this.errorEstacionamientos = mensajeErrorUsuario(
+          err,
+          'No se pudieron cargar los estacionamientos.'
+        );
+      }
     } finally {
       this.cargandoEstacionamientos = false;
     }
+  }
+
+  private async cargarEstacionamientosDesdeCache(): Promise<boolean> {
+    const cache = await this.offlineService.getEstacionamientosOffline();
+    if (!cache.length) {
+      this.estacionamientos = [];
+      this.errorEstacionamientos =
+        'No hay estacionamientos guardados. Sincroniza al iniciar sesión con internet.';
+      return false;
+    }
+
+    this.estacionamientos = [...cache];
+    this.errorEstacionamientos = null;
+    return true;
   }
 
 }

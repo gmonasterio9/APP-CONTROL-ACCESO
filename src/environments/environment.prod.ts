@@ -1,5 +1,8 @@
+import { environmentSecrets } from './environment.secrets';
+
 export const environment = {
   production: true,
   name: 'prod',
-  apiUrl: 'https://API_PROD_URL_AQUI/api/v1',
+  apiUrl: 'https://siga.inacap.cl/Inacap.Api.ControlAcceso.V2/api/v1',
+  keyCrypt: environmentSecrets.keyCrypt,
 };

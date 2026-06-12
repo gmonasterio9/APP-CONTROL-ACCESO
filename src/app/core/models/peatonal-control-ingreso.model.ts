@@ -19,8 +19,36 @@ export type PeatonalControlIngresoRequest = PeatonalControlIngresoBase &
 
 export interface PeatonalControlIngresoResponse {
   success: boolean;
+  registrado?: boolean;
   code?: number;
   message?: string;
+  apesNcorr?: number;
+  tipoQr?: string;
+  estado?: EstadoControlPeatonalEscaneo;
+  estadoAcceso?: string;
+  persNcorr?: number;
+  perfil?: number;
+  rut?: string;
+  nombreCompleto?: string;
+}
+
+export interface ResultadoControlPeatonal {
+  exito: boolean;
+  registrado: boolean;
+  message?: string;
+  nombreCompleto?: string;
+}
+
+export function peatonalControlIngresoFueRegistrado(
+  res: PeatonalControlIngresoResponse
+): boolean {
+  return res.success === true && res.registrado !== false;
+}
+
+export function peatonalControlIngresoFueExitoso(
+  res: PeatonalControlIngresoResponse
+): boolean {
+  return res.success === true;
 }
 
 export function assertPeatonalControlIngresoOk(

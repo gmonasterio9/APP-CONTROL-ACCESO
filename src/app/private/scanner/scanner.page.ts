@@ -19,10 +19,19 @@ import { ValidarPerfilUtil } from '../../core/utils/validar-perfil.util';
 import { ScanPerfilUtil } from '../../core/utils/scan-perfil.util';
 import { PeatonalEscaneoUtil } from '../../core/utils/peatonal-escaneo.util';
 import { RutUtil } from '../../core/utils/rut.util';
-import { PeatonalControlIngresoRequest } from '../../core/models/peatonal-control-ingreso.model';
+import {
+  peatonalControlIngresoFueExitoso,
+  peatonalControlIngresoFueRegistrado,
+  PeatonalControlIngresoRequest,
+  ResultadoControlPeatonal,
+} from '../../core/models/peatonal-control-ingreso.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
+import { NetworkService } from '../../core/services/network.service';
+import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
+import { QrOfflineService } from '../../core/services/qr-offline.service';
+import { OfflineValidacionUtil } from '../../core/utils/offline-validacion.util';
 import {
   ModalResultadoEscaneoComponent,
   TipoEscaneo,
@@ -49,6 +58,7 @@ export class ScannerPage implements OnDestroy {
   @ViewChild('videoRef') videoRef!: ElementRef<HTMLVideoElement>;
 
   procesando      = false;
+  hayInternet     = true;
   camaraLista     = false;
   scannerVisible  = false;
   flashActivo     = false;
@@ -69,6 +79,7 @@ export class ScannerPage implements OnDestroy {
   private mlkitListener: PluginListenerHandle | null = null;
   private usandoMLKit  = false;
   private backButtonSub?: Subscription;
+  private networkSub?: Subscription;
 
   constructor(
     private navCtrl:      NavController,
@@ -81,6 +92,9 @@ export class ScannerPage implements OnDestroy {
     private validarPatenteService: ValidarPatenteService,
     private peatonalService: PeatonalService,
     private authService: AuthService,
+    private network: NetworkService,
+    private offlineService: OfflineService,
+    private qrOffline: QrOfflineService,
     private zone: NgZone,
   ) {}
 
@@ -88,12 +102,20 @@ export class ScannerPage implements OnDestroy {
     this.backButtonSub = this.platform.backButton.subscribeWithPriority(100, () => {
       void this.volver();
     });
+    await this.actualizarEstadoRed();
+    this.networkSub = this.network.enLinea$.subscribe(enLinea => {
+      this.zone.run(() => {
+        this.hayInternet = enLinea;
+      });
+    });
     await this.prepararEscaneo();
   }
 
   ionViewWillLeave() {
     this.backButtonSub?.unsubscribe();
     this.backButtonSub = undefined;
+    this.networkSub?.unsubscribe();
+    this.networkSub = undefined;
     void this.apagarScanner();
   }
 
@@ -234,12 +256,7 @@ export class ScannerPage implements OnDestroy {
       }
 
       if (!ScanPerfilUtil.esEscaneoQrPerfil(codigo)) {
-        await this.ui.presentToast(
-          'Escanee un código QR de credencial INACAP o cédula de identidad.',
-          { color: 'warning', position: 'top' }
-        );
-        this.procesando = false;
-        await this.reanudarEscaneoTrasModal();
+        await this.mostrarAlertQrFormatoInvalido();
         return;
       }
 
@@ -250,7 +267,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   async capturarPatente() {
-    if (this.procesando) { return; }
+    if (this.procesando || !this.hayInternet) { return; }
     this.procesando = true;
     const eraMLKit = this.usandoMLKit;
     await this.detenerDeteccion();
@@ -325,6 +342,28 @@ export class ScannerPage implements OnDestroy {
     this.navCtrl.back();
   }
 
+  async ingresarPatenteManual(patentePrefill = ''): Promise<void> {
+    if (this.procesando && !patentePrefill) {
+      return;
+    }
+    this.procesando = true;
+    await this.detenerDeteccion();
+    await this.solicitarPatenteManual(patentePrefill);
+  }
+
+  private async navegarIngresoManualConPatente(patente: string): Promise<void> {
+    const limpia = PatenteUtil.toApi(patente);
+    const medio = PatenteUtil.inferirMedio(limpia) ?? 'auto';
+    await this.apagarScanner();
+    this.procesando = false;
+    await this.navCtrl.navigateForward('/ingreso-manual', {
+      queryParams: {
+        patente: limpia,
+        tipoMedio: medio,
+      },
+    });
+  }
+
   get mostrarVideoPreview(): boolean {
     return !!this.videoStream && !this.usandoMLKit;
   }
@@ -390,7 +429,10 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async flujoEscaneoQr(codigo: string): Promise<void> {
-    const loading = await this.ui.presentLoading('Validando perfil...');
+    const modoOffline = !this.hayInternet;
+    const loading = await this.ui.presentLoading(
+      modoOffline ? 'Validando perfil (sin conexión)...' : 'Validando perfil...'
+    );
     const contextoEscaneo = {
       codigoEscaneado: codigo,
       rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
@@ -400,26 +442,24 @@ export class ScannerPage implements OnDestroy {
     };
 
     try {
-      const res = await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
+      const res = modoOffline
+        ? await this.validarPerfilOffline(contextoEscaneo)
+        : await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
       await this.ui.dismissLoading(loading);
       const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
-      const controlPeatonalRegistrado =
-        await this.registrarEscaneoPeatonalInmediato(modalData);
-      await this.mostrarResultadoModal({
-        ...modalData,
-        controlPeatonalRegistrado,
-      });
+      const controlPeatonal = await this.registrarEscaneoPeatonalInmediato(modalData);
+      await this.mostrarResultadoModal(
+        this.enriquecerModalConControlPeatonal(modalData, controlPeatonal)
+      );
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       const res = ValidarPerfilUtil.extraerResponse(err);
       if (res) {
         const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
-        const controlPeatonalRegistrado =
-          await this.registrarEscaneoPeatonalInmediato(modalData);
-        await this.mostrarResultadoModal({
-          ...modalData,
-          controlPeatonalRegistrado,
-        });
+        const controlPeatonal = await this.registrarEscaneoPeatonalInmediato(modalData);
+        await this.mostrarResultadoModal(
+          this.enriquecerModalConControlPeatonal(modalData, controlPeatonal)
+        );
       } else {
         const mensaje = mensajeErrorUsuario(err, 'No se pudo validar el código.');
         await this.mostrarResultadoModal({
@@ -437,6 +477,8 @@ export class ScannerPage implements OnDestroy {
     nombre?: string;
     credencial?: string;
     rut?: string;
+    email?: string;
+    codigoEscaneado?: string;
     perfil?: string;
     perfilDescripcion?: string;
     persNcorr?: number;
@@ -445,7 +487,7 @@ export class ScannerPage implements OnDestroy {
     mensaje?: string;
     plateResult?: any;
     fotoPreview?: string;
-    controlPeatonalRegistrado?: boolean;
+    controlPeatonalExito?: boolean;
     escaneoPorEmail?: boolean;
   }) {
     const modal = await this.modalCtrl.create({
@@ -457,6 +499,8 @@ export class ScannerPage implements OnDestroy {
         nombre:      data.nombre,
         credencial:  data.credencial,
         rut:         data.rut,
+        email:       data.email,
+        codigoEscaneado: data.codigoEscaneado,
         perfil:      data.perfil,
         perfilDescripcion: data.perfilDescripcion,
         persNcorr:   data.persNcorr,
@@ -465,7 +509,7 @@ export class ScannerPage implements OnDestroy {
         mensaje:     data.mensaje,
         plateResult: data.plateResult,
         fotoPreview: data.fotoPreview,
-        controlPeatonalRegistrado: data.controlPeatonalRegistrado ?? false,
+        controlPeatonalExito: data.controlPeatonalExito ?? false,
         escaneoPorEmail: data.escaneoPorEmail ?? false,
       },
     });
@@ -481,7 +525,7 @@ export class ScannerPage implements OnDestroy {
 
       if (resp?.via === 'peatonal' && !esPatente) {
         if (resp.estado === 'autorizado') {
-          if (resp.controlPeatonalRegistrado) {
+          if (resp.controlPeatonalExito) {
             await this.irConfirmacionTrasEscaneo(resp);
           } else {
             await this.registrarControlIngresoPeatonal(resp);
@@ -535,6 +579,31 @@ export class ScannerPage implements OnDestroy {
     });
   }
 
+  private enriquecerModalConControlPeatonal<
+    T extends {
+      estado?: EstadoEscaneo;
+      mensaje?: string;
+      nombre?: string;
+    },
+  >(
+    modalData: T,
+    controlPeatonal: ResultadoControlPeatonal
+  ): T & {
+    controlPeatonalExito: boolean;
+    nombre?: string;
+  } {
+    const nombre =
+      modalData.nombre?.trim() ||
+      controlPeatonal.nombreCompleto?.trim() ||
+      modalData.nombre;
+
+    return {
+      ...modalData,
+      nombre,
+      controlPeatonalExito: controlPeatonal.exito,
+    };
+  }
+
   /** Registra APP_PEATONAL_ESCANEOS al validar QR (éxito, rechazo o expirado). */
   private async registrarEscaneoPeatonalInmediato(data: {
     tipo: TipoEscaneo;
@@ -546,10 +615,10 @@ export class ScannerPage implements OnDestroy {
     perfil?: string;
     perfilDescripcion?: string;
     escaneoPorEmail?: boolean;
-  }): Promise<boolean> {
+  }): Promise<ResultadoControlPeatonal> {
     const body = this.buildControlIngresoPeatonal(data);
     if (!body) {
-      return false;
+      return { exito: false, registrado: false };
     }
 
     return this.enviarControlIngresoPeatonal(body);
@@ -557,14 +626,19 @@ export class ScannerPage implements OnDestroy {
 
   private async enviarControlIngresoPeatonal(
     body: PeatonalControlIngresoRequest
-  ): Promise<boolean> {
+  ): Promise<ResultadoControlPeatonal> {
     try {
       const res = await firstValueFrom(
         this.peatonalService.registrarControlIngreso(body)
       );
-      return res.success !== false;
+      return {
+        exito: peatonalControlIngresoFueExitoso(res),
+        registrado: peatonalControlIngresoFueRegistrado(res),
+        message: res.message,
+        nombreCompleto: res.nombreCompleto,
+      };
     } catch {
-      return false;
+      return { exito: false, registrado: false };
     }
   }
 
@@ -574,7 +648,7 @@ export class ScannerPage implements OnDestroy {
     persNcorr?: number;
     perfil?: string;
     perfilDescripcion?: string;
-    controlPeatonalRegistrado?: boolean;
+    controlPeatonalExito?: boolean;
     rut?: string;
     nombre?: string;
     credencial?: string;
@@ -583,8 +657,13 @@ export class ScannerPage implements OnDestroy {
     codigoEscaneado?: string;
     escaneoPorEmail?: boolean;
   }): Promise<void> {
-    if (!resp.controlPeatonalRegistrado) {
-      const ok = await this.registrarEscaneoPeatonalInmediato({
+    let controlPeatonal: ResultadoControlPeatonal = {
+      exito: resp.controlPeatonalExito ?? false,
+      registrado: false,
+    };
+
+    if (!controlPeatonal.exito) {
+      controlPeatonal = await this.registrarEscaneoPeatonalInmediato({
         tipo: resp.tipo ?? 'credencial',
         estado: 'manual',
         codigoEscaneado: resp.codigoEscaneado,
@@ -596,7 +675,7 @@ export class ScannerPage implements OnDestroy {
         escaneoPorEmail: resp.escaneoPorEmail,
       });
 
-      if (!ok) {
+      if (!controlPeatonal.exito) {
         await this.registrarControlIngresoPeatonal({
           ...resp,
           tipo: resp.tipo ?? 'credencial',
@@ -655,7 +734,7 @@ export class ScannerPage implements OnDestroy {
       );
       await this.ui.dismissLoading(loading);
 
-      if (!res.success) {
+      if (!peatonalControlIngresoFueExitoso(res)) {
         await this.ui.presentToast(
           res.message || 'No se pudo confirmar el ingreso.',
           { color: 'warning' }
@@ -664,7 +743,10 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      await this.irConfirmacionTrasEscaneo(resp);
+      await this.irConfirmacionTrasEscaneo({
+        ...resp,
+        nombre: resp.nombre ?? res.nombreCompleto,
+      });
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
@@ -862,10 +944,15 @@ export class ScannerPage implements OnDestroy {
 
   private async validarPatenteEscaneada(patenteRaw: string): Promise<void> {
     const patente = patenteRaw.trim().toUpperCase();
-    const loading = await this.ui.presentLoading('Validando patente...');
+    const modoOffline = !this.hayInternet;
+    const loading = await this.ui.presentLoading(
+      modoOffline ? 'Validando patente (sin conexión)...' : 'Validando patente...'
+    );
 
     try {
-      const res = await firstValueFrom(this.validarPatenteService.validar(patente));
+      const res = modoOffline
+        ? await this.validarPatenteOffline(patente)
+        : await firstValueFrom(this.validarPatenteService.validar(patente));
       await this.ui.dismissLoading(loading);
       await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
     } catch (err: unknown) {
@@ -901,8 +988,10 @@ export class ScannerPage implements OnDestroy {
     return null;
   }
 
-  private async solicitarPatenteManual(): Promise<void> {
-    await this.ui.presentAlert({
+  private async solicitarPatenteManual(patentePrefill = ''): Promise<void> {
+    let avanzo = false;
+
+    const alert = await this.ui.presentAlert({
       cssClass: 'alert-salida',
       header: 'Ingresar patente',
       message:
@@ -912,6 +1001,7 @@ export class ScannerPage implements OnDestroy {
           name: 'patente',
           type: 'text',
           placeholder: 'ABC-12 / ABCD-1',
+          value: patentePrefill,
           attributes: {
             autocapitalize: 'characters',
             maxlength: 6,
@@ -923,9 +1013,6 @@ export class ScannerPage implements OnDestroy {
           text: 'Cancelar',
           cssClass: 'alert-btn-cancelar',
           role: 'cancel',
-          handler: () => {
-            void this.prepararEscaneo();
-          },
         },
         {
           text: 'Validar',
@@ -933,20 +1020,23 @@ export class ScannerPage implements OnDestroy {
           handler: (data) => {
             const raw = String(data?.patente ?? '');
             const patente = PatenteUtil.toApi(raw);
-            if (PatenteUtil.isFormatValidAutoOMoto(patente)) {
-              void this.validarPatenteEscaneada(patente);
-              return;
+            if (!PatenteUtil.isFormatValidAutoOMoto(patente)) {
+              void this.mostrarError('Patente inválida.');
+              void this.solicitarPatenteManual(raw);
+              return false;
             }
-            void this.mostrarError(
-              'Patente inválida.'
-            );
-            void this.solicitarPatenteManual();
+            avanzo = true;
+            void this.validarPatenteEscaneada(patente);
+            return true;
           },
         },
       ],
     });
-
-    this.procesando = false;
+    await alert.onDidDismiss();
+    if (!avanzo) {
+      this.procesando = false;
+      await this.prepararEscaneo();
+    }
   }
 
   private esperar(ms: number): Promise<void> {
@@ -1064,7 +1154,7 @@ export class ScannerPage implements OnDestroy {
       return {
         ...base,
         estado: 'manual',
-        titulo: textos.titulo ?? 'Código QR Expirado',
+        titulo: textos.titulo ?? 'Código Expirado',
         mensaje:
           textos.mensaje ??
           'Solicitar mostrar la credencial desde la APP INACAP. Si el problema persiste solicitar Cédula de Identidad.',
@@ -1161,6 +1251,48 @@ export class ScannerPage implements OnDestroy {
     };
   }
 
+  private async validarPerfilOffline(contexto: {
+    codigoEscaneado?: string;
+    rut?: string | null;
+    email?: string | null;
+  }): Promise<ValidarPerfilResponse> {
+    const catalogo = await this.offlineService.getCatalogo();
+    if (!catalogo || !OfflineValidacionUtil.tieneCatalogoValidacion(catalogo)) {
+      return {
+        success: false,
+        message:
+          'Sin conexión y sin catálogo local. Sincroniza al iniciar sesión con internet.',
+        ingresarManual: true,
+      };
+    }
+
+    return OfflineValidacionUtil.validarPerfilDesdeEscaneo(
+      catalogo,
+      contexto,
+      qr => this.qrOffline.parseCredencialInacap(qr)
+    );
+  }
+
+  private async validarPatenteOffline(patente: string): Promise<ValidarPatenteResponse> {
+    const catalogo = await this.offlineService.getCatalogo();
+    if (!catalogo || !OfflineValidacionUtil.tieneCatalogoValidacion(catalogo)) {
+      return {
+        success: false,
+        valida: false,
+        patente: patente.toUpperCase(),
+        message:
+          'Sin conexión y sin catálogo local. Sincroniza al iniciar sesión con internet.',
+        ingresarComoVisita: true,
+      };
+    }
+
+    return OfflineValidacionUtil.validarPatente(catalogo, patente);
+  }
+
+  private async actualizarEstadoRed(): Promise<void> {
+    this.hayInternet = await this.network.hayInternet();
+  }
+
   private async mostrarError(msg: string) {
     await this.ui.presentToast(msg, { color: 'danger' });
   }
@@ -1205,6 +1337,26 @@ export class ScannerPage implements OnDestroy {
       nombre === 'NotAllowedError' ||
       nombre === 'PermissionDeniedError'
     );
+  }
+
+  private async mostrarAlertQrFormatoInvalido(): Promise<void> {
+    const alert = await this.ui.presentAlert({
+      cssClass: 'alert-salida alert-salida--rechazo',
+      header: 'Código no válido',
+      message:
+        'El código escaneado no cumple el formato esperado. ' +
+        'Escanee un QR de credencial INACAP o cédula de identidad.',
+      buttons: [
+        {
+          text: 'Aceptar',
+          cssClass: 'alert-btn-aceptar',
+          role: 'cancel',
+        },
+      ],
+    });
+    await alert.onDidDismiss();
+    this.procesando = false;
+    await this.reanudarEscaneoTrasModal();
   }
 
   private async mostrarAlertPermisoCamara(): Promise<void> {

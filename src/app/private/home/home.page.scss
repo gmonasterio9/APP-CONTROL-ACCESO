@@ -250,13 +250,42 @@
 }
 
 .lista-estado {
-  text-align: center;
+  width: 100%;
+  padding: 0 16px 12px;
+  margin: 12px 0 0;
   color: #6a7282;
   font-size: 14px;
-  margin: 12px 0;
+  text-align: center;
 
   &--error {
     color: #040b15;
+  }
+}
+
+.estado-acciones {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 16px 16px;
+}
+
+.btn-reintentar {
+  --border-radius: var(--radius-pill);
+  --color: #1d78bf;
+  --border-color: #1d78bf;
+  --border-width: 1px;
+  --background: transparent;
+  --background-activated: rgba(29, 120, 191, 0.08);
+  --ripple-color: #1d78bf;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+
+  &::part(native) {
+    text-transform: none;
+    border-color: #1d78bf;
+    color: #1d78bf;
   }
 }
 
@@ -432,19 +461,29 @@
     color: var(--color-subtitle);
     font-size: var(--font-size-xs);
     margin: var(--spacing-xs) 0 var(--spacing-xs);
+
+    &.sin-cupos {
+      color: var(--Funcional-Danger, #c00);
+      font-weight: 500;
+    }
   }
 }
 
 .barra-fondo {
-  height: 4px;
-  background: #E0E0E0;
-  border-radius: 2px;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
   overflow: hidden;
 
   .barra-fill {
     height: 100%;
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.3s ease;
+
+    &--sin-cupos {
+      background: var(--Funcional-Danger, #c00) !important;
+      width: 100% !important;
+    }
   }
 }
 

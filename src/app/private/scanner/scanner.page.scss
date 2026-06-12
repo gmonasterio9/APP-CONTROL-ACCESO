@@ -57,7 +57,8 @@
   .btn-cerrar,
   .btn-flash,
   .scanner-zoom-stack,
-  .btn-captura {
+  .btn-captura,
+  .btn-ingreso-manual {
     pointer-events: auto;
   }
 }
@@ -228,6 +229,41 @@
   height:        56px;
   border-radius: 50%;
   background:    #fff;
+}
+
+.btn-ingreso-manual {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  min-width:       220px;
+  padding:         14px 20px;
+  border-radius:   999px;
+  border:          1.5px solid #1D78BF;
+  background:      rgba(0, 0, 0, 0.45);
+  color:           #fff;
+  font-family:     Roboto, sans-serif;
+  font-size:       15px;
+  font-weight:     500;
+  cursor:          pointer;
+  backdrop-filter: blur(4px);
+  transition:      transform 0.1s, background 0.2s;
+
+  &:active:not(:disabled) {
+    transform:  scale(0.97);
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor:  not-allowed;
+  }
+}
+
+.btn-ingreso-manual-icon {
+  width:  20px;
+  height: 20px;
+  filter: brightness(0) invert(1);
 }
 
 .patente-hint {

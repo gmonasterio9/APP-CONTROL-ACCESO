@@ -22,6 +22,10 @@ import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
+import {
+  esPostEncoladoOffline,
+  MENSAJE_POST_ENCOLADO,
+} from '../../core/models/offline-cola.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
@@ -272,6 +276,13 @@ export class IngresoManualPage implements OnInit {
           { color: 'warning' }
         );
         return;
+      }
+
+      if (esPostEncoladoOffline(res)) {
+        await this.ui.presentToast(res.message ?? MENSAJE_POST_ENCOLADO, {
+          color: 'warning',
+          duration: 3000,
+        });
       }
 
       const sede = await this.authService.getSede();

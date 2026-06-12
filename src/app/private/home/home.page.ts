@@ -10,6 +10,8 @@ import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { NetworkService } from '../../core/services/network.service';
+import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
 
@@ -55,6 +57,8 @@ export class HomePage {
   constructor(
     private authService: AuthService,
     private estacionamientoService: EstacionamientoService,
+    private network: NetworkService,
+    private offlineService: OfflineService,
     private peatonalService: PeatonalService,
     private actionSheetCtrl: ActionSheetController,
     private ui: UiService,
@@ -74,7 +78,7 @@ export class HomePage {
   }
 
   colorBarra(item: EstacionamientoCard): string {
-    return item.cuposDisponibles > 0 ? '#4CAF50' : '#CC0000';
+    return item.cuposDisponibles > 0 ? '#4CAF50' : '#C00';
   }
 
   abrirScanner(): void {
@@ -108,6 +112,22 @@ export class HomePage {
     }
     this.errorEstacionamientos = null;
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      const cache = await this.offlineService.getEstacionamientosOffline();
+      if (cache.length) {
+        this.estacionamientos = [...cache];
+      } else {
+        this.estacionamientos = [];
+        this.errorEstacionamientos =
+          'No hay estacionamientos disponibles.';
+      } 
+      if (!opciones?.silencioso) {
+        this.cargandoEstacionamientos = false;
+      }
+      return;
+    }
+
     try {
       const lista = await firstValueFrom(
         this.estacionamientoService.listar({
@@ -116,11 +136,17 @@ export class HomePage {
       );
       this.estacionamientos = [...lista];
     } catch (err: unknown) {
-      this.estacionamientos = [];
-      this.errorEstacionamientos = mensajeErrorUsuario(
-        err,
-        'No se pudieron cargar los estacionamientos.'
-      );
+      const cache = await this.offlineService.getEstacionamientosOffline();
+      if (cache.length) {
+        this.estacionamientos = [...cache];
+        this.errorEstacionamientos = null;
+      } else {
+        this.estacionamientos = [];
+        this.errorEstacionamientos = mensajeErrorUsuario(
+          err,
+          'No se pudieron cargar los estacionamientos.'
+        );
+      }
     } finally {
       if (!opciones?.silencioso) {
         this.cargandoEstacionamientos = false;
@@ -159,17 +185,42 @@ export class HomePage {
     }
     this.errorResumenPeatonal = null;
 
+    const hayInternet = await this.network.hayInternet();
+    if (!hayInternet) {
+      const cache = await this.offlineService.getResumenPeatonalOffline();
+      if (cache) {
+        this.statsPeatonal = cache.stats;
+        this.fechaResumenPeatonal = cache.fecha ?? null;
+      } else {
+        this.statsPeatonal = [];
+        this.fechaResumenPeatonal = null;
+        this.errorResumenPeatonal =
+          'No hay resumen peatonal disponible.';
+      }
+      if (!opciones?.silencioso) {
+        this.cargandoResumenPeatonal = false;
+      }
+      return;
+    }
+
     try {
       const res = await firstValueFrom(this.peatonalService.obtenerResumen());
       this.statsPeatonal = res.stats;
       this.fechaResumenPeatonal = res.fecha ?? null;
     } catch (err: unknown) {
-      this.statsPeatonal = [];
-      this.fechaResumenPeatonal = null;
-      this.errorResumenPeatonal = mensajeErrorUsuario(
-        err,
-        'No se pudo cargar el resumen peatonal.'
-      );
+      const cache = await this.offlineService.getResumenPeatonalOffline();
+      if (cache) {
+        this.statsPeatonal = cache.stats;
+        this.fechaResumenPeatonal = cache.fecha ?? null;
+        this.errorResumenPeatonal = null;
+      } else {
+        this.statsPeatonal = [];
+        this.fechaResumenPeatonal = null;
+        this.errorResumenPeatonal = mensajeErrorUsuario(
+          err,
+          'No se pudo cargar el resumen peatonal.'
+        );
+      }
     } finally {
       if (!opciones?.silencioso) {
         this.cargandoResumenPeatonal = false;

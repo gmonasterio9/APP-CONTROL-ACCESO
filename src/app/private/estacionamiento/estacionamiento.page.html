@@ -29,7 +29,9 @@
         <p class="lista-estado">No hay estacionamientos para esta sede.</p>
       } @else {
         @for (e of estacionamientos; track e.id) {
-          <div class="est-card">
+          <div
+            class="est-card"
+            [class.est-card--sin-cupos]="e.cuposDisponibles === 0">
             <div class="est-card-header">
               <div class="est-icon-wrap">
                 <img src="assets/svg/estacionamiento.svg" class="est-icon-svg" alt="" />
@@ -52,8 +54,10 @@
             </p>
 
             <div class="barra-fondo">
-              <div class="barra-fill"
-                [style.width.%]="porcentaje(e)"
+              <div
+                class="barra-fill"
+                [class.barra-fill--sin-cupos]="e.cuposDisponibles === 0"
+                [style.width.%]="e.cuposDisponibles === 0 ? 100 : porcentaje(e)"
                 [style.background]="colorBarra(e)">
               </div>
             </div>

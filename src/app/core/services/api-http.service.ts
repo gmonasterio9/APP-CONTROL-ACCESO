@@ -1,9 +1,13 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
-import { Observable, firstValueFrom, from, throwError } from 'rxjs';
+import { Observable, firstValueFrom, from, of, throwError } from 'rxjs';
 import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import {
+  debeEncolarPostOffline,
+  respuestaOptimistaPost,
+} from '../models/offline-cola.model';
 import {
   ApiHttpError,
   isUnauthorizedApiResult,
@@ -12,11 +16,14 @@ import {
   toApiHttpError,
 } from '../utils/api-response.util';
 import { AuthService } from './auth.service';
+import { NetworkService } from './network.service';
+import { OfflineColaService } from './offline-cola.service';
 
 export type { ApiHttpError } from '../utils/api-response.util';
 
 export interface ApiRequestOptions {
   noCache?: boolean;
+  skipOfflineQueue?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -27,6 +34,14 @@ export class ApiHttpService {
 
   private get auth(): AuthService {
     return this.injector.get(AuthService);
+  }
+
+  private get network(): NetworkService {
+    return this.injector.get(NetworkService);
+  }
+
+  private get offlineCola(): OfflineColaService {
+    return this.injector.get(OfflineColaService);
   }
 
   postPublic<T>(path: string, body?: unknown): Observable<T> {
@@ -41,8 +56,40 @@ export class ApiHttpService {
     return this.requestWithAuth<T>('GET', path, undefined, false, options);
   }
 
-  post<T>(path: string, body?: unknown): Observable<T> {
-    return this.requestWithAuth<T>('POST', path, body);
+  post<T>(
+    path: string,
+    body?: unknown,
+    options?: ApiRequestOptions
+  ): Observable<T> {
+    return from(this.resolverPost<T>(path, body, options)).pipe(
+      switchMap(resolved => {
+        if (resolved.encolado) {
+          return of(resolved.respuesta as T);
+        }
+        return this.requestWithAuth<T>('POST', path, body, false, options);
+      })
+    );
+  }
+
+  private async resolverPost<T>(
+    path: string,
+    body: unknown,
+    options?: ApiRequestOptions
+  ): Promise<{ encolado: boolean; respuesta?: T }> {
+    if (options?.skipOfflineQueue || !debeEncolarPostOffline(path)) {
+      return { encolado: false };
+    }
+
+    const hayInternet = await this.network.hayInternet();
+    if (hayInternet) {
+      return { encolado: false };
+    }
+
+    await this.offlineCola.encolar(path, body ?? {});
+    return {
+      encolado: true,
+      respuesta: respuestaOptimistaPost(path, body) as T,
+    };
   }
 
   private requestWithAuth<T>(
