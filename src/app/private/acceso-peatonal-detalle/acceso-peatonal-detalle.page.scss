@@ -40,20 +40,16 @@
 }
 
 .stats-row {
-  display:       flex;
-  gap:           10px;
-  padding:       0 16px;
-  margin-bottom: 20px;
+  display:         flex;
+  flex-direction:  row;
+  gap:             10px;
+  padding:         0 16px;
+  margin-bottom:   20px;
 
   &--grid {
-    display:               grid;
-    grid-template-columns: 1fr 1fr;
-
-    .stat-card:last-child:nth-child(2n + 1):not(:only-child) {
-      grid-column:  1 / -1;
-      justify-self: center;
-      width:        calc(50% - 5px);
-      max-width:    calc(50% - 5px);
+    .stat-card {
+      flex:      1;
+      min-width: 0;
     }
   }
 }
@@ -101,6 +97,8 @@
   font-family: Roboto, sans-serif;
   font-size:   12px;
   font-weight: 400;
+  text-align:  center;
+  line-height: 1.2;
 }
 
 .accesos-section {
@@ -125,7 +123,7 @@
 
 .acceso-item {
   display:         flex;
-  align-items:     center;
+  align-items:     flex-start;
   justify-content: space-between;
   gap:             12px;
   width:           100%;
@@ -190,18 +188,11 @@
   min-width:      0;
 }
 
-.acceso-meta {
-  display:         flex;
-  align-items:     center;
-  justify-content: space-between;
-  gap:             8px;
-  width:           100%;
-}
-
 .acceso-trailing {
   display:        flex;
   flex-direction: column;
   align-items:    flex-end;
+  gap:            6px;
   flex-shrink:    0;
 }
 
@@ -239,7 +230,6 @@
   font-weight: 400;
   margin:      0;
   min-width:   0;
-  flex:        1;
 }
 
 .lista-estado {
@@ -295,7 +285,6 @@
   border-radius:    5px;
   white-space:      nowrap;
   flex-shrink:      0;
-  margin-top:       2px;
 
   &.chip-permitido {
     color:        #0A7F0F;

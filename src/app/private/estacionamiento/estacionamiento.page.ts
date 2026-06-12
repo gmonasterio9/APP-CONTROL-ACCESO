@@ -167,11 +167,24 @@ export class EstacionamientoPage {
   }
 
   registrarAcompanante(): void {
-    this.navCtrl.navigateForward('/scanner');
+    void this.navCtrl.navigateForward('/scanner', {
+      queryParams: {
+        modo: 'acompanantes',
+        retNombre: this.nombre,
+        retPatente: this.patente,
+        retRut: this.rut,
+        retPerfil: this.perfil,
+        retOrigen: this.origen,
+        retEstado: this.estadoScan,
+        retPersNcorr:
+          this.persNcorr != null ? String(this.persNcorr) : null,
+        retCredencial: this.credencial,
+      },
+    });
   }
 
   volver(): void {
-    this.navCtrl.back();
+    void this.navCtrl.navigateRoot('/home');
   }
 
   async cargarEstacionamientos(): Promise<void> {

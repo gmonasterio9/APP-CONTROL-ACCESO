@@ -13,6 +13,7 @@ export class ConfirmacionPage {
   sede:    string | null = null;
   perfil:  string | null = null;
   patente: string | null = null;
+  retorno: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -22,9 +23,15 @@ export class ConfirmacionPage {
     this.sede   = this.route.snapshot.queryParamMap.get('sede')   ?? 'Arica';
     this.perfil = this.route.snapshot.queryParamMap.get('perfil') ?? 'Visita';
     this.patente = this.route.snapshot.queryParamMap.get('patente');
+    this.retorno = this.route.snapshot.queryParamMap.get('retorno');
   }
 
   cerrar(): void {
+    if (this.retorno === 'acompanantes') {
+      this.navCtrl.back();
+      return;
+    }
+
     this.navCtrl.navigateRoot('/home');
   }
 }

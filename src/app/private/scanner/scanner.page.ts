@@ -1,4 +1,5 @@
 import { Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { NavController, ModalController, Platform } from '@ionic/angular';
 import { Capacitor, PluginListenerHandle } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
@@ -80,6 +81,8 @@ export class ScannerPage implements OnDestroy {
   private usandoMLKit  = false;
   private backButtonSub?: Subscription;
   private networkSub?: Subscription;
+  private modoAcompanantes = false;
+  private retornoEstacionamiento: Record<string, string | null> = {};
 
   constructor(
     private navCtrl:      NavController,
@@ -96,9 +99,25 @@ export class ScannerPage implements OnDestroy {
     private offlineService: OfflineService,
     private qrOffline: QrOfflineService,
     private zone: NgZone,
+    private route: ActivatedRoute,
   ) {}
 
   async ionViewWillEnter() {
+    const qp = this.route.snapshot.queryParamMap;
+    this.modoAcompanantes = qp.get('modo') === 'acompanantes';
+    if (this.modoAcompanantes) {
+      this.retornoEstacionamiento = {
+        nombre: qp.get('retNombre'),
+        patente: qp.get('retPatente'),
+        rut: qp.get('retRut'),
+        perfil: qp.get('retPerfil'),
+        origen: qp.get('retOrigen'),
+        estado: qp.get('retEstado'),
+        persNcorr: qp.get('retPersNcorr'),
+        credencial: qp.get('retCredencial'),
+      };
+    }
+
     this.backButtonSub = this.platform.backButton.subscribeWithPriority(100, () => {
       void this.volver();
     });
@@ -527,7 +546,7 @@ export class ScannerPage implements OnDestroy {
       if (resp?.via === 'peatonal' && !esPatente) {
         if (resp.estado === 'autorizado') {
           if (resp.controlPeatonalExito) {
-            await this.irConfirmacionTrasEscaneo(resp);
+            await this.completarIngresoPeatonalTrasEscaneo(resp);
           } else {
             await this.registrarControlIngresoPeatonal(resp);
           }
@@ -744,7 +763,7 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      await this.irConfirmacionTrasEscaneo({
+      await this.completarIngresoPeatonalTrasEscaneo({
         ...resp,
         nombre: resp.nombre ?? res.nombreCompleto,
       });
@@ -758,23 +777,41 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  private async irConfirmacionTrasEscaneo(resp: {
+  private async completarIngresoPeatonalTrasEscaneo(resp: {
     nombre?: string;
     perfil?: string;
     perfilDescripcion?: string;
   }): Promise<void> {
+    await this.irConfirmacionTrasEscaneo(resp, this.modoAcompanantes);
+  }
+
+  private async irConfirmacionTrasEscaneo(
+    resp: {
+      nombre?: string;
+      perfil?: string;
+      perfilDescripcion?: string;
+    },
+    volverAlScanner = false
+  ): Promise<void> {
     const sede = await this.authService.getSede();
     const perfil = resp.perfilDescripcion ?? resp.perfil ?? null;
     const nombre = String(resp.nombre ?? '').trim();
 
     await this.apagarScanner();
-    await this.navCtrl.navigateRoot('/confirmacion', {
-      queryParams: {
-        nombre: nombre || null,
-        sede: sede?.nombre ?? null,
-        perfil,
-      },
-    });
+
+    const queryParams = {
+      nombre: nombre || null,
+      sede: sede?.nombre ?? null,
+      perfil,
+      ...(volverAlScanner ? { retorno: 'acompanantes' } : {}),
+    };
+
+    if (volverAlScanner) {
+      await this.navCtrl.navigateForward('/confirmacion', { queryParams });
+      return;
+    }
+
+    await this.navCtrl.navigateRoot('/confirmacion', { queryParams });
   }
 
   private async salirScannerHacia(

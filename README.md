@@ -1,10 +1,11 @@
 # APP-CONTROL-ACCESO
 
 ```bash
-npm start              # local  → http://localhost:4200
-npm run start:dev      # dev    → http://localhost:4200
-npm run start:test     # test   → http://localhost:4200
-npm run start:prod     # prod   → http://localhost:4200
+npm start              # local  → ng serve + proxy.local.conf.json
+npm run start:dev      # dev    → ng serve + proxy.dev.conf.json
+npm run build:dev      # build  → carpeta www/ con environment.dev
+npm run start:test     # test   → ng serve + proxy.test.conf.json
+npm run start:prod     # prod   → ng serve + proxy.prod.conf.json
 ```
 ---
 

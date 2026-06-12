@@ -244,10 +244,29 @@ export class ApiHttpService {
 
   private getApiBase(): string {
     const env = environment as { apiUrl: string; nativeApiUrl?: string };
+
     if (Capacitor.isNativePlatform() && env.nativeApiUrl) {
       return env.nativeApiUrl;
     }
+
+    if (
+      Capacitor.getPlatform() === 'web' &&
+      env.nativeApiUrl &&
+      !this.esOrigenLocalDev()
+    ) {
+      return env.nativeApiUrl;
+    }
+
     return env.apiUrl;
+  }
+
+  private esOrigenLocalDev(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const host = window.location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
   }
 
   private buildRequestPath(resource: string): string {

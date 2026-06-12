@@ -1,8 +1,11 @@
 {
   "/api": {
-    "target": "https://API_TEST_URL_AQUI",
+    "target": "https://siga.test.inacap.cl",
     "secure": true,
     "changeOrigin": true,
-    "logLevel": "debug"
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/api": "/Inacap.Api.ControlAcceso.V2/api"
+    }
   }
 }
