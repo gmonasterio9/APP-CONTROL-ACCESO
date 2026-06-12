@@ -87,13 +87,17 @@ export class ModalResultadoEscaneoComponent {
     }[this.estado];
   }
 
+  get esAccesoBloqueado(): boolean {
+    return String(this.code ?? '').toLowerCase() === 'bloqueado';
+  }
+
   /** Autorizado, rechazado y expirado: peatonal + estacionamiento (excepto escaneo de patente). */
   get mostrarAccesoPeatonal(): boolean {
-    return this.tipo !== 'patente';
+    return !this.esAccesoBloqueado && this.tipo !== 'patente';
   }
 
   get mostrarAccesoEstacionamiento(): boolean {
-    return true;
+    return !this.esAccesoBloqueado;
   }
 
   get mostrarOpcionesAcceso(): boolean {

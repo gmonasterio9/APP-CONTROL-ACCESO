@@ -167,6 +167,11 @@ export class OfflineValidacionUtil {
     }
 
     const persona = catalogo.personas?.find(p => p.persNcorr === registro.persNcorr);
+
+    if (persona && ValidarPerfilUtil.esPersonaBloqueada(persona)) {
+      return OfflineValidacionUtil.respuestaPatenteBloqueada(registro, persona);
+    }
+
     const accesoVehicular = persona?.accesoVehicular ?? true;
 
     if (!accesoVehicular) {
@@ -225,6 +230,10 @@ export class OfflineValidacionUtil {
     persona: OfflinePersonaCatalogo,
     extras?: { codigoCredencial?: string }
   ): ValidarPerfilResponse {
+    if (ValidarPerfilUtil.esPersonaBloqueada(persona)) {
+      return OfflineValidacionUtil.respuestaBloqueadoDesdePersona(persona, extras);
+    }
+
     const base = {
       perfil: persona.perfil,
       perfilDescripcion: persona.perfilDescripcion,
@@ -249,6 +258,54 @@ export class OfflineValidacionUtil {
       ...base,
       success: true,
       messages: ['Acceso Autorizado'],
+    };
+  }
+
+  private static respuestaBloqueadoDesdePersona(
+    persona: OfflinePersonaCatalogo,
+    extras?: { codigoCredencial?: string }
+  ): ValidarPerfilResponse {
+    const observacion = persona.bloqueo?.observacion;
+
+    return {
+      success: false,
+      code: 'bloqueado',
+      perfil: persona.perfil,
+      perfilDescripcion: persona.perfilDescripcion,
+      rut: persona.rut,
+      email: OfflineValidacionUtil.emailDesdePersona(persona) ?? null,
+      nombreCompleto: persona.nombreCompleto,
+      persNcorr: persona.persNcorr,
+      codigoCredencial: extras?.codigoCredencial,
+      observacion,
+      bloqueo: persona.bloqueo ?? undefined,
+      messages: [
+        'Acceso Bloqueado',
+        'Ingreso no autorizado: Avisar a DAE/DAF',
+      ],
+    };
+  }
+
+  private static respuestaPatenteBloqueada(
+    registro: NonNullable<OfflineCatalogoAccesoView['patentes']>[number],
+    persona: OfflinePersonaCatalogo
+  ): ValidarPatenteResponse {
+    const observacion = persona.bloqueo?.observacion;
+
+    return {
+      success: false,
+      valida: false,
+      code: 'bloqueado',
+      patente: registro.patente,
+      nombreCompleto: registro.nombreCompleto,
+      persNcorr: registro.persNcorr,
+      perfil: persona.perfil,
+      perfilDescripcion: persona.perfilDescripcion,
+      message: observacion,
+      messages: [
+        'Acceso Bloqueado',
+        'Ingreso no autorizado: Avisar a DAE/DAF',
+      ],
     };
   }
 }

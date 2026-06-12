@@ -164,15 +164,17 @@
 .btn-cancelar {
   background: none;
   border: none;
-  color: #0A0A0A;
+  color: #0a0a0a;
+  text-align: center;
   font-family: Roboto, sans-serif;
   font-size: 14px;
   font-style: normal;
   font-weight: 500;
   line-height: 20px;
   letter-spacing: -0.15px;
-  text-align: center;
   padding: 12px 0;
   width: 100%;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }

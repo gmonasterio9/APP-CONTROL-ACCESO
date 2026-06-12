@@ -25,6 +25,7 @@ import {
   PeatonalDetalleResponse,
   PeatonalDetalleView,
 } from './peatonal-detalle.model';
+import { ValidarPerfilBloqueo } from './validar-perfil.model';
 import {
   mapPeatonalResumen,
   PeatonalResumenResponse,
@@ -45,6 +46,8 @@ export interface OfflinePersonaCatalogo {
   perfilDescripcion: string;
   accesoPeatonal: boolean;
   accesoVehicular: boolean;
+  bloqueado?: boolean;
+  bloqueo?: ValidarPerfilBloqueo | null;
 }
 
 export interface OfflinePatenteCatalogo {

@@ -37,6 +37,16 @@ export class ValidarPerfilUtil {
     return value === true || value === 'true' || value === 1 || value === '1';
   }
 
+  static esAccesoBloqueado(res: ValidarPerfilResponse): boolean {
+    return String(res.code ?? '').toLowerCase() === 'bloqueado';
+  }
+
+  static esPersonaBloqueada(
+    persona?: { bloqueado?: boolean } | null
+  ): boolean {
+    return persona?.bloqueado === true;
+  }
+
   static normalizarPersNcorr(value: unknown): number | undefined {
     const n =
       typeof value === 'string'

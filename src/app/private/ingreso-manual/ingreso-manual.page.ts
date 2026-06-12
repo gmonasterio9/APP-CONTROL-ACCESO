@@ -248,6 +248,9 @@ export class IngresoManualPage implements OnInit {
   onPatenteInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const formatted = PatenteUtil.formatInput(input.value, this.patenteMedio);
+    if (input.value !== formatted) {
+      input.value = formatted;
+    }
     this.form.get('patente')?.setValue(formatted, { emitEvent: false });
   }
 

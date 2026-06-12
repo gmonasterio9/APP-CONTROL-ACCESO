@@ -57,8 +57,30 @@ ion-footer {
   --height: 60%;
   --width: calc(100% - 48px);
   --border-radius: 16px;
-  --box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   align-items: center;
+
+  &--bloqueado {
+    --height: 40%;
+  }
+
+  .btn-cancelar {
+    background: none;
+    border: none;
+    color: #0a0a0a;
+    text-align: center;
+    font-family: Roboto, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 20px;
+    letter-spacing: -0.15px;
+    padding: 12px 0;
+    width: 100%;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }
 
 .action-sheet-cancel .action-sheet-button-inner {
@@ -131,6 +153,12 @@ ion-footer {
 
   .alert-btn-cancelar {
     border-right: 0.5px solid rgba(0, 0, 0, 0.25);
+  }
+
+  &--patente {
+    .alert-input {
+      text-transform: uppercase;
+    }
   }
 
   &--rechazo {

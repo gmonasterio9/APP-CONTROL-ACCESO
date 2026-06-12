@@ -490,9 +490,10 @@ export class ScannerPage implements OnDestroy {
     controlPeatonalExito?: boolean;
     escaneoPorEmail?: boolean;
   }) {
+    const esBloqueado = String(data.code ?? '').toLowerCase() === 'bloqueado';
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
-      cssClass:  'modal-75',
+      cssClass: esBloqueado ? 'modal-75 modal-75--bloqueado' : 'modal-75',
       componentProps: {
         tipo:        data.tipo,
         estado:      data.estado ?? 'autorizado',
@@ -992,7 +993,7 @@ export class ScannerPage implements OnDestroy {
     let avanzo = false;
 
     const alert = await this.ui.presentAlert({
-      cssClass: 'alert-salida',
+      cssClass: 'alert-salida alert-salida--patente',
       header: 'Ingresar patente',
       message:
         'Ingresa la patente sin puntos ni espacios.',
@@ -1001,10 +1002,10 @@ export class ScannerPage implements OnDestroy {
           name: 'patente',
           type: 'text',
           placeholder: 'ABC-12 / ABCD-1',
-          value: patentePrefill,
+          value: PatenteUtil.limpiar(patentePrefill),
           attributes: {
             autocapitalize: 'characters',
-            maxlength: 6,
+            maxlength: 8,
           },
         },
       ],
@@ -1022,7 +1023,7 @@ export class ScannerPage implements OnDestroy {
             const patente = PatenteUtil.toApi(raw);
             if (!PatenteUtil.isFormatValidAutoOMoto(patente)) {
               void this.mostrarError('Patente inválida.');
-              void this.solicitarPatenteManual(raw);
+              void this.solicitarPatenteManual(PatenteUtil.limpiar(raw));
               return false;
             }
             avanzo = true;
@@ -1052,6 +1053,7 @@ export class ScannerPage implements OnDestroy {
     nombre?: string;
     perfil?: string;
     perfilDescripcion?: string;
+    code?: string;
     titulo?: string;
     mensaje?: string;
     plateResult?: PlateResult;
@@ -1065,6 +1067,21 @@ export class ScannerPage implements OnDestroy {
       perfilDescripcion: res.perfilDescripcion,
       persNcorr: res.persNcorr,
     };
+
+    if (String(res.code ?? '').toLowerCase() === 'bloqueado') {
+      return {
+        tipo: 'patente',
+        estado: 'no_autorizado',
+        code: 'bloqueado',
+        ...persona,
+        titulo: textos.titulo ?? 'Acceso Bloqueado',
+        mensaje:
+          textos.mensaje ??
+          res.message ??
+          'Ingreso no autorizado.',
+        plateResult,
+      };
+    }
 
     if (ValidarPatenteUtil.esAutorizada(res)) {
       return {
@@ -1169,6 +1186,20 @@ export class ScannerPage implements OnDestroy {
           res.message ||
           textos.mensaje ||
           'Se debe ingresar de forma manual.',
+      };
+    }
+
+    if (ValidarPerfilUtil.esAccesoBloqueado(res)) {
+      return {
+        ...base,
+        estado: 'no_autorizado',
+        titulo: textos.titulo ?? 'Acceso Bloqueado',
+        mensaje:
+          textos.mensaje ??
+          res.observacion ??
+          res.bloqueo?.observacion ??
+          'Ingreso no autorizado.',
+        code: 'bloqueado',
       };
     }
 
