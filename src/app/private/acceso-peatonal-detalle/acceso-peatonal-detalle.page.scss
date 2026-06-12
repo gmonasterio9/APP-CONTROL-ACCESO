@@ -128,11 +128,20 @@
   align-items:     center;
   justify-content: space-between;
   gap:             12px;
+  width:           100%;
+  margin:          0;
   padding:         14px 16px;
+  appearance:      none;
   background:      #FEFFFE;
   border-radius:   14px;
   border:          0.689px solid #E5E7EB;
   box-shadow:      0 4px 8px 0 rgba(194, 201, 252, 0.15);
+  text-align:      left;
+  cursor:          pointer;
+
+  &:active {
+    opacity: 0.85;
+  }
 
   &--skeleton {
     pointer-events: none;
@@ -189,6 +198,13 @@
   width:           100%;
 }
 
+.acceso-trailing {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  flex-shrink:    0;
+}
+
 .acceso-nombre {
   color:          #040B15;
   font-family:    Roboto, sans-serif;
@@ -224,10 +240,6 @@
   margin:      0;
   min-width:   0;
   flex:        1;
-}
-
-.acceso-tipo-qr-titulo {
-  color: #1D78BF;
 }
 
 .lista-estado {

@@ -78,29 +78,23 @@
         }
       }
       @for (a of accesos; track a.apesNcorr) {
-        <div class="acceso-item">
+        <button type="button" class="acceso-item" (click)="verRegistro(a)">
           <div class="acceso-info">
-            @if (muestraNombreRut(a)) {
-              <p class="acceso-nombre">{{ a.nombre }}</p>
-            } @else if (muestraTipoQr(a)) {
-              <p class="acceso-nombre acceso-tipo-qr-titulo">{{ a.tipoQrLabel }}</p>
-            } @else {
-              <p class="acceso-nombre">—</p>
-            }
+            <p class="acceso-nombre">{{ a.nombre }}</p>
             <div class="acceso-meta">
-              @if (muestraNombreRut(a)) {
-                <p class="acceso-rut">{{ a.rut }}</p>
-              }
+              <p class="acceso-rut">{{ a.rut }}</p>
               <span class="acceso-hora">
-                <ion-icon name="time-outline"></ion-icon>
+                <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
                 {{ a.hora }}
               </span>
             </div>
           </div>
-          <span [class]="'chip-estado chip-' + a.estado">
-            {{ chipLabel(a.estado) }}
-          </span>
-        </div>
+          <div class="acceso-trailing">
+            <span [class]="'chip-estado chip-' + a.estado">
+              {{ chipLabel(a.estado) }}
+            </span>
+          </div>
+        </button>
       }
 
       @if (!cargando && !error && accesos.length === 0) {

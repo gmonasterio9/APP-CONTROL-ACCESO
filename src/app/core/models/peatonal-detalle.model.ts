@@ -16,10 +16,14 @@ export type PeatonalAccesoEstado =
 export interface PeatonalAccesoApi {
   apesNcorr: number;
   apexNcorr?: number | null;
+  persNcorr?: number | null;
   rut: string | null;
   nombre: string | null;
   tipoQr?: string | null;
   estado: string;
+  tipoPerfil?: number | null;
+  tipoPerfilDescripcion?: string | null;
+  observacion?: string | null;
   hora: string;
 }
 
@@ -48,6 +52,7 @@ export interface PeatonalAccesoView {
   tipoQrLabel: string | null;
   estado: PeatonalAccesoEstado;
   hora: string;
+  observacion: string | null;
 }
 
 export interface PeatonalDetalleView {
@@ -128,6 +133,8 @@ export function labelTipoQrPeatonal(raw?: string | null): string | null {
 }
 
 function mapAcceso(item: PeatonalAccesoApi): PeatonalAccesoView {
+  const observacion = item.observacion?.trim() || null;
+
   return {
     apesNcorr: item.apesNcorr,
     rut: item.rut?.trim()
@@ -137,6 +144,7 @@ function mapAcceso(item: PeatonalAccesoApi): PeatonalAccesoView {
     tipoQrLabel: labelTipoQrPeatonal(item.tipoQr),
     estado: normalizarEstado(item.estado),
     hora: item.hora?.trim() || '—',
+    observacion,
   };
 }
 

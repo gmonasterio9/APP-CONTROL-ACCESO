@@ -1,0 +1,63 @@
+<ion-header mode="md">
+  <ion-toolbar class="apr-toolbar">
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Sistema Unificado de Control</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="apr-content">
+  <div class="apr-body">
+
+    <div class="apr-header-block">
+      <h1 class="apr-titulo">Detalle de acceso</h1>
+      <p class="apr-subtitulo">Registro peatonal</p>
+    </div>
+
+    <div class="apr-fields">
+      <div class="apr-field-block">
+        <p class="apr-label">RUT</p>
+        <p class="apr-value">{{ rut }}</p>
+        <div class="apr-divider"></div>
+      </div>
+
+      <div class="apr-field-block">
+        <p class="apr-label">Nombre</p>
+        <p class="apr-value">{{ nombre }}</p>
+        <div class="apr-divider"></div>
+      </div>
+
+      <div class="apr-field-block">
+        <p class="apr-label">Tipo QR</p>
+        <p class="apr-value">{{ tipoQr }}</p>
+        <div class="apr-divider"></div>
+      </div>
+
+      <div class="apr-field-block">
+        <p class="apr-label">Estado</p>
+        <span [class]="'apr-estado-chip chip-' + estado">
+          {{ chipLabel(estado) }}
+        </span>
+        <div class="apr-divider"></div>
+      </div>
+
+      <div class="apr-field-block">
+        <p class="apr-label">Hora</p>
+        <p class="apr-value apr-value--hora">
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          {{ hora }}
+        </p>
+        <div class="apr-divider"></div>
+      </div>
+
+      <div class="apr-field-block">
+        <p class="apr-label">Observación</p>
+        <p class="apr-value apr-value--obs">{{ textoObservacion }}</p>
+      </div>
+    </div>
+
+  </div>
+</ion-content>

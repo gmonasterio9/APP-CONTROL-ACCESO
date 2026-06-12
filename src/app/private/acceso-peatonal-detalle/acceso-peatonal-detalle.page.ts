@@ -68,35 +68,18 @@ export class AccesoPeatonalDetallePage {
     }[estado];
   }
 
-  muestraNombreRut(acceso: PeatonalAccesoView): boolean {
-    if (!this.tieneNombreRut(acceso)) {
-      return false;
-    }
-    return (
-      acceso.estado === 'permitido' ||
-      acceso.estado === 'manual' ||
-      acceso.estado === 'visita'
-    );
-  }
-
-  muestraTipoQr(acceso: PeatonalAccesoView): boolean {
-    if (!acceso.tipoQrLabel || this.muestraNombreRut(acceso)) {
-      return false;
-    }
-    return (
-      acceso.estado === 'permitido' ||
-      acceso.estado === 'rechazado' ||
-      acceso.estado === 'expirado'
-    );
-  }
-
-  private tieneNombreRut(acceso: PeatonalAccesoView): boolean {
-    const nombre = acceso.nombre?.trim();
-    const rut = acceso.rut?.trim();
-    return (
-      (!!nombre && nombre !== '—') ||
-      (!!rut && rut !== '—')
-    );
+  verRegistro(acceso: PeatonalAccesoView): void {
+    void this.navCtrl.navigateForward('/acceso-peatonal-registro', {
+      queryParams: {
+        apesNcorr: acceso.apesNcorr,
+        nombre: acceso.nombre,
+        rut: acceso.rut,
+        tipoQr: acceso.tipoQrLabel ?? '',
+        estado: acceso.estado,
+        hora: acceso.hora,
+        observacion: acceso.observacion ?? '',
+      },
+    });
   }
 
   volver(): void {

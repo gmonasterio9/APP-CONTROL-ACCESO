@@ -51,6 +51,11 @@ const routes: Routes = [
     loadChildren: () => import('./private/acceso-peatonal-detalle/acceso-peatonal-detalle.module').then(m => m.AccesoPeatonalDetalleModule)
   },
   {
+    path: 'acceso-peatonal-registro',
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./private/acceso-peatonal-registro/acceso-peatonal-registro.module').then(m => m.AccesoPeatonalRegistroModule)
+  },
+  {
     path: '**',
     redirectTo: 'auth/inicio-sesion'
   }
