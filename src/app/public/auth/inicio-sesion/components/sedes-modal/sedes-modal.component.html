@@ -17,8 +17,15 @@
   <ion-searchbar
     class="sedes-searchbar"
     placeholder="Buscar sede"
+    [value]="searchQuery"
     (ionInput)="searchbarInput($event)">
   </ion-searchbar>
+
+  @if (sedeSeleccionada && !seleccionVisibleEnFiltro && searchQuery.trim()) {
+    <p class="sede-seleccionada-hint">
+      Sede seleccionada: <strong>{{ sedeSeleccionada.nombre }}</strong>
+    </p>
+  }
 
   @if (filteredSedes.length === 0 && searchQuery.trim()) {
     <p class="sedes-empty">No hay ninguna sede con ese nombre.</p>
@@ -41,13 +48,17 @@
       }
     </ion-list>
   }
-
-  <div class="btn-wrapper">
-    <ion-button
-      class="login-btn"
-      [disabled]="workingSelectedId === null"
-      (click)="confirm()">
-      Confirmar
-    </ion-button>
-  </div>
 </ion-content>
+
+<ion-footer class="sedes-modal-footer">
+  <ion-toolbar>
+    <div class="btn-wrapper">
+      <ion-button
+        class="login-btn"
+        [disabled]="!puedeConfirmar"
+        (click)="confirm()">
+        Confirmar
+      </ion-button>
+    </div>
+  </ion-toolbar>
+</ion-footer>

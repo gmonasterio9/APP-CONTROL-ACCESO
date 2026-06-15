@@ -33,7 +33,7 @@ export class SedesModalComponent implements OnChanges {
   }
 
   confirm(): void {
-    const sede = this.sedes.find(s => s.id === this.workingSelectedId);
+    const sede = this.sedeSeleccionada;
     if (sede) {
       this.sedeSelected.emit(sede);
     }
@@ -50,14 +50,49 @@ export class SedesModalComponent implements OnChanges {
 
   filterList(searchQuery: string): void {
     this.searchQuery = searchQuery;
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const normalizedQuery = this.normalizarBusqueda(searchQuery);
+
+    if (!normalizedQuery) {
+      this.filteredSedes = [...this.sedes];
+      return;
+    }
+
     this.filteredSedes = this.sedes.filter(sede =>
-      sede.nombre.toLowerCase().includes(normalizedQuery)
+      this.normalizarBusqueda(sede.nombre).includes(normalizedQuery)
     );
   }
 
   isChecked(sedeId: number): boolean {
     return this.workingSelectedId === sedeId;
+  }
+
+  get sedeSeleccionada(): Sede | null {
+    if (this.workingSelectedId === null) {
+      return null;
+    }
+
+    return this.sedes.find(s => s.id === this.workingSelectedId) ?? null;
+  }
+
+  get seleccionVisibleEnFiltro(): boolean {
+    const sede = this.sedeSeleccionada;
+    if (!sede) {
+      return false;
+    }
+
+    return this.filteredSedes.some(s => s.id === sede.id);
+  }
+
+  get puedeConfirmar(): boolean {
+    return this.sedeSeleccionada !== null;
+  }
+
+  private normalizarBusqueda(value: string): string {
+    return String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
   }
 
   private syncFromInputs(): void {
