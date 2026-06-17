@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { PatenteUtil } from '../utils/patente.util';
 
 export interface PlateResult {
   plate: string;
@@ -15,6 +16,7 @@ interface PlateRecognizerResponse {
     score: number;
     region: { code: string; score: number };
     vehicle: { type: string; score: number };
+    candidates?: Array<{ plate: string; score: number }>;
   }>;
 }
 
@@ -22,7 +24,7 @@ interface PlateRecognizerResponse {
 export class PlateRecognizerService {
 
   private readonly API_URL = 'https://api.platerecognizer.com/v1/plate-reader/';
-  private readonly API_TOKEN = 'c3c5d803ed52a67de942451033f642cefeef0427';
+  private readonly API_TOKEN = 'd9b5d9d4230d16170f6b15eac7244e124bbf33a0';
 
   constructor(private http: HttpClient) {}
 
@@ -45,13 +47,22 @@ export class PlateRecognizerService {
     }
 
     for (const item of response.results) {
-      const plate = item.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      if (plate.length === 6) {
+      const opciones = [
+        item.plate,
+        ...(item.candidates?.map(c => c.plate) ?? []),
+      ];
+
+      for (const raw of opciones) {
+        const plate = PatenteUtil.limpiar(raw);
+        if (!PatenteUtil.isFormatValidAutoOMoto(plate)) {
+          continue;
+        }
+
         return {
           plate,
           score: item.score,
           region: item.region?.code ?? '',
-          vehicleType: item.vehicle?.type ?? '',
+          vehicleType: PatenteUtil.inferirMedio(plate) ?? '',
         };
       }
     }

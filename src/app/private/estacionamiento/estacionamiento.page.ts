@@ -93,7 +93,9 @@ export class EstacionamientoPage {
           rut: this.rut,
           patente: this.patente,
           perfil,
-          tipoMedio: this.patente ? 'auto' : null,
+          tipoMedio: this.patente
+            ? PatenteUtil.inferirMedio(PatenteUtil.toApi(this.patente)) ?? 'auto'
+            : null,
           aeseNcorr: e.id,
           estacionamiento: e.nombre,
           origen: this.origen,

@@ -184,7 +184,9 @@ export class IngresoManualPage implements OnInit {
     }
 
     if (patente) {
-      const medioParam = (tipoMedio as TipoMedioIngreso) || 'auto';
+      const inferido = PatenteUtil.inferirMedio(PatenteUtil.toApi(patente));
+      const medioParam =
+        (tipoMedio as TipoMedioIngreso) || inferido || 'auto';
       const medioPatente: PatenteMedio =
         medioParam === 'moto' ? 'moto' : 'auto';
       const medioIngreso: TipoMedioIngreso =
@@ -247,6 +249,19 @@ export class IngresoManualPage implements OnInit {
 
   onPatenteInput(event: Event): void {
     const input = event.target as HTMLInputElement;
+    const limpio = PatenteUtil.limpiar(input.value);
+    const medioInferido = PatenteUtil.inferirMedio(limpio);
+    const tipoMedioCtrl = this.form.get('tipoMedio');
+
+    if (
+      medioInferido &&
+      tipoMedioCtrl &&
+      tipoMedioCtrl.value !== 'peatonal' &&
+      tipoMedioCtrl.value !== medioInferido
+    ) {
+      tipoMedioCtrl.setValue(medioInferido, { emitEvent: true });
+    }
+
     const formatted = PatenteUtil.formatInput(input.value, this.patenteMedio);
     if (input.value !== formatted) {
       input.value = formatted;

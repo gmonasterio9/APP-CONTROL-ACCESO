@@ -44,6 +44,12 @@ export class InicioSesionPage implements OnInit {
     this.loadSedes();
   }
 
+  async ionViewWillEnter(): Promise<void> {
+    if (await this.authService.restoreSession()) {
+      await this.router.navigate(['/home'], { replaceUrl: true });
+    }
+  }
+
   get pin() { return this.form.get('pin')!; }
 
   get sedeId() { return this.form.get('sedeId')!; }

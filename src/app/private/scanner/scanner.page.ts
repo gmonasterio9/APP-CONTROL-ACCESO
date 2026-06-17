@@ -1028,18 +1028,24 @@ export class ScannerPage implements OnDestroy {
 
   private async solicitarPatenteManual(patentePrefill = ''): Promise<void> {
     let avanzo = false;
+    const limpioPrefill = PatenteUtil.limpiar(patentePrefill);
+    const medioPrefill = PatenteUtil.inferirMedio(limpioPrefill);
 
     const alert = await this.ui.presentAlert({
       cssClass: 'alert-salida alert-salida--patente',
       header: 'Ingresar patente',
-      message:
-        'Ingresa la patente sin puntos ni espacios.',
+      message: this.mensajePatenteManual(limpioPrefill, medioPrefill),
       inputs: [
         {
           name: 'patente',
           type: 'text',
-          placeholder: 'ABC-12 / ABCD-1',
-          value: PatenteUtil.limpiar(patentePrefill),
+          placeholder:
+            medioPrefill === 'moto'
+              ? 'ABC-12 / ABCD-1'
+              : 'AB-CD-12 / ABCDE-1',
+          value: limpioPrefill
+            ? PatenteUtil.formatInput(limpioPrefill, medioPrefill ?? 'auto')
+            : '',
           attributes: {
             autocapitalize: 'characters',
             maxlength: 8,
@@ -1145,12 +1151,28 @@ export class ScannerPage implements OnDestroy {
   }
 
   private toPlateResult(patente: string): PlateResult {
+    const plate = patente.toUpperCase();
+    const medio = PatenteUtil.inferirMedio(plate);
     return {
-      plate: patente.toUpperCase(),
+      plate,
       score: 1,
       region: 'cl',
-      vehicleType: '',
+      vehicleType: medio ?? '',
     };
+  }
+
+  private mensajePatenteManual(
+    limpio: string,
+    medio: ReturnType<typeof PatenteUtil.inferirMedio>
+  ): string {
+    const lineas = ['Ingresa la patente'];
+    const etiqueta = PatenteUtil.etiquetaMedio(medio);
+
+    if (etiqueta) {
+      lineas.push(`Tipo: ${etiqueta}`);
+    }
+
+    return lineas.join('\n');
   }
 
   private esPatente(valor: string): boolean {
@@ -1305,6 +1327,9 @@ export class ScannerPage implements OnDestroy {
 
     return {
       patente: resp.patente ?? null,
+      tipoMedio: resp.patente
+        ? PatenteUtil.inferirMedio(PatenteUtil.toApi(resp.patente)) ?? 'auto'
+        : null,
       nombre: resp.nombre ?? null,
       rut: resp.rut ?? null,
       credencial: resp.credencial ?? null,

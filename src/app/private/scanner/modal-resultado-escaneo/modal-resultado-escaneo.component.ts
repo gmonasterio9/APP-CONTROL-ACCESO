@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
+import { PatenteUtil } from '../../../core/utils/patente.util';
 
 export type TipoEscaneo = 'credencial' | 'cedula' | 'patente';
 export type EstadoEscaneo = 'autorizado' | 'no_autorizado' | 'manual';
@@ -112,6 +113,18 @@ export class ModalResultadoEscaneoComponent {
       return '¿Dónde registra el vehículo?';
     }
     return '¿Cómo desea registrar el ingreso?';
+  }
+
+  get patenteMedioEtiqueta(): string {
+    if (!this.plateResult?.plate) {
+      return '';
+    }
+
+    const medio =
+      PatenteUtil.inferirMedio(PatenteUtil.limpiar(this.plateResult.plate)) ??
+      (this.plateResult.vehicleType === 'moto' ? 'moto' : null);
+
+    return PatenteUtil.etiquetaMedio(medio);
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {

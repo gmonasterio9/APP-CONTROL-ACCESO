@@ -10,12 +10,26 @@ export interface ApiResultBase {
   message?: string;
 }
 
+export function parseApiPayload(data: unknown): unknown {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as unknown;
+    } catch {
+      return data;
+    }
+  }
+
+  return data;
+}
+
 export function isUnauthorizedApiResult(data: unknown): boolean {
-  if (!data || typeof data !== 'object') {
+  const parsed = parseApiPayload(data);
+
+  if (!parsed || typeof parsed !== 'object') {
     return false;
   }
 
-  const body = data as ApiResultBase;
+  const body = parsed as ApiResultBase;
   const code = body.code;
 
   if (code === 401 || code === '401') {
@@ -25,6 +39,14 @@ export function isUnauthorizedApiResult(data: unknown): boolean {
   const message = (body.message ?? '').toLowerCase();
   if (!message) {
     return false;
+  }
+
+  if (
+    message.includes('token de acceso requerido') ||
+    message.includes('token requerido') ||
+    message.includes('sin token')
+  ) {
+    return true;
   }
 
   const mencionaCredencial =
@@ -38,7 +60,8 @@ export function isUnauthorizedApiResult(data: unknown): boolean {
     message.includes('no válido') ||
     message.includes('no valido') ||
     message.includes('invalid') ||
-    message.includes('vencid');
+    message.includes('vencid') ||
+    message.includes('requerido');
 
   return mencionaCredencial && mencionaInvalido;
 }

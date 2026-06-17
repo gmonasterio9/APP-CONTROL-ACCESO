@@ -50,6 +50,10 @@ export class PatenteUtil {
     return null;
   }
 
+  static etiquetaMedio(medio: PatenteMedio | null): string {
+    return medio === 'moto' ? 'Moto' : medio === 'auto' ? 'Auto' : '';
+  }
+
   static formatInput(value: string, medio: PatenteMedio = 'auto'): string {
     const max = this.longitud(medio);
     const clean = this.limpiar(value).slice(0, max);

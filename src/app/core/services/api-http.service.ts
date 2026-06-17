@@ -13,6 +13,7 @@ import {
   isUnauthorizedApiResult,
   MENSAJE_ERROR_SIN_CONEXION,
   mensajePorEstadoHttp,
+  parseApiPayload,
   toApiHttpError,
 } from '../utils/api-response.util';
 import { AuthService } from './auth.service';
@@ -103,7 +104,7 @@ export class ApiHttpService {
       map(data => this.guardUnauthorizedResponse(data)),
       catchError((err: unknown) => {
         const apiErr = this.normalizeToApiError(err);
-        if (!retried && apiErr.status === 401) {
+        if (!retried && this.debeReintentarConRefresh(apiErr)) {
           return this.retryAfterRefresh<T>(method, path, body, options);
         }
         return throwError(() => apiErr);
@@ -127,7 +128,16 @@ export class ApiHttpService {
       this.refreshInFlight$ = this.auth.refreshSession().pipe(
         map(() => undefined),
         catchError(err => {
-          void this.auth.clearLocalSession();
+          const status = (err as ApiHttpError)?.status ?? 0;
+          const message = String((err as { message?: string })?.message ?? '');
+          if (
+            status === 401 ||
+            status === 403 ||
+            message.includes('Sin refresh token') ||
+            message.includes('refresh inválida')
+          ) {
+            void this.auth.clearLocalSession();
+          }
           return throwError(() => err);
         }),
         finalize(() => {
@@ -158,7 +168,7 @@ export class ApiHttpService {
     };
 
     if (withAuth) {
-      const token = await this.auth.getAccessToken();
+      const token = await this.auth.ensureAccessToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -179,7 +189,10 @@ export class ApiHttpService {
     const data = this.parseData<T>(response.data);
 
     if (response.status < 200 || response.status >= 300) {
-      throw this.buildApiHttpError(response.status, data);
+      throw this.buildApiHttpError(
+        this.resolveUnauthorizedStatus(response.status, data),
+        data
+      );
     }
 
     this.guardUnauthorizedResponse(data, withAuth);
@@ -205,7 +218,7 @@ export class ApiHttpService {
     }
 
     if (withAuth) {
-      const token = await this.auth.getAccessToken();
+      const token = await this.auth.ensureAccessToken();
       if (token) {
         headers = headers.set('Authorization', `Bearer ${token}`);
       }
@@ -289,6 +302,22 @@ export class ApiHttpService {
     return path;
   }
 
+  private debeReintentarConRefresh(apiErr: ApiHttpError): boolean {
+    return (
+      apiErr.status === 401 ||
+      isUnauthorizedApiResult(apiErr.error) ||
+      isUnauthorizedApiResult(parseApiPayload(apiErr.error))
+    );
+  }
+
+  private resolveUnauthorizedStatus(httpStatus: number, data: unknown): number {
+    if (isUnauthorizedApiResult(data)) {
+      return 401;
+    }
+
+    return httpStatus;
+  }
+
   private guardUnauthorizedResponse<T>(data: T, withAuth = true): T {
     if (withAuth && isUnauthorizedApiResult(data)) {
       throw toApiHttpError(data, 401);
@@ -302,7 +331,7 @@ export class ApiHttpService {
     }
 
     if (error instanceof HttpErrorResponse) {
-      const payload = error.error;
+      const payload = parseApiPayload(error.error);
       const status =
         error.status === 401 || isUnauthorizedApiResult(payload)
           ? 401
@@ -334,22 +363,24 @@ export class ApiHttpService {
   }
 
   private buildApiHttpError(status: number, data: unknown): ApiHttpError {
+    const payload = parseApiPayload(data);
+    const resolvedStatus = this.resolveUnauthorizedStatus(status, payload);
     let message: string | undefined;
 
     if (
-      typeof data === 'object' &&
-      data !== null &&
-      'message' in data &&
-      typeof (data as { message: unknown }).message === 'string'
+      typeof payload === 'object' &&
+      payload !== null &&
+      'message' in payload &&
+      typeof (payload as { message: unknown }).message === 'string'
     ) {
-      message = (data as { message: string }).message;
+      message = (payload as { message: string }).message;
     }
 
     return {
-      status,
-      error: data,
+      status: resolvedStatus,
+      error: payload,
       message: mensajePorEstadoHttp(
-        status,
+        resolvedStatus,
         message?.trim() || 'No se pudo completar la operación.'
       ),
     };
