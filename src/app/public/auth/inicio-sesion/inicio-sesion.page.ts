@@ -41,12 +41,17 @@ export class InicioSesionPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadSedes();
+    void this.loadSedes();
   }
 
   async ionViewWillEnter(): Promise<void> {
     if (await this.authService.restoreSession()) {
       await this.router.navigate(['/home'], { replaceUrl: true });
+      return;
+    }
+
+    if (!this.sedes.length) {
+      void this.loadSedes();
     }
   }
 
@@ -58,20 +63,57 @@ export class InicioSesionPage implements OnInit {
     return this.selectedSede?.nombre ?? 'Elige una sede';
   }
 
-  loadSedes(): void {
-    this.loadingSedes = true;
+  async loadSedes(): Promise<void> {
     this.sedesLoadError = false;
-    this.sedesService.getSedes().subscribe({
-      next: (sedes) => {
+    const cached = await this.sedesService.getCachedSedes();
+
+    if (cached.length > 0) {
+      this.sedes = cached;
+      this.loadingSedes = false;
+      this.sedesLoadError = false;
+      await this.restaurarSedeGuardada();
+      this.actualizarSedesEnSegundoPlano();
+      return;
+    }
+
+    this.loadingSedes = true;
+    this.sedesService.refreshSedes().subscribe({
+      next: async sedes => {
         this.sedes = sedes;
         this.loadingSedes = false;
         this.sedesLoadError = sedes.length === 0;
+        await this.restaurarSedeGuardada();
       },
       error: () => {
         this.loadingSedes = false;
         this.sedesLoadError = true;
-      }
+      },
     });
+  }
+
+  private actualizarSedesEnSegundoPlano(): void {
+    this.sedesService.refreshSedes().subscribe({
+      next: async sedes => {
+        this.sedes = sedes;
+        this.sedesLoadError = sedes.length === 0;
+        await this.restaurarSedeGuardada();
+      },
+      error: () => {
+        /* Mantiene el listado en caché sin molestar al usuario. */
+      },
+    });
+  }
+
+  private async restaurarSedeGuardada(): Promise<void> {
+    const guardada = await this.authService.getSede();
+    if (!guardada) {
+      return;
+    }
+
+    const match = this.sedes.find(s => s.id === guardada.id);
+    if (match) {
+      this.onSedeSelected(match);
+    }
   }
 
   onSedeSelected(sede: Sede): void {
