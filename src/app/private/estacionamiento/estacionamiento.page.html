@@ -31,7 +31,8 @@
         @for (e of estacionamientos; track e.id) {
           <div
             class="est-card"
-            [class.est-card--sin-cupos]="e.cuposDisponibles === 0">
+            [class.est-card--sin-cupos]="e.cuposDisponibles === 0"
+            (click)="seleccionarEstacionamiento(e)">
             <div class="est-card-header">
               <div class="est-icon-wrap">
                 <img src="assets/svg/estacionamiento.svg" class="est-icon-svg" alt="" />
@@ -63,8 +64,18 @@
             </div>
 
             @if (e.cuposDisponibles > 0) {
-              <ion-button expand="block" class="btn-ingresar" (click)="ingresar(e)">
+              <ion-button
+                expand="block"
+                class="btn-ingresar"
+                (click)="$event.stopPropagation(); seleccionarEstacionamiento(e)">
                 Ingresar
+              </ion-button>
+            } @else {
+              <ion-button
+                expand="block"
+                class="btn-ingresar btn-ingresar--disabled"
+                disabled>
+                Sin cupos disponibles
               </ion-button>
             }
           </div>

@@ -94,6 +94,14 @@ export class HomePage {
   }
 
   verDetalleEstacionamiento(e: EstacionamientoCard): void {
+    if (e.cuposDisponibles === 0) {
+      void this.ui.presentToast(
+        'No hay cupos disponibles en este estacionamiento.',
+        { color: 'warning', duration: 2500 }
+      );
+      return;
+    }
+
     this.navCtrl.navigateForward('/estacionamiento-detalle', {
       queryParams: {
         aeseNcorr: e.id,

@@ -305,6 +305,11 @@
     pointer-events: none;
   }
 
+  &--sin-cupos {
+    opacity: 0.85;
+    cursor: not-allowed;
+  }
+
   .item-header {
     display: flex;
     align-items: center;

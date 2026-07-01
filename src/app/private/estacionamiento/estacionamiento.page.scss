@@ -70,6 +70,7 @@
 
   &--sin-cupos {
     opacity: 0.85;
+    cursor: not-allowed;
   }
 }
 
@@ -182,6 +183,16 @@
   text-transform: none !important;
   height: 48px;
   margin: 4px 0 0;
+
+  &--disabled {
+    --background: #E5E7EB;
+    --background-activated: #E5E7EB;
+    --background-hover: #E5E7EB;
+    --border-color: #D1D5DB;
+    --color: #6A7282;
+    opacity: 1;
+    pointer-events: none;
+  }
 
   &::part(native) {
     text-transform: none;

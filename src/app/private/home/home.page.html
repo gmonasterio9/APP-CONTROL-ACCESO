@@ -83,7 +83,10 @@
         <p class="lista-estado">No hay estacionamientos para esta sede.</p>
       } @else {
         @for (e of estacionamientos; track e.id) {
-          <div class="item-card" (click)="verDetalleEstacionamiento(e)">
+          <div
+            class="item-card"
+            [class.item-card--sin-cupos]="e.cuposDisponibles === 0"
+            (click)="verDetalleEstacionamiento(e)">
             <div class="item-header">
               <div class="item-icon-wrap">
                 <img src="assets/svg/estacionamiento.svg" class="item-svg" />
@@ -95,7 +98,9 @@
                   {{ e.ubicacion }}
                 </p>
               </div>
-              <img src="assets/svg/arrow-right.svg" class="item-arrow" />
+              @if (e.cuposDisponibles > 0) {
+                <img src="assets/svg/arrow-right.svg" class="item-arrow" />
+              }
             </div>
             <p class="item-cupos" [class.sin-cupos]="e.cuposDisponibles === 0">
               @if (e.cuposDisponibles > 0) {

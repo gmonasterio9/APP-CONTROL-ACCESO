@@ -74,7 +74,27 @@ export class EstacionamientoPage {
     return e.cuposDisponibles > 0 ? '#4CAF50' : '#C00';
   }
 
+  async seleccionarEstacionamiento(e: EstacionamientoCard): Promise<void> {
+    if (e.cuposDisponibles === 0) {
+      await this.ui.presentToast(
+        'No hay cupos disponibles en este estacionamiento.',
+        { color: 'warning', duration: 2500 }
+      );
+      return;
+    }
+
+    await this.ingresar(e);
+  }
+
   async ingresar(e: EstacionamientoCard): Promise<void> {
+    if (e.cuposDisponibles === 0) {
+      await this.ui.presentToast(
+        'No hay cupos disponibles en este estacionamiento.',
+        { color: 'warning', duration: 2500 }
+      );
+      return;
+    }
+
     const rechazado =
       this.estadoScan === 'no_autorizado' || this.estadoScan === 'manual';
     const perfil = rechazado
