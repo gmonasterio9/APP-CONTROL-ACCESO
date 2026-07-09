@@ -83,6 +83,14 @@ ion-footer {
   }
 }
 
+.modal-filtro-vehiculos {
+  --width: min(360px, calc(100% - 32px));
+  --height: 28%;
+  --max-height: 28%;
+  --border-radius: 16px;
+  align-items: center;
+}
+
 .action-sheet-cancel .action-sheet-button-inner {
   color: #CC0000 !important;
 }

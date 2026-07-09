@@ -76,8 +76,6 @@ export class HomePage implements OnDestroy {
 
   ionViewWillEnter(): void {
     this.alertaRecintosMostrada = false;
-    this.recintoSeleccionadoId = null;
-    this.resetEstadoHome();
     this.catalogoSub?.unsubscribe();
     this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
       void this.refrescarDatosLocales();
@@ -113,7 +111,7 @@ export class HomePage implements OnDestroy {
   private async inicializarHome(): Promise<void> {
     await this.cargarRecintosDisponibles();
     await this.cargarRecintoSeleccionado();
-    await this.cargarResumenPeatonal({ silencioso: true });
+    await this.hidratarDesdeCacheLocal();
 
     const recintos = this.recintosDisponibles;
     const debeEsperarRecinto =
@@ -124,8 +122,27 @@ export class HomePage implements OnDestroy {
       return;
     }
 
-    await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+    void this.cargarResumenPeatonal({ silencioso: true });
+    void this.cargarEstacionamientos({ silencioso: true });
     void this.sincronizarCacheOfflineEnSegundoPlano();
+  }
+
+  private async hidratarDesdeCacheLocal(): Promise<void> {
+    const [estacionamientos, resumen] = await Promise.all([
+      this.offlineService.getEstacionamientosOffline(),
+      this.offlineService.getResumenPeatonalOffline(),
+    ]);
+
+    if (estacionamientos.length) {
+      this.estacionamientos = [...estacionamientos];
+      this.errorEstacionamientos = null;
+    }
+
+    if (resumen) {
+      this.statsPeatonal = resumen.stats;
+      this.fechaResumenPeatonal = resumen.fecha ?? null;
+      this.errorResumenPeatonal = null;
+    }
   }
 
   private async sincronizarCacheOfflineEnSegundoPlano(): Promise<void> {
@@ -218,20 +235,6 @@ export class HomePage implements OnDestroy {
       this.suprimirRefreshCatalogo = false;
       this.sincronizandoCacheOffline = false;
     }
-  }
-
-  private resetEstadoHome(): void {
-    this.estacionamientos = [];
-    this.errorEstacionamientos = null;
-    this.cargandoEstacionamientos = false;
-    this.esperandoRecinto = false;
-    this.statsPeatonal = [];
-    this.fechaResumenPeatonal = null;
-    this.errorResumenPeatonal = null;
-    this.cargandoResumenPeatonal = false;
-    this.recintoSeleccionadoNombre = 'Seleccionar recinto';
-    this.recintosDisponibles = [];
-    this.sincronizandoCacheOffline = false;
   }
 
   get puedeCambiarRecinto(): boolean {

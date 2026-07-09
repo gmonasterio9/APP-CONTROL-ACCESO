@@ -1,7 +1,8 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   InfiniteScrollCustomEvent,
+  IonModal,
   NavController,
   RefresherCustomEvent,
 } from '@ionic/angular';
@@ -29,6 +30,19 @@ const COLORES_DEFAULT = COLORES.estudiante;
 
 const BUSQUEDA_DEBOUNCE_MS = 400;
 
+interface OpcionFiltro {
+  value: string;
+  label: string;
+}
+
+function normalizarClaveFiltro(valor?: string): string {
+  return String(valor ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+}
+
 @Component({
   selector: 'app-estacionamiento-detalle',
   templateUrl: 'estacionamiento-detalle.page.html',
@@ -36,9 +50,19 @@ const BUSQUEDA_DEBOUNCE_MS = 400;
   standalone: false,
 })
 export class EstacionamientoDetallePage implements OnDestroy {
+  @ViewChild('filtroModal') filtroModal?: IonModal;
+
   nombre = 'Estacionamiento';
   subtitulo = 'Registro de vehículos';
   busqueda = '';
+
+  opcionesFiltroPersona: OpcionFiltro[] = [];
+  opcionesFiltroIngreso: OpcionFiltro[] = [];
+
+  filtroTipoPersona: string | null = null;
+  filtroTipoIngreso: string | null = null;
+  filtroTipoPersonaDraft: string | null = null;
+  filtroTipoIngresoDraft: string | null = null;
 
   aeseNcorr: number | null = null;
   acreNcorr: number | null = null;
@@ -124,6 +148,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
     );
   }
 
+  get filtrosActivos(): boolean {
+    return this.filtroTipoPersona != null || this.filtroTipoIngreso != null;
+  }
+
   colorCirculo(c: CupoCategoriaView): string {
     return (COLORES[c.categoria] ?? COLORES_DEFAULT).circulo;
   }
@@ -149,13 +177,42 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }, BUSQUEDA_DEBOUNCE_MS);
   }
 
-  async cargarMasVehiculosManual(): Promise<void> {
-    if (!this.hayMasVehiculos || this.cargandoMasVehiculos) {
-      return;
-    }
+  async abrirFiltroModal(): Promise<void> {
+    this.filtroTipoPersonaDraft = this.filtroTipoPersona;
+    this.filtroTipoIngresoDraft = this.filtroTipoIngreso;
+    this.actualizarOpcionesFiltroDesdeVehiculos(this.vehiculos);
+    void this.cargarOpcionesFiltroDesdeFuente();
+    await this.filtroModal?.present();
+  }
 
-    this.paginaVehiculos += 1;
-    await this.cargarVehiculosActivos(false);
+  async cerrarFiltroModal(): Promise<void> {
+    await this.filtroModal?.dismiss();
+  }
+
+  seleccionarFiltroPersona(value: string): void {
+    this.filtroTipoPersonaDraft =
+      this.filtroTipoPersonaDraft === value ? null : value;
+  }
+
+  seleccionarFiltroIngreso(value: string): void {
+    this.filtroTipoIngresoDraft =
+      this.filtroTipoIngresoDraft === value ? null : value;
+  }
+
+  async limpiarFiltrosModal(): Promise<void> {
+    this.filtroTipoPersonaDraft = null;
+    this.filtroTipoIngresoDraft = null;
+    this.filtroTipoPersona = null;
+    this.filtroTipoIngreso = null;
+    await this.filtroModal?.dismiss();
+    await this.cargarVehiculosActivos(true);
+  }
+
+  async aplicarFiltrosModal(): Promise<void> {
+    this.filtroTipoPersona = this.filtroTipoPersonaDraft;
+    this.filtroTipoIngreso = this.filtroTipoIngresoDraft;
+    await this.filtroModal?.dismiss();
+    await this.cargarVehiculosActivos(true);
   }
 
   async cargarMasVehiculos(event: InfiniteScrollCustomEvent): Promise<void> {
@@ -319,6 +376,28 @@ export class EstacionamientoDetallePage implements OnDestroy {
       return;
     }
 
+    if (reset && this.filtrosActivos) {
+      try {
+        await this.cargarVehiculosConFiltroCliente();
+      } catch (err: unknown) {
+        if (await this.cargarVehiculosDesdeCache(true)) {
+          return;
+        }
+        this.vehiculos = [];
+        this.totalRegistrosVehiculos = 0;
+        this.totalPaginasVehiculos = 0;
+        this.errorVehiculos = mensajeErrorUsuario(
+          err,
+          'No se pudieron cargar los vehículos activos.'
+        );
+      } finally {
+        if (!opciones?.silencioso) {
+          this.cargandoVehiculos = false;
+        }
+      }
+      return;
+    }
+
     try {
       const data = await firstValueFrom(
         this.estacionamientoService.listarVehiculosActivos({
@@ -392,6 +471,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
     } else {
       this.vehiculos = [...this.vehiculos, ...data.vehiculos];
     }
+
+    if (!this.filtrosActivos) {
+      this.actualizarOpcionesFiltroDesdeVehiculos(this.vehiculos);
+    }
   }
 
   private async cargarDisponibilidadDesdeCache(): Promise<boolean> {
@@ -435,19 +518,16 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
 
     const patente = this.busqueda.trim().toUpperCase();
-    let vehiculos = cache.vehiculosActivos.vehiculos;
-    if (patente) {
-      vehiculos = vehiculos.filter(v =>
-        v.patente.toUpperCase().includes(patente)
-      );
-    }
+    const vehiculos = this.filtrarVehiculosLista(
+      cache.vehiculosActivos.vehiculos
+    );
 
     this.aplicarVehiculosActivos(
       {
         paginacion: {
           ...cache.vehiculosActivos.paginacion,
-          totalRegistros: patente ? vehiculos.length : cache.vehiculosActivos.paginacion.totalRegistros,
-          totalPaginas: patente ? 1 : cache.vehiculosActivos.paginacion.totalPaginas,
+          totalRegistros: vehiculos.length,
+          totalPaginas: 1,
           pagina: 1,
         },
         vehiculos,
@@ -455,6 +535,175 @@ export class EstacionamientoDetallePage implements OnDestroy {
       true
     );
     this.errorVehiculos = null;
+    return true;
+  }
+
+  private async cargarVehiculosConFiltroCliente(): Promise<void> {
+    const paramsBase = {
+      patente: this.busqueda.trim() || undefined,
+      acreNcorr: this.acreNcorr ?? undefined,
+    };
+
+    const primera = await firstValueFrom(
+      this.estacionamientoService.listarVehiculosActivos({
+        ...paramsBase,
+        page: 1,
+        pageSize: this.pageSizeVehiculos,
+      })
+    );
+
+    const total = primera.paginacion.totalRegistros;
+    let vehiculos = primera.vehiculos;
+
+    if (total > vehiculos.length) {
+      const completa = await firstValueFrom(
+        this.estacionamientoService.listarVehiculosActivos({
+          ...paramsBase,
+          page: 1,
+          pageSize: total,
+        })
+      );
+      vehiculos = completa.vehiculos;
+    }
+
+    this.actualizarOpcionesFiltroDesdeVehiculos(vehiculos);
+    const filtrados = this.filtrarVehiculosLista(vehiculos);
+
+    this.aplicarVehiculosActivos(
+      {
+        paginacion: {
+          totalRegistros: filtrados.length,
+          totalPaginas: 1,
+          pagina: 1,
+        },
+        vehiculos: filtrados,
+      },
+      true
+    );
+  }
+
+  private filtrarVehiculosLista(
+    vehiculos: VehiculoActivoView[]
+  ): VehiculoActivoView[] {
+    const patente = this.busqueda.trim().toUpperCase();
+    let resultado = vehiculos;
+
+    if (patente) {
+      resultado = resultado.filter(v =>
+        v.patente.toUpperCase().includes(patente)
+      );
+    }
+
+    if (this.filtrosActivos) {
+      resultado = resultado.filter(v => this.coincideFiltrosVehiculo(v));
+    }
+
+    return resultado;
+  }
+
+  private async cargarOpcionesFiltroDesdeFuente(): Promise<void> {
+    try {
+      const hayInternet = await this.network.hayInternet();
+      if (!hayInternet) {
+        const cache = this.aeseNcorr == null
+          ? null
+          : await this.offlineService.getEstacionamientoDetalleOffline(
+              this.aeseNcorr
+            );
+        this.actualizarOpcionesFiltroDesdeVehiculos(
+          cache?.vehiculosActivos?.vehiculos ?? this.vehiculos
+        );
+        return;
+      }
+
+      const paramsBase = {
+        patente: this.busqueda.trim() || undefined,
+        acreNcorr: this.acreNcorr ?? undefined,
+      };
+      const primera = await firstValueFrom(
+        this.estacionamientoService.listarVehiculosActivos({
+          ...paramsBase,
+          page: 1,
+          pageSize: this.pageSizeVehiculos,
+        })
+      );
+
+      if (primera.paginacion.totalRegistros <= primera.vehiculos.length) {
+        this.actualizarOpcionesFiltroDesdeVehiculos(primera.vehiculos);
+        return;
+      }
+
+      const completa = await firstValueFrom(
+        this.estacionamientoService.listarVehiculosActivos({
+          ...paramsBase,
+          page: 1,
+          pageSize: primera.paginacion.totalRegistros,
+        })
+      );
+      this.actualizarOpcionesFiltroDesdeVehiculos(completa.vehiculos);
+    } catch {
+      this.actualizarOpcionesFiltroDesdeVehiculos(this.vehiculos);
+    }
+  }
+
+  private actualizarOpcionesFiltroDesdeVehiculos(
+    vehiculos: VehiculoActivoView[]
+  ): void {
+    this.opcionesFiltroPersona = this.construirOpcionesFiltro(
+      vehiculos.map(v => v.tipo)
+    );
+    this.opcionesFiltroIngreso = this.construirOpcionesFiltro(
+      vehiculos.map(v => v.vehiculo)
+    );
+
+    if (
+      this.filtroTipoPersona &&
+      !this.opcionesFiltroPersona.some(o => o.value === this.filtroTipoPersona)
+    ) {
+      this.filtroTipoPersona = null;
+      this.filtroTipoPersonaDraft = null;
+    }
+
+    if (
+      this.filtroTipoIngreso &&
+      !this.opcionesFiltroIngreso.some(o => o.value === this.filtroTipoIngreso)
+    ) {
+      this.filtroTipoIngreso = null;
+      this.filtroTipoIngresoDraft = null;
+    }
+  }
+
+  private construirOpcionesFiltro(valores: string[]): OpcionFiltro[] {
+    const opciones = new Map<string, string>();
+    for (const valor of valores) {
+      const label = String(valor ?? '').trim();
+      const value = normalizarClaveFiltro(label);
+      if (!label || label === '—' || !value || opciones.has(value)) {
+        continue;
+      }
+      opciones.set(value, label);
+    }
+
+    return Array.from(opciones.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+  }
+
+  private coincideFiltrosVehiculo(v: VehiculoActivoView): boolean {
+    if (
+      this.filtroTipoPersona &&
+      normalizarClaveFiltro(v.tipo) !== this.filtroTipoPersona
+    ) {
+      return false;
+    }
+
+    if (
+      this.filtroTipoIngreso &&
+      normalizarClaveFiltro(v.vehiculo) !== this.filtroTipoIngreso
+    ) {
+      return false;
+    }
+
     return true;
   }
 

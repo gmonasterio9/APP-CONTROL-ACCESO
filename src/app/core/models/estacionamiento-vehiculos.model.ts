@@ -37,6 +37,8 @@ export interface VehiculosActivosQuery {
   pageSize?: number;
   patente?: string;
   acreNcorr?: number;
+  tipoPerfil?: string;
+  tipoVehiculo?: string;
 }
 
 function mapVehiculo(item: VehiculoActivoApi): VehiculoActivoView {
@@ -72,6 +74,16 @@ export function buildVehiculosActivosQuery(params: VehiculosActivosQuery): strin
 
   if (params.acreNcorr != null && params.acreNcorr >= 0) {
     q.set('acreNcorr', String(params.acreNcorr));
+  }
+
+  const tipoPerfil = params.tipoPerfil?.trim();
+  if (tipoPerfil) {
+    q.set('tipoPerfil', tipoPerfil);
+  }
+
+  const tipoVehiculo = params.tipoVehiculo?.trim();
+  if (tipoVehiculo) {
+    q.set('tipoVehiculo', tipoVehiculo);
   }
 
   return q.toString();
