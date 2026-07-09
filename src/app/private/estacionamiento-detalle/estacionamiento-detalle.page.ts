@@ -5,13 +5,12 @@ import {
   NavController,
   RefresherCustomEvent,
 } from '@ionic/angular';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import {
   CategoriaTipo,
   CupoCategoriaView,
   VehiculoActivoView,
 } from '../../core/models/estacionamiento-disponibilidad.model';
-import { esPostEncoladoOffline } from '../../core/models/offline-cola.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { NetworkService } from '../../core/services/network.service';
@@ -62,6 +61,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
   errorVehiculos: string | null = null;
 
   private busquedaTimer?: ReturnType<typeof setTimeout>;
+  private catalogoSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -90,14 +90,28 @@ export class EstacionamientoDetallePage implements OnDestroy {
     this.aeseNcorr = parsed;
     const recinto = await this.authService.getRecintoSeleccionado();
     this.acreNcorr = recinto?.id ?? 0;
+    this.catalogoSub?.unsubscribe();
+    this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
+      void this.refrescarDesdeCacheLocal();
+    });
     void this.cargarDisponibilidad();
     void this.cargarVehiculosActivos(true);
   }
 
   ngOnDestroy(): void {
+    this.catalogoSub?.unsubscribe();
     if (this.busquedaTimer) {
       clearTimeout(this.busquedaTimer);
     }
+  }
+
+  private async refrescarDesdeCacheLocal(): Promise<void> {
+    if (await this.network.hayInternet()) {
+      return;
+    }
+
+    await this.cargarDisponibilidadDesdeCache();
+    await this.cargarVehiculosDesdeCache(true);
   }
 
   get hayMasVehiculos(): boolean {
@@ -191,7 +205,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
       await this.ui.presentToast(
         res.message ?? 'Salida registrada correctamente.',
         {
-          color: esPostEncoladoOffline(res) ? 'warning' : 'success',
+          color: 'success',
           duration: 2500,
         }
       );
@@ -390,7 +404,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
     );
     if (!cache?.disponibilidad) {
       this.cupos = [];
-      this.errorCupos = 'No hay disponibilidad guardada para este estacionamiento.';
+      this.errorCupos = 'No se pudo cargar la disponibilidad.';
       return false;
     }
 
@@ -405,10 +419,6 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
 
     if (!reset) {
-      await this.ui.presentToast(
-        'Solo se muestran los vehículos guardados al iniciar sesión.',
-        { color: 'warning' }
-      );
       return true;
     }
 
@@ -420,7 +430,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
       this.totalRegistrosVehiculos = 0;
       this.totalPaginasVehiculos = 0;
       this.errorVehiculos =
-        'No hay vehículos activos guardados para este estacionamiento.';
+        'No se pudieron cargar los vehículos activos.';
       return false;
     }
 

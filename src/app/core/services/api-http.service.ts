@@ -19,6 +19,7 @@ import {
 import { AuthService } from './auth.service';
 import { NetworkService } from './network.service';
 import { OfflineColaService } from './offline-cola.service';
+import { OfflineService } from './offline.service';
 
 export type { ApiHttpError } from '../utils/api-response.util';
 
@@ -45,6 +46,10 @@ export class ApiHttpService {
     return this.injector.get(OfflineColaService);
   }
 
+  private get offline(): OfflineService {
+    return this.injector.get(OfflineService);
+  }
+
   postPublic<T>(path: string, body?: unknown): Observable<T> {
     return from(this.request<T>('POST', path, body, false));
   }
@@ -67,9 +72,43 @@ export class ApiHttpService {
         if (resolved.encolado) {
           return of(resolved.respuesta as T);
         }
-        return this.requestWithAuth<T>('POST', path, body, false, options);
+        return this.requestWithAuth<T>('POST', path, body, false, options).pipe(
+          catchError(err =>
+            from(this.intentarEncolarPorFallaRed<T>(path, body, options, err)).pipe(
+              switchMap(fallback => {
+                if (fallback.encolado) {
+                  return of(fallback.respuesta as T);
+                }
+                return throwError(() => err);
+              })
+            )
+          )
+        );
       })
     );
+  }
+
+  private async intentarEncolarPorFallaRed<T>(
+    path: string,
+    body: unknown,
+    options: ApiRequestOptions | undefined,
+    err: unknown
+  ): Promise<{ encolado: boolean; respuesta?: T }> {
+    if (options?.skipOfflineQueue || !debeEncolarPostOffline(path)) {
+      return { encolado: false };
+    }
+
+    const apiErr = err as ApiHttpError;
+    if (apiErr?.status !== 0) {
+      return { encolado: false };
+    }
+
+    await this.offlineCola.encolar(path, body ?? {});
+    await this.offline.aplicarAjusteLocalPorOperacion(path, body);
+    return {
+      encolado: true,
+      respuesta: respuestaOptimistaPost(path, body) as T,
+    };
   }
 
   private async resolverPost<T>(
@@ -81,12 +120,13 @@ export class ApiHttpService {
       return { encolado: false };
     }
 
-    const hayInternet = await this.network.hayInternet();
-    if (hayInternet) {
+    const aptaParaTiempoReal = await this.network.aptaParaOperacionTiempoReal();
+    if (aptaParaTiempoReal) {
       return { encolado: false };
     }
 
     await this.offlineCola.encolar(path, body ?? {});
+    await this.offline.aplicarAjusteLocalPorOperacion(path, body);
     return {
       encolado: true,
       respuesta: respuestaOptimistaPost(path, body) as T,

@@ -11,6 +11,8 @@ import {
   RefreshApiResponse,
 } from '../models/auth.model';
 import { LoginEstacionamientoSesion } from '../models/login-sesion.model';
+import { EstacionamientoCard } from '../models/estacionamiento.model';
+import { resolverAcreNcorrDesdeRecintos } from '../utils/acre-ncorr.util';
 import { AppStorageService } from './app-storage.service';
 import { ApiHttpService } from './api-http.service';
 import { NetworkService } from './network.service';
@@ -112,19 +114,94 @@ export class AuthService {
     return this.storage.get<AuthRecinto>(this.RECINTO_KEY);
   }
 
-  async setRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
-    await this.storage.set(this.RECINTO_KEY, recinto);
+  async resolverAcreNcorrParaOperar(): Promise<number | null | undefined> {
+    const recintos = (await this.getRecintos()).filter(recinto => recinto.vigente);
+    return resolverAcreNcorrDesdeRecintos(
+      recintos,
+      await this.getRecintoSeleccionado()
+    );
+  }
 
+  async guardarRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
+    await this.storage.set(this.RECINTO_KEY, recinto);
+  }
+
+  async setRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
+    await this.guardarRecintoSeleccionado(recinto);
+  }
+
+  async sincronizarSoloRecintoOffline(
+    acreNcorr?: number | null,
+    estacionamientosPrecargados?: EstacionamientoCard[] | null
+  ): Promise<void> {
     try {
-      const estacionamientoSesion = await this.getEstacionamientoSesion();
       await firstValueFrom(
-        this.offlineService.sincronizarCatalogoAcceso(
-          estacionamientoSesion,
-          recinto.id
+        this.offlineService.sincronizarSoloRecinto(
+          acreNcorr,
+          estacionamientosPrecargados
         )
       );
     } catch {
-      console.warn('No se pudo sincronizar el catálogo offline del recinto.');
+      console.warn('No se pudo sincronizar el recinto offline.');
+    }
+  }
+
+  async sincronizarDetallesRecintoOffline(
+    acreNcorr?: number | null,
+    estacionamientos?: EstacionamientoCard[] | null
+  ): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.offlineService.sincronizarDetallesRecinto(acreNcorr, estacionamientos)
+      );
+    } catch {
+      console.warn('No se pudieron sincronizar los detalles del recinto offline.');
+    }
+  }
+
+  async sincronizarCatalogoBaseOffline(
+    estacionamientoSesion?: LoginEstacionamientoSesion | null,
+    acreNcorr?: number | null
+  ): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.offlineService.sincronizarCatalogoBase(
+          estacionamientoSesion,
+          acreNcorr ?? null
+        )
+      );
+    } catch {
+      console.warn('No se pudo sincronizar el catálogo base offline.');
+    }
+  }
+
+  async sincronizarDetallePeatonalCacheOffline(): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.offlineService.sincronizarYPersistirDetallePeatonalCache()
+      );
+    } catch {
+      console.warn('No se pudo sincronizar el detalle peatonal offline.');
+    }
+  }
+
+  async sincronizarPeatonalCacheOffline(): Promise<void> {
+    try {
+      await firstValueFrom(this.offlineService.sincronizarYPersistirPeatonalCache());
+    } catch {
+      console.warn('No se pudo sincronizar el cache peatonal offline.');
+    }
+  }
+
+  async sincronizarDatosOperativosOffline(
+    acreNcorr?: number | null
+  ): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.offlineService.sincronizarYPersistirDatosOperativos(acreNcorr ?? null)
+      );
+    } catch {
+      console.warn('No se pudieron sincronizar los datos operativos offline.');
     }
   }
 
@@ -305,22 +382,32 @@ export class AuthService {
       await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
     }
 
-    if (recintoConfirmado) {
-      try {
-        await firstValueFrom(
-          this.offlineService.sincronizarCatalogoAcceso(
-            response.estacionamiento,
-            recintoConfirmado.id
-          )
-        );
-      } catch {
-        console.warn('No se pudo sincronizar el catálogo offline.');
-      }
-    }
-
     await this.offlineColaService.sincronizar();
 
     return response;
+  }
+
+  async sincronizarCatalogoAccesoOffline(
+    estacionamientoSesion?: LoginEstacionamientoSesion | null,
+    acreNcorr?: number | null
+  ): Promise<void> {
+    await this.sincronizarCatalogoOffline(estacionamientoSesion, acreNcorr);
+  }
+
+  private async sincronizarCatalogoOffline(
+    estacionamientoSesion?: LoginEstacionamientoSesion | null,
+    acreNcorr?: number | null
+  ): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.offlineService.sincronizarCatalogoAcceso(
+          estacionamientoSesion,
+          acreNcorr ?? null
+        )
+      );
+    } catch {
+      console.warn('No se pudo sincronizar el catálogo offline.');
+    }
   }
 
   private async persistTokens(

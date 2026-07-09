@@ -286,7 +286,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   async capturarPatente() {
-    if (this.procesando || !this.hayInternet) { return; }
+    if (this.procesando) { return; }
     this.procesando = true;
     const eraMLKit = this.usandoMLKit;
     await this.detenerDeteccion();
@@ -448,10 +448,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async flujoEscaneoQr(codigo: string): Promise<void> {
-    const modoOffline = !this.hayInternet;
-    const loading = await this.ui.presentLoading(
-      modoOffline ? 'Validando perfil (sin conexión)...' : 'Validando perfil...'
-    );
+    const loading = await this.ui.presentLoading('Validando perfil...');
     const contextoEscaneo = {
       codigoEscaneado: codigo,
       rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
@@ -461,7 +458,7 @@ export class ScannerPage implements OnDestroy {
     };
 
     try {
-      const res = modoOffline
+      const res = !this.hayInternet
         ? await this.validarPerfilOffline(contextoEscaneo)
         : await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
       await this.ui.dismissLoading(loading);
@@ -992,13 +989,10 @@ export class ScannerPage implements OnDestroy {
       return;
     }
 
-    const modoOffline = !this.hayInternet;
-    const loading = await this.ui.presentLoading(
-      modoOffline ? 'Validando patente (sin conexión)...' : 'Validando patente...'
-    );
+    const loading = await this.ui.presentLoading('Validando patente...');
 
     try {
-      const res = modoOffline
+      const res = !this.hayInternet
         ? await this.validarPatenteOffline(patente)
         : await firstValueFrom(this.validarPatenteService.validar(patente, acreNcorr));
       await this.ui.dismissLoading(loading);

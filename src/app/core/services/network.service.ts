@@ -1,7 +1,14 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
-import { Network } from '@capacitor/network';
+import { ConnectionStatus, Network } from '@capacitor/network';
 import { BehaviorSubject, Observable } from 'rxjs';
+
+export type TipoConexionRed = 'wifi' | 'cellular' | 'none' | 'unknown';
+
+export interface EstadoConexionRed {
+  conectado: boolean;
+  tipo: TipoConexionRed;
+}
 
 @Injectable({ providedIn: 'root' })
 export class NetworkService implements OnDestroy {
@@ -21,15 +28,40 @@ export class NetworkService implements OnDestroy {
   }
 
   async hayInternet(): Promise<boolean> {
+    const estado = await this.obtenerEstadoConexion();
+    return estado.conectado;
+  }
+
+  /**
+   * Red utilizable para operaciones en vivo (p. ej. ingreso vehicular que levanta barrera).
+   * Sin conexión → se encola y luego sincroniza por batch sin barrera.
+   */
+  async aptaParaOperacionTiempoReal(): Promise<boolean> {
+    const estado = await this.obtenerEstadoConexion();
+    return estado.conectado && estado.tipo !== 'none';
+  }
+
+  async obtenerEstadoConexion(): Promise<EstadoConexionRed> {
     if (Capacitor.isNativePlatform()) {
       const estado = await Network.getStatus();
-      return estado.connected;
+      return this.mapEstadoNativo(estado);
     }
-    return navigator.onLine;
+
+    return {
+      conectado: navigator.onLine,
+      tipo: navigator.onLine ? 'unknown' : 'none',
+    };
   }
 
   ngOnDestroy(): void {
     void this.listener?.remove();
+  }
+
+  private mapEstadoNativo(estado: ConnectionStatus): EstadoConexionRed {
+    return {
+      conectado: estado.connected,
+      tipo: estado.connectionType ?? 'unknown',
+    };
   }
 
   private async inicializar(): Promise<void> {

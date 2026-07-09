@@ -9,7 +9,7 @@ export interface OfflineColaItem {
 export const OFFLINE_COLA_STORAGE_KEY = 'offline_cola_sync';
 
 export const MENSAJE_POST_ENCOLADO =
-  'Operación guardada localmente. Se sincronizará al recuperar conexión.';
+  'Registro guardado correctamente.';
 
 export const POST_SIN_COLA_OFFLINE = new Set([
   '/login',
@@ -17,6 +17,7 @@ export const POST_SIN_COLA_OFFLINE = new Set([
   '/logout',
   '/validar-patente',
   '/validar-perfil',
+  '/offline/sincronizar-ingresos-vehiculos',
 ]);
 
 export function normalizarPathCola(path: string): string {
@@ -50,7 +51,6 @@ export function respuestaOptimistaPost(
   const base = {
     success: true,
     offlineQueued: true,
-    message: MENSAJE_POST_ENCOLADO,
   };
 
   const ruta = normalizarPathCola(path);

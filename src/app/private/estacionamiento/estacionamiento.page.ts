@@ -1,18 +1,15 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { NavController } from '@ionic/angular';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento-ingreso.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
+import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
-import {
-  esPostEncoladoOffline,
-  MENSAJE_POST_ENCOLADO,
-} from '../../core/models/offline-cola.model';
 import { UiService } from '../../core/services/ui.service';
 import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { PatenteUtil } from '../../core/utils/patente.util';
@@ -23,7 +20,7 @@ import { PatenteUtil } from '../../core/utils/patente.util';
   styleUrls: ['estacionamiento.page.scss'],
   standalone: false,
 })
-export class EstacionamientoPage {
+export class EstacionamientoPage implements OnDestroy {
   nombre: string | null = null;
   credencial: string | null = null;
   patente: string | null = null;
@@ -37,6 +34,7 @@ export class EstacionamientoPage {
   cargandoEstacionamientos = false;
   errorEstacionamientos: string | null = null;
   private recintoSeleccionadoId: number | null = null;
+  private catalogoSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -61,7 +59,23 @@ export class EstacionamientoPage {
   }
 
   ionViewWillEnter(): void {
+    this.catalogoSub?.unsubscribe();
+    this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
+      void this.refrescarDesdeCacheLocal();
+    });
     void this.inicializarPagina();
+  }
+
+  ngOnDestroy(): void {
+    this.catalogoSub?.unsubscribe();
+  }
+
+  private async refrescarDesdeCacheLocal(): Promise<void> {
+    if (await this.network.hayInternet()) {
+      return;
+    }
+
+    await this.cargarEstacionamientosDesdeCache();
   }
 
   private async inicializarPagina(): Promise<void> {
@@ -158,13 +172,6 @@ export class EstacionamientoPage {
         return;
       }
 
-      if (esPostEncoladoOffline(res)) {
-        await this.ui.presentToast(res.message ?? MENSAJE_POST_ENCOLADO, {
-          color: 'warning',
-          duration: 3000,
-        });
-      }
-
       const sede = await this.authService.getSede();
 
       await this.navCtrl.navigateForward('/confirmacion', {
@@ -185,14 +192,19 @@ export class EstacionamientoPage {
   }
 
   private async buildIngresoBody(): Promise<EstacionamientoIngresoRequest | null> {
-    const recinto = await this.authService.getRecintoSeleccionado();
-    const acreNcorr = recinto?.id;
+    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
+    if (acreNcorr === null) {
+      return null;
+    }
+
     const patente = PatenteUtil.toApi(String(this.patente ?? ''));
     if (patente) {
-      return acreNcorr ? { patente, acreNcorr } : { patente };
+      return acreNcorrValidoParaRequest(acreNcorr)
+        ? { patente, acreNcorr }
+        : { patente };
     }
     if (this.persNcorr != null && this.persNcorr > 0) {
-      return acreNcorr
+      return acreNcorrValidoParaRequest(acreNcorr)
         ? { persNcorr: this.persNcorr, acreNcorr }
         : { persNcorr: this.persNcorr };
     }
@@ -253,7 +265,7 @@ export class EstacionamientoPage {
     if (!cache.length) {
       this.estacionamientos = [];
       this.errorEstacionamientos =
-        'No hay estacionamientos guardados. Sincroniza al iniciar sesión con internet.';
+        'No hay estacionamientos disponibles.';
       return false;
     }
 

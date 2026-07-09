@@ -22,11 +22,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
-import {
-  esPostEncoladoOffline,
-  MENSAJE_POST_ENCOLADO,
-} from '../../core/models/offline-cola.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
 
@@ -304,13 +301,6 @@ export class IngresoManualPage implements OnInit {
         return;
       }
 
-      if (esPostEncoladoOffline(res)) {
-        await this.ui.presentToast(res.message ?? MENSAJE_POST_ENCOLADO, {
-          color: 'warning',
-          duration: 3000,
-        });
-      }
-
       const sede = await this.authService.getSede();
       const tipoPersonaLabel =
         this.tiposPersonaActivos.find(t => t.value === body.tipoPersona)?.label ??
@@ -357,7 +347,7 @@ export class IngresoManualPage implements OnInit {
       return peatonal;
     }
 
-    const acreNcorr = await this.resolverAcreNcorrParaOperar();
+    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
     if (acreNcorr === null) {
       return null;
     }
@@ -368,7 +358,7 @@ export class IngresoManualPage implements OnInit {
       rut,
       nombre,
       observaciones,
-      ...(acreNcorr != null ? { acreNcorr } : {}),
+      ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
     };
 
     if (this.requierePatente) {
@@ -378,27 +368,6 @@ export class IngresoManualPage implements OnInit {
     }
 
     return vehiculos;
-  }
-
-  private async resolverAcreNcorrParaOperar(): Promise<number | null | undefined> {
-    const recintos = (await this.authService.getRecintos()).filter(
-      recinto => recinto.vigente
-    );
-
-    if (!recintos.length) {
-      return undefined;
-    }
-
-    if (recintos.length === 1) {
-      return recintos[0].id;
-    }
-
-    const recinto = await this.authService.getRecintoSeleccionado();
-    if (recinto && recintos.some(item => item.id === recinto.id)) {
-      return recinto.id;
-    }
-
-    return null;
   }
 
   private async cargarCatalogosDesdeSesion(): Promise<void> {

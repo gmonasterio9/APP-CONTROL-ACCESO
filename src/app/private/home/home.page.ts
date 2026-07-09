@@ -1,10 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import {
   ActionSheetController,
   NavController,
   RefresherCustomEvent,
 } from '@ionic/angular';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { AuthRecinto } from '../../core/models/auth.model';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
@@ -29,10 +29,13 @@ export interface AccesoPeatonal {
   styleUrls: ['home.page.scss'],
   standalone: false,
 })
-export class HomePage {
+export class HomePage implements OnDestroy {
   segmentoActivo = 'estacionamientos';
   private alertaRecintosMostrada = false;
   private recintoSeleccionadoId: number | null = null;
+  private catalogoSub?: Subscription;
+  private sincronizandoCacheOffline = false;
+  private suprimirRefreshCatalogo = false;
   esperandoRecinto = false;
   recintosDisponibles: AuthRecinto[] = [];
   recintoSeleccionadoNombre = 'Seleccionar recinto';
@@ -75,7 +78,32 @@ export class HomePage {
     this.alertaRecintosMostrada = false;
     this.recintoSeleccionadoId = null;
     this.resetEstadoHome();
+    this.catalogoSub?.unsubscribe();
+    this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
+      void this.refrescarDatosLocales();
+    });
     void this.inicializarHome();
+  }
+
+  ngOnDestroy(): void {
+    this.catalogoSub?.unsubscribe();
+  }
+
+  private async refrescarDatosLocales(): Promise<void> {
+    if (
+      this.esperandoRecinto ||
+      this.suprimirRefreshCatalogo ||
+      this.sincronizandoCacheOffline
+    ) {
+      return;
+    }
+
+    if (this.segmentoActivo === 'estacionamientos') {
+      await this.cargarEstacionamientos({ silencioso: true });
+      return;
+    }
+
+    await this.cargarResumenPeatonal({ silencioso: true });
   }
 
   ionViewDidEnter(): void {
@@ -87,12 +115,108 @@ export class HomePage {
     await this.cargarRecintoSeleccionado();
     await this.cargarResumenPeatonal({ silencioso: true });
 
+    const recintos = this.recintosDisponibles;
     const debeEsperarRecinto =
-      this.recintosDisponibles.length > 1 && this.recintoSeleccionadoId == null;
+      recintos.length > 1 && this.recintoSeleccionadoId == null;
     this.esperandoRecinto = debeEsperarRecinto;
 
-    if (!debeEsperarRecinto) {
-      await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+    if (debeEsperarRecinto) {
+      return;
+    }
+
+    await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+    void this.sincronizarCacheOfflineEnSegundoPlano();
+  }
+
+  private async sincronizarCacheOfflineEnSegundoPlano(): Promise<void> {
+    if (this.sincronizandoCacheOffline) {
+      return;
+    }
+
+    if (!(await this.network.hayInternet())) {
+      return;
+    }
+
+    this.sincronizandoCacheOffline = true;
+    this.suprimirRefreshCatalogo = true;
+
+    try {
+      const estacionamientoSesion = await this.authService.getEstacionamientoSesion();
+      const acreNcorr = this.recintoSeleccionadoId;
+      const catalogo = await this.offlineService.getCatalogo();
+
+      if (!catalogo?.detallePeatonal) {
+        await this.authService.sincronizarDetallePeatonalCacheOffline();
+      }
+
+      if (await this.offlineService.necesitaSyncRecinto(acreNcorr)) {
+        await this.authService.sincronizarSoloRecintoOffline(
+          acreNcorr,
+          this.estacionamientos
+        );
+      } else if (await this.offlineService.necesitaDetallesRecinto(acreNcorr)) {
+        await this.authService.sincronizarDetallesRecintoOffline(
+          acreNcorr,
+          this.estacionamientos
+        );
+      }
+
+      if (await this.offlineService.necesitaCatalogoBase()) {
+        await this.authService.sincronizarCatalogoBaseOffline(
+          estacionamientoSesion,
+          acreNcorr
+        );
+      }
+
+      this.offlineService.notificarActualizacionCatalogo();
+    } finally {
+      this.suprimirRefreshCatalogo = false;
+      this.sincronizandoCacheOffline = false;
+    }
+  }
+
+  private async sincronizarRecintoEnSegundoPlano(
+    recinto: AuthRecinto
+  ): Promise<void> {
+    if (this.sincronizandoCacheOffline) {
+      return;
+    }
+
+    if (!(await this.network.hayInternet())) {
+      return;
+    }
+
+    this.sincronizandoCacheOffline = true;
+    this.suprimirRefreshCatalogo = true;
+
+    try {
+      if (await this.offlineService.necesitaSyncRecinto(recinto.id)) {
+        await this.authService.sincronizarSoloRecintoOffline(
+          recinto.id,
+          this.estacionamientos
+        );
+      } else if (
+        await this.offlineService.necesitaDetallesRecinto(recinto.id)
+      ) {
+        await this.authService.sincronizarDetallesRecintoOffline(
+          recinto.id,
+          this.estacionamientos
+        );
+      }
+
+      if (await this.offlineService.necesitaCatalogoBase()) {
+        const estacionamientoSesion =
+          await this.authService.getEstacionamientoSesion();
+        await this.authService.sincronizarCatalogoBaseOffline(
+          estacionamientoSesion,
+          recinto.id
+        );
+      }
+
+      this.offlineService.notificarActualizacionCatalogo();
+    } finally {
+      this.suprimirRefreshCatalogo = false;
+      this.sincronizandoCacheOffline = false;
     }
   }
 
@@ -107,6 +231,7 @@ export class HomePage {
     this.cargandoResumenPeatonal = false;
     this.recintoSeleccionadoNombre = 'Seleccionar recinto';
     this.recintosDisponibles = [];
+    this.sincronizandoCacheOffline = false;
   }
 
   get puedeCambiarRecinto(): boolean {
@@ -216,6 +341,10 @@ export class HomePage {
         })
       );
       this.estacionamientos = [...lista];
+      await this.offlineService.persistirEstacionamientosEnCache(
+        lista,
+        this.recintoSeleccionadoId
+      );
     } catch (err: unknown) {
       const cache = await this.offlineService.getEstacionamientosOffline();
       if (cache.length) {
@@ -288,6 +417,7 @@ export class HomePage {
       const res = await firstValueFrom(this.peatonalService.obtenerResumen());
       this.statsPeatonal = res.stats;
       this.fechaResumenPeatonal = res.fecha ?? null;
+      await this.offlineService.persistirResumenPeatonalEnCache(res);
     } catch (err: unknown) {
       const cache = await this.offlineService.getResumenPeatonalOffline();
       if (cache) {
@@ -363,17 +493,38 @@ export class HomePage {
     await this.aplicarRecintoSeleccionado(elegido);
   }
 
-  private async aplicarRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
-    this.esperandoRecinto = true;
-    const loading = await this.ui.presentLoading('Sincronizando');
+  private async aplicarRecintoSeleccionado(
+    recinto: AuthRecinto,
+    opciones?: { silencioso?: boolean }
+  ): Promise<void> {
+    const silencioso = opciones?.silencioso === true;
+
+    if (silencioso) {
+      this.cargandoEstacionamientos = true;
+    } else {
+      this.esperandoRecinto = true;
+    }
+
+    const loading = silencioso
+      ? null
+      : await this.ui.presentLoading('Sincronizando');
+
     try {
-      await this.authService.setRecintoSeleccionado(recinto);
+      await this.authService.guardarRecintoSeleccionado(recinto);
       this.recintoSeleccionadoId = recinto.id;
       this.recintoSeleccionadoNombre = recinto.nombre;
       await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+      void this.sincronizarRecintoEnSegundoPlano(recinto);
     } finally {
-      this.esperandoRecinto = false;
-      await this.ui.dismissLoading(loading);
+      if (silencioso) {
+        this.cargandoEstacionamientos = false;
+      } else {
+        this.esperandoRecinto = false;
+      }
+
+      if (loading) {
+        await this.ui.dismissLoading(loading);
+      }
     }
   }
 
@@ -395,6 +546,7 @@ export class HomePage {
       recintos.some(recinto => recinto.id === recintoGuardado.id)
     ) {
       this.recintoSeleccionadoId = recintoGuardado.id;
+      this.recintoSeleccionadoNombre = recintoGuardado.nombre;
       this.esperandoRecinto = false;
       this.alertaRecintosMostrada = true;
       return;
@@ -429,7 +581,12 @@ export class HomePage {
     }
 
     if (recintos.length === 1) {
-      await this.aplicarRecintoSeleccionado(recintos[0]);
+      const recinto = recintos[0];
+      if (this.recintoSeleccionadoId !== recinto.id) {
+        await this.authService.guardarRecintoSeleccionado(recinto);
+        this.recintoSeleccionadoId = recinto.id;
+        this.recintoSeleccionadoNombre = recinto.nombre;
+      }
       return true;
     }
 

@@ -194,10 +194,6 @@ export class AccesoPeatonalDetallePage {
 
   private async cargarDetalleDesdeCache(reset: boolean): Promise<boolean> {
     if (!reset) {
-      await this.ui.presentToast(
-        'Solo se muestra el historial guardado al iniciar sesión.',
-        { color: 'warning' }
-      );
       return true;
     }
 
@@ -209,7 +205,7 @@ export class AccesoPeatonalDetallePage {
       this.totalRegistros = 0;
       this.totalPaginas = 0;
       this.error =
-        'No hay detalle peatonal guardado.';
+        'No se pudo cargar el detalle peatonal.';
       return false;
     }
 
