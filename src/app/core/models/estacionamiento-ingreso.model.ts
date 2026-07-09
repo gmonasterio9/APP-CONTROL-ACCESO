@@ -2,10 +2,12 @@ import { assertApiSuccess } from '../utils/api-response.util';
 
 export interface EstacionamientoIngresoPorPersonaRequest {
   persNcorr: number;
+  acreNcorr?: number;
 }
 
 export interface EstacionamientoIngresoPorPatenteRequest {
   patente: string;
+  acreNcorr?: number;
 }
 
 export type EstacionamientoIngresoRequest =

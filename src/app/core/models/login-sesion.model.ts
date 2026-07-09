@@ -4,7 +4,6 @@ import {
   TipoPersonaIngreso,
 } from './ingreso-manual.model';
 
-/** Catálogo mínimo en POST /login → `estacionamiento.ingresoManual`. */
 export interface LoginIngresoManualApi {
   personas: string[];
   vehiculos: string[];
@@ -68,7 +67,6 @@ const MEDIO_LABEL: Record<TipoMedioVehiculo, string> = {
   bicicleta: 'Bicicleta',
 };
 
-/** Perfil peatonal por slug (cuando el login no envía `perfil`). */
 const PERFIL_PEATONAL_POR_PERSONA: Record<TipoPersonaIngreso, number> = {
   estudiante: 1,
   docente: 2,

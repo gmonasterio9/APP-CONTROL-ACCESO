@@ -11,8 +11,18 @@ export interface LoginApiResponse {
   sedeCcod: number;
   sedeTdesc: string;
   apeuTnombre: string;
+  recintos?: LoginRecintoApi[];
+  recintoDefaultAcreNcorr?: number | null;
   estacionamiento?: LoginEstacionamientoSesion;
   message?: string;
+}
+
+export interface LoginRecintoApi {
+  acreNcorr: number;
+  sedeCcod: number;
+  acreTnombre: string;
+  acreTubicacion: string | null;
+  acreNvigencia: number;
 }
 
 export interface RefreshApiResponse {
@@ -37,4 +47,12 @@ export interface AuthUser {
   nombre: string;
   sedeId: number;
   sedeNombre: string;
+}
+
+export interface AuthRecinto {
+  id: number;
+  sedeId: number;
+  nombre: string;
+  ubicacion: string | null;
+  vigente: boolean;
 }

@@ -48,6 +48,9 @@ import { NetworkService } from './network.service';
 
 @Injectable({ providedIn: 'root' })
 export class OfflineService {
+  private readonly SEDE_KEY = 'auth_sede';
+  private readonly RECINTO_KEY = 'auth_recinto';
+
   constructor(
     private api: ApiHttpService,
     private storage: AppStorageService,
@@ -55,12 +58,20 @@ export class OfflineService {
   ) {}
 
   sincronizarCatalogoAcceso(
-    estacionamientoSesion?: LoginEstacionamientoSesion | null
+    estacionamientoSesion?: LoginEstacionamientoSesion | null,
+    acreNcorr?: number | null,
+    omitirEstacionamientos = false
   ): Observable<OfflineCatalogoAccesoView> {
     return this.api
       .get<OfflineCatalogoAccesoResponse>('/offline/catalogo-acceso')
       .pipe(
-        map(res => this.completarCatalogo(mapOfflineCatalogo(res), estacionamientoSesion)),
+        map(res =>
+          this.completarCatalogo(
+            mapOfflineCatalogo(res),
+            estacionamientoSesion,
+            acreNcorr
+          )
+        ),
         switchMap(catalogo =>
           forkJoin({
             resumen: this.api
@@ -75,15 +86,22 @@ export class OfflineService {
                 map(mapDetallePeatonalDesdeApi),
                 catchError(() => of(null as PeatonalDetalleView | null))
               ),
-            estacionamientos: this.api
-              .get<EstacionamientoListResponse>(buildEstacionamientosCacheUrl())
-              .pipe(
-                map(mapEstacionamientosDesdeApi),
-                catchError(() => of(null as EstacionamientoCard[] | null))
-              ),
+            estacionamientos: omitirEstacionamientos
+              ? of(null as EstacionamientoCard[] | null)
+              : this.api
+                  .get<EstacionamientoListResponse>(
+                    buildEstacionamientosCacheUrl(acreNcorr)
+                  )
+                  .pipe(
+                    map(mapEstacionamientosDesdeApi),
+                    catchError(() => of(null as EstacionamientoCard[] | null))
+                  ),
           }).pipe(
             switchMap(({ resumen, detalle, estacionamientos }) =>
-              this.cargarDetallesEstacionamientos(estacionamientos ?? []).pipe(
+              this.cargarDetallesEstacionamientos(
+                omitirEstacionamientos ? [] : estacionamientos ?? [],
+                acreNcorr
+              ).pipe(
                 map(estacionamientosDetalle => ({
                   ...catalogo,
                   resumenPeatonal: resumen ?? undefined,
@@ -102,9 +120,26 @@ export class OfflineService {
   }
 
   async getCatalogo(): Promise<OfflineCatalogoAccesoView | null> {
-    return this.storage.get<OfflineCatalogoAccesoView>(
+    const catalogo = await this.storage.get<OfflineCatalogoAccesoView>(
       OFFLINE_CATALOGO_STORAGE_KEY
     );
+    if (!catalogo) {
+      return null;
+    }
+
+    const contextoActual = await this.obtenerContextoActual();
+    const sedeCatalogo = catalogo.sedeCcod ?? null;
+    const recintoCatalogo = catalogo.acreNcorr ?? null;
+
+    if (
+      sedeCatalogo !== contextoActual.sedeCcod ||
+      recintoCatalogo !== contextoActual.acreNcorr
+    ) {
+      await this.storage.remove(OFFLINE_CATALOGO_STORAGE_KEY);
+      return null;
+    }
+
+    return catalogo;
   }
 
   async getEstacionamientoOffline(): Promise<LoginEstacionamientoSesion | null> {
@@ -134,7 +169,7 @@ export class OfflineService {
     return catalogo?.estacionamientosDetalle?.[aeseNcorr] ?? null;
   }
 
-  /** Sin internet y con catálogo local sincronizado en el último login. */
+
   async debeUsarModoOffline(): Promise<boolean> {
     const hayInternet = await this.network.hayInternet();
     if (hayInternet) {
@@ -153,18 +188,36 @@ export class OfflineService {
 
   private completarCatalogo(
     catalogo: OfflineCatalogoAccesoView,
-    estacionamientoSesion?: LoginEstacionamientoSesion | null
+    estacionamientoSesion?: LoginEstacionamientoSesion | null,
+    acreNcorr?: number | null
   ): OfflineCatalogoAccesoView {
     return {
       ...catalogo,
+      acreNcorr: acreNcorr ?? null,
       estacionamiento: catalogo.estacionamiento ?? estacionamientoSesion ?? undefined,
       personas: catalogo.personas ?? [],
       patentes: catalogo.patentes ?? [],
     };
   }
 
+  private async obtenerContextoActual(): Promise<{
+    sedeCcod: number | null;
+    acreNcorr: number | null;
+  }> {
+    const [sede, recinto] = await Promise.all([
+      this.storage.get<{ id: number }>(this.SEDE_KEY),
+      this.storage.get<{ id: number }>(this.RECINTO_KEY),
+    ]);
+
+    return {
+      sedeCcod: sede?.id ?? null,
+      acreNcorr: recinto?.id ?? null,
+    };
+  }
+
   private cargarDetallesEstacionamientos(
-    estacionamientos: EstacionamientoCard[]
+    estacionamientos: EstacionamientoCard[],
+    acreNcorr?: number | null
   ): Observable<Record<number, OfflineEstacionamientoDetalleCache>> {
     if (!estacionamientos.length) {
       return of({});
@@ -175,14 +228,16 @@ export class OfflineService {
         forkJoin({
           disponibilidad: this.api
             .get<EstacionamientoDisponibilidadResponse>(
-              buildEstacionamientoDisponibilidadCacheUrl(est.id)
+              buildEstacionamientoDisponibilidadCacheUrl(acreNcorr)
             )
             .pipe(
               map(res => mapDisponibilidadEstacionamientoDesdeApi(res, est.nombre)),
               catchError(() => of(null))
             ),
           vehiculosActivos: this.api
-            .get<VehiculosActivosResponse>(buildEstacionamientoVehiculosCacheUrl())
+            .get<VehiculosActivosResponse>(
+              buildEstacionamientoVehiculosCacheUrl(acreNcorr)
+            )
             .pipe(
               map(mapVehiculosActivosEstacionamientoDesdeApi),
               catchError(() => of(null))
@@ -211,6 +266,11 @@ export class OfflineService {
   private async persistirCatalogo(
     catalogo: OfflineCatalogoAccesoView
   ): Promise<void> {
-    await this.storage.set(OFFLINE_CATALOGO_STORAGE_KEY, catalogo);
+    const contextoActual = await this.obtenerContextoActual();
+    await this.storage.set(OFFLINE_CATALOGO_STORAGE_KEY, {
+      ...catalogo,
+      sedeCcod: catalogo.sedeCcod ?? contextoActual.sedeCcod ?? undefined,
+      acreNcorr: catalogo.acreNcorr ?? contextoActual.acreNcorr ?? null,
+    });
   }
 }

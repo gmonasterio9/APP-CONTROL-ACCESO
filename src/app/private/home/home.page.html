@@ -2,11 +2,30 @@
   <ion-toolbar class="home-toolbar">
     <ion-title>Sistema Unificado de Control</ion-title>
   </ion-toolbar>
+  @if (tieneRecintos) {
+    <ion-toolbar class="recinto-toolbar">
+      <button
+        type="button"
+        class="recinto-bar"
+        [class.recinto-bar--disabled]="!puedeCambiarRecinto"
+        (click)="cambiarRecinto()">
+        <div class="recinto-bar__content">
+          <span class="recinto-bar__name">Recinto: {{ recintoSeleccionadoNombre }}</span>
+          @if (puedeCambiarRecinto) {
+            <ion-icon name="chevron-down-outline" class="recinto-bar__icon"></ion-icon>
+          }
+        </div>
+      </button>
+    </ion-toolbar>
+  }
 </ion-header>
 
 <ion-content class="home-content">
-
-  <ion-refresher slot="fixed" (ionRefresh)="refrescarContenido($event)">
+  <ion-refresher
+    slot="fixed"
+    mode="md"
+    class="home-refresher"
+    (ionRefresh)="refrescarContenido($event)">
     <ion-refresher-content></ion-refresher-content>
   </ion-refresher>
 
@@ -55,7 +74,7 @@
         <p class="lista-titulo">Cupos disponibles</p>
       </div>
 
-      @if (cargandoEstacionamientos && estacionamientos.length === 0) {
+      @if (mostrandoSkeletonEstacionamientos) {
         <div class="lista-skeleton" aria-busy="true" aria-label="Cargando estacionamientos">
           @for (i of estacionamientosSkeleton; track i) {
             <div class="item-card item-card--skeleton">

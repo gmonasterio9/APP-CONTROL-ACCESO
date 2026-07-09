@@ -185,6 +185,21 @@ ion-footer {
   }
 }
 
+.alert-recinto {
+  .alert-wrapper {
+    min-width: 320px;
+    max-width: min(92vw, 360px);
+  }
+
+  .alert-radio-group {
+    max-height: 320px;
+  }
+
+  .alert-radio-label {
+    white-space: normal;
+  }
+}
+
 body.barcode-scanning-active {
   background:                   transparent !important;
   --ion-background-color:       transparent;

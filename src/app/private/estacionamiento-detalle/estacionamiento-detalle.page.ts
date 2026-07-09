@@ -17,6 +17,7 @@ import { EstacionamientoService } from '../../core/services/estacionamiento.serv
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
+import { AuthService } from '../../core/services/auth.service';
 
 const COLORES: Record<CategoriaTipo, { circulo: string; barra: string }> = {
   estudiante: { circulo: '#EDF3F8', barra: '#A0C3D9' },
@@ -41,6 +42,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
   busqueda = '';
 
   aeseNcorr: number | null = null;
+  acreNcorr: number | null = null;
   jornada: string | null = null;
   cupos: CupoCategoriaView[] = [];
   vehiculos: VehiculoActivoView[] = [];
@@ -67,10 +69,11 @@ export class EstacionamientoDetallePage implements OnDestroy {
     private network: NetworkService,
     private offlineService: OfflineService,
     private ui: UiService,
+    private authService: AuthService,
     private estacionamientoService: EstacionamientoService
   ) {}
 
-  ionViewWillEnter(): void {
+  async ionViewWillEnter(): Promise<void> {
     const idParam = this.route.snapshot.queryParamMap.get('aeseNcorr');
     const parsed = idParam != null ? Number(idParam) : NaN;
 
@@ -85,6 +88,8 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
 
     this.aeseNcorr = parsed;
+    const recinto = await this.authService.getRecintoSeleccionado();
+    this.acreNcorr = recinto?.id ?? 0;
     void this.cargarDisponibilidad();
     void this.cargarVehiculosActivos(true);
   }
@@ -230,7 +235,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   async cargarDisponibilidad(opciones?: { silencioso?: boolean }): Promise<void> {
-    if (this.aeseNcorr == null) {
+    if (this.acreNcorr == null || this.acreNcorr < 0) {
       return;
     }
 
@@ -251,7 +256,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
     try {
       const data = await firstValueFrom(
         this.estacionamientoService.obtenerDisponibilidad(
-          this.aeseNcorr,
+          this.acreNcorr,
           this.nombre
         )
       );
@@ -306,6 +311,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
           page: this.paginaVehiculos,
           pageSize: this.pageSizeVehiculos,
           patente: this.busqueda.trim() || undefined,
+          acreNcorr: this.acreNcorr ?? undefined,
         })
       );
 

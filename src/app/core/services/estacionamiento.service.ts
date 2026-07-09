@@ -30,9 +30,15 @@ import { ApiHttpService } from './api-http.service';
 export class EstacionamientoService {
   constructor(private api: ApiHttpService) {}
 
-  listar(opciones?: { evitarCache?: boolean }): Observable<EstacionamientoCard[]> {
+  listar(
+    acreNcorr?: number,
+    opciones?: { evitarCache?: boolean }
+  ): Observable<EstacionamientoCard[]> {
+    const query =
+      acreNcorr != null && acreNcorr > 0 ? `?acreNcorr=${acreNcorr}` : '';
+
     return this.api
-      .get<EstacionamientoListResponse>('/estacionamiento', {
+      .get<EstacionamientoListResponse>(`/estacionamiento${query}`, {
         noCache: opciones?.evitarCache,
       })
       .pipe(
@@ -44,12 +50,12 @@ export class EstacionamientoService {
   }
 
   obtenerDisponibilidad(
-    aeseNcorr: number,
+    acreNcorr: number,
     nombreFallback = 'Estacionamiento'
   ): Observable<EstacionamientoDisponibilidadView> {
     return this.api
       .get<EstacionamientoDisponibilidadResponse>(
-        `/estacionamiento/disponibilidad?aeseNcorr=${aeseNcorr}`
+        `/estacionamiento/disponibilidad?acreNcorr=${acreNcorr}`
       )
       .pipe(
         switchMap(res => {

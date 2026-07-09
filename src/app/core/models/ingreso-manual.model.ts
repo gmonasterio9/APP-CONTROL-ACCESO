@@ -135,6 +135,7 @@ export interface IngresoManualVehiculosRequest {
   rut: string;
   nombre: string;
   observaciones: string;
+  acreNcorr?: number;
 }
 
 export type IngresoManualRequest =

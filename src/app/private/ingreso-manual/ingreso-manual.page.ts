@@ -281,7 +281,15 @@ export class IngresoManualPage implements OnInit {
       return;
     }
 
-    const body = this.buildRequestBody();
+    const body = await this.buildRequestBody();
+    if (!body) {
+      await this.ui.presentToast(
+        'Debe seleccionar un recinto antes de registrar el ingreso.',
+        { color: 'warning', duration: 3000 }
+      );
+      return;
+    }
+
     const loading = await this.ui.presentLoading('Registrando ingreso...');
 
     try {
@@ -328,7 +336,7 @@ export class IngresoManualPage implements OnInit {
     this.navCtrl.back();
   }
 
-  private buildRequestBody(): IngresoManualRequest {
+  private async buildRequestBody(): Promise<IngresoManualRequest | null> {
     const tipoPersona = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
     const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
     const rut = RutUtil.normalizeManual(String(this.form.get('rut')?.value ?? ''));
@@ -349,12 +357,18 @@ export class IngresoManualPage implements OnInit {
       return peatonal;
     }
 
+    const acreNcorr = await this.resolverAcreNcorrParaOperar();
+    if (acreNcorr === null) {
+      return null;
+    }
+
     const vehiculos: IngresoManualVehiculosRequest = {
       tipoPersona,
       tipoMedio: tipoMedio as TipoMedioVehiculo,
       rut,
       nombre,
       observaciones,
+      ...(acreNcorr != null ? { acreNcorr } : {}),
     };
 
     if (this.requierePatente) {
@@ -364,6 +378,27 @@ export class IngresoManualPage implements OnInit {
     }
 
     return vehiculos;
+  }
+
+  private async resolverAcreNcorrParaOperar(): Promise<number | null | undefined> {
+    const recintos = (await this.authService.getRecintos()).filter(
+      recinto => recinto.vigente
+    );
+
+    if (!recintos.length) {
+      return undefined;
+    }
+
+    if (recintos.length === 1) {
+      return recintos[0].id;
+    }
+
+    const recinto = await this.authService.getRecintoSeleccionado();
+    if (recinto && recintos.some(item => item.id === recinto.id)) {
+      return recinto.id;
+    }
+
+    return null;
   }
 
   private async cargarCatalogosDesdeSesion(): Promise<void> {

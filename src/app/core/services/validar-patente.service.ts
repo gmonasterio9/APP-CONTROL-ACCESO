@@ -10,9 +10,10 @@ import { ApiHttpService } from './api-http.service';
 export class ValidarPatenteService {
   constructor(private api: ApiHttpService) {}
 
-  validar(patente: string): Observable<ValidarPatenteResponse> {
+  validar(patente: string, acreNcorr?: number): Observable<ValidarPatenteResponse> {
     const body: ValidarPatenteRequest = {
       patente: patente.trim().toUpperCase(),
+      ...(acreNcorr != null ? { acreNcorr } : {}),
     };
     return this.api.post<ValidarPatenteResponse>('/validar-patente', body);
   }

@@ -140,7 +140,7 @@ export class InicioSesionPage implements OnInit {
     this.authService.loginWithPin(this.pin.value, this.selectedSede.id).subscribe({
       next: async () => {
         await this.ui.dismissLoading(loading);
-        this.router.navigate(['/home']);
+        await this.router.navigate(['/home'], { replaceUrl: true });
       },
       error: async (err) => {
         await this.ui.dismissLoading(loading);

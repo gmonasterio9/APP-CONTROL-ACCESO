@@ -5,12 +5,15 @@ export interface EstacionamientoTotales {
 }
 
 export interface EstacionamientoItem {
-  aeseNcorr: number;
-  aeseTnombre: string;
+  acreNcorr?: number;
+  acreTnombre?: string;
+  acreTubicacion?: string | null;
+  aeseNcorr?: number;
+  aeseTnombre?: string;
+  aeseHinicioVespertino?: string;
+  direccion?: string | null;
   sedeCcod: number;
-  sedeTdesc: string;
-  aeseHinicioVespertino: string;
-  direccion: string | null;
+  sedeTdesc: string | null;
   totales: EstacionamientoTotales;
 }
 
@@ -30,12 +33,21 @@ export interface EstacionamientoCard {
 }
 
 export function mapEstacionamientoCard(item: EstacionamientoItem): EstacionamientoCard {
+  const id = item.acreNcorr ?? item.aeseNcorr ?? 0;
+  const nombre = item.acreTnombre ?? item.aeseTnombre ?? 'Estacionamiento';
+  const ubicacion =
+    item.acreTubicacion?.trim() ||
+    item.direccion?.trim() ||
+    item.sedeTdesc?.trim() ||
+    'Sin ubicación';
+  const hinicioVespertino = item.aeseHinicioVespertino ?? '';
+
   return {
-    id: item.aeseNcorr,
-    nombre: item.aeseTnombre,
-    ubicacion: item.direccion?.trim() || item.sedeTdesc,
+    id,
+    nombre,
+    ubicacion,
     cuposDisponibles: item.totales.disponibles,
     cuposTotales: item.totales.cupos,
-    hinicioVespertino: item.aeseHinicioVespertino,
+    hinicioVespertino,
   };
 }

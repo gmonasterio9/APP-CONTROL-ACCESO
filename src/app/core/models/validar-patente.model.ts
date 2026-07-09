@@ -1,5 +1,6 @@
 export interface ValidarPatenteRequest {
   patente: string;
+  acreNcorr?: number;
 }
 
 export interface ValidarPatenteResponse {

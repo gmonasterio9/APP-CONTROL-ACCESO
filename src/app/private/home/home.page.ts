@@ -5,6 +5,7 @@ import {
   RefresherCustomEvent,
 } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
+import { AuthRecinto } from '../../core/models/auth.model';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
@@ -30,6 +31,11 @@ export interface AccesoPeatonal {
 })
 export class HomePage {
   segmentoActivo = 'estacionamientos';
+  private alertaRecintosMostrada = false;
+  private recintoSeleccionadoId: number | null = null;
+  esperandoRecinto = false;
+  recintosDisponibles: AuthRecinto[] = [];
+  recintoSeleccionadoNombre = 'Seleccionar recinto';
 
   tiposEscaneo = [
     { id: 'credencial', label: 'Credencial', svg: 'assets/svg/credencial.svg', color: '#FEEB80' },
@@ -66,8 +72,69 @@ export class HomePage {
   ) {}
 
   ionViewWillEnter(): void {
-    void this.cargarEstacionamientos({ evitarCache: true });
-    void this.cargarResumenPeatonal({ silencioso: true });
+    this.alertaRecintosMostrada = false;
+    this.recintoSeleccionadoId = null;
+    this.resetEstadoHome();
+    void this.inicializarHome();
+  }
+
+  ionViewDidEnter(): void {
+    void this.mostrarSelectorRecintoSiCorresponde();
+  }
+
+  private async inicializarHome(): Promise<void> {
+    await this.cargarRecintosDisponibles();
+    await this.cargarRecintoSeleccionado();
+    await this.cargarResumenPeatonal({ silencioso: true });
+
+    const debeEsperarRecinto =
+      this.recintosDisponibles.length > 1 && this.recintoSeleccionadoId == null;
+    this.esperandoRecinto = debeEsperarRecinto;
+
+    if (!debeEsperarRecinto) {
+      await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+    }
+  }
+
+  private resetEstadoHome(): void {
+    this.estacionamientos = [];
+    this.errorEstacionamientos = null;
+    this.cargandoEstacionamientos = false;
+    this.esperandoRecinto = false;
+    this.statsPeatonal = [];
+    this.fechaResumenPeatonal = null;
+    this.errorResumenPeatonal = null;
+    this.cargandoResumenPeatonal = false;
+    this.recintoSeleccionadoNombre = 'Seleccionar recinto';
+    this.recintosDisponibles = [];
+  }
+
+  get puedeCambiarRecinto(): boolean {
+    return this.recintosDisponibles.length > 1;
+  }
+
+  get tieneRecintos(): boolean {
+    return this.recintosDisponibles.length > 0;
+  }
+
+  get mostrandoSkeletonEstacionamientos(): boolean {
+    return (
+      this.segmentoActivo === 'estacionamientos' &&
+      (this.cargandoEstacionamientos || this.esperandoRecinto) &&
+      this.estacionamientos.length === 0
+    );
+  }
+
+  private async cargarRecintosDisponibles(): Promise<void> {
+    this.recintosDisponibles = (await this.authService.getRecintos()).filter(
+      recinto => recinto.vigente
+    );
+  }
+
+  private async cargarRecintoSeleccionado(): Promise<void> {
+    const recinto = await this.authService.getRecintoSeleccionado();
+    this.recintoSeleccionadoId = recinto?.id ?? null;
+    this.recintoSeleccionadoNombre = recinto?.nombre?.trim() || 'Seleccionar recinto';
   }
 
   porcentaje(item: EstacionamientoCard): number {
@@ -115,6 +182,12 @@ export class HomePage {
     silencioso?: boolean;
     evitarCache?: boolean;
   }): Promise<void> {
+    const puedeCargar = await this.asegurarRecintoSeleccionado();
+    if (!puedeCargar) {
+      this.estacionamientos = [];
+      return;
+    }
+
     if (!opciones?.silencioso) {
       this.cargandoEstacionamientos = true;
     }
@@ -138,7 +211,7 @@ export class HomePage {
 
     try {
       const lista = await firstValueFrom(
-        this.estacionamientoService.listar({
+        this.estacionamientoService.listar(this.recintoSeleccionadoId ?? undefined, {
           evitarCache: opciones?.evitarCache,
         })
       );
@@ -263,6 +336,144 @@ export class HomePage {
       ],
     });
     await sheet.present();
+  }
+
+  async cambiarRecinto(): Promise<void> {
+    if (!this.puedeCambiarRecinto) {
+      return;
+    }
+
+    const seleccionadoInicial =
+      this.recintoSeleccionadoId ?? this.recintosDisponibles[0]?.id ?? null;
+
+    if (seleccionadoInicial == null) {
+      return;
+    }
+
+    const elegido = await this.seleccionarRecintoConAlert(
+      this.recintosDisponibles,
+      seleccionadoInicial,
+      true
+    );
+
+    if (!elegido || elegido.id === this.recintoSeleccionadoId) {
+      return;
+    }
+
+    await this.aplicarRecintoSeleccionado(elegido);
+  }
+
+  private async aplicarRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
+    this.esperandoRecinto = true;
+    const loading = await this.ui.presentLoading('Sincronizando');
+    try {
+      await this.authService.setRecintoSeleccionado(recinto);
+      this.recintoSeleccionadoId = recinto.id;
+      this.recintoSeleccionadoNombre = recinto.nombre;
+      await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
+    } finally {
+      this.esperandoRecinto = false;
+      await this.ui.dismissLoading(loading);
+    }
+  }
+
+  private async mostrarSelectorRecintoSiCorresponde(): Promise<void> {
+    if (this.alertaRecintosMostrada) {
+      return;
+    }
+
+    const recintos = this.recintosDisponibles;
+    const recintoGuardado = await this.authService.getRecintoSeleccionado();
+
+    if (recintos.length <= 1) {
+      this.alertaRecintosMostrada = true;
+      return;
+    }
+
+    if (
+      recintoGuardado &&
+      recintos.some(recinto => recinto.id === recintoGuardado.id)
+    ) {
+      this.recintoSeleccionadoId = recintoGuardado.id;
+      this.esperandoRecinto = false;
+      this.alertaRecintosMostrada = true;
+      return;
+    }
+
+    const seleccionado =
+      recintoGuardado ?? recintos[0];
+    this.alertaRecintosMostrada = true;
+
+    const elegido = await this.seleccionarRecintoConAlert(
+      recintos,
+      seleccionado.id
+    );
+
+    if (!elegido) {
+      this.esperandoRecinto = false;
+      return;
+    }
+
+    await this.aplicarRecintoSeleccionado(elegido);
+  }
+
+  private async asegurarRecintoSeleccionado(): Promise<boolean> {
+    if (this.recintoSeleccionadoId != null) {
+      return true;
+    }
+
+    const recintos = this.recintosDisponibles;
+
+    if (!recintos.length) {
+      return true;
+    }
+
+    if (recintos.length === 1) {
+      await this.aplicarRecintoSeleccionado(recintos[0]);
+      return true;
+    }
+
+    await this.mostrarSelectorRecintoSiCorresponde();
+    return this.recintoSeleccionadoId != null;
+  }
+
+  private async seleccionarRecintoConAlert(
+    recintos: AuthRecinto[],
+    selectedId: number,
+    permitirCancelar = false
+  ): Promise<AuthRecinto | null> {
+    return new Promise<AuthRecinto | null>(resolve => {
+      void this.ui.presentAlert({
+        header: 'Selecciona un recinto',
+        cssClass: 'alert-recinto',
+        backdropDismiss: false,
+        inputs: recintos.map(recinto => ({
+          type: 'radio',
+          label: recinto.ubicacion?.trim()
+            ? `${recinto.nombre} - ${recinto.ubicacion}`
+            : recinto.nombre,
+          value: recinto.id,
+          checked: recinto.id === selectedId,
+        })),
+        buttons: [
+          ...(permitirCancelar
+            ? [
+                {
+                  text: 'Cancelar',
+                  role: 'cancel' as const,
+                  handler: () => resolve(null),
+                },
+              ]
+            : []),
+          {
+            text: 'Continuar',
+            handler: (recintoId: number) => {
+              resolve(recintos.find(recinto => recinto.id === recintoId) ?? null);
+            },
+          },
+        ],
+      });
+    });
   }
 
 }

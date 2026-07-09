@@ -36,6 +36,7 @@ export class EstacionamientoPage {
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;
   errorEstacionamientos: string | null = null;
+  private recintoSeleccionadoId: number | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -60,7 +61,13 @@ export class EstacionamientoPage {
   }
 
   ionViewWillEnter(): void {
-    void this.cargarEstacionamientos();
+    void this.inicializarPagina();
+  }
+
+  private async inicializarPagina(): Promise<void> {
+    const recinto = await this.authService.getRecintoSeleccionado();
+    this.recintoSeleccionadoId = recinto?.id ?? null;
+    await this.cargarEstacionamientos();
   }
 
   porcentaje(e: EstacionamientoCard): number {
@@ -126,7 +133,7 @@ export class EstacionamientoPage {
 
     const nombre = nombreReal ?? (this.patente ? this.patente : 'Visitante');
 
-    const body = this.buildIngresoBody();
+    const body = await this.buildIngresoBody();
     if (!body) {
       await this.ui.presentToast(
         'Faltan datos para confirmar el ingreso del vehículo.',
@@ -177,13 +184,17 @@ export class EstacionamientoPage {
     }
   }
 
-  private buildIngresoBody(): EstacionamientoIngresoRequest | null {
+  private async buildIngresoBody(): Promise<EstacionamientoIngresoRequest | null> {
+    const recinto = await this.authService.getRecintoSeleccionado();
+    const acreNcorr = recinto?.id;
     const patente = PatenteUtil.toApi(String(this.patente ?? ''));
     if (patente) {
-      return { patente };
+      return acreNcorr ? { patente, acreNcorr } : { patente };
     }
     if (this.persNcorr != null && this.persNcorr > 0) {
-      return { persNcorr: this.persNcorr };
+      return acreNcorr
+        ? { persNcorr: this.persNcorr, acreNcorr }
+        : { persNcorr: this.persNcorr };
     }
     return null;
   }
@@ -222,7 +233,7 @@ export class EstacionamientoPage {
 
     try {
       this.estacionamientos = await firstValueFrom(
-        this.estacionamientoService.listar()
+        this.estacionamientoService.listar(this.recintoSeleccionadoId ?? undefined)
       );
     } catch (err: unknown) {
       if (!(await this.cargarEstacionamientosDesdeCache())) {

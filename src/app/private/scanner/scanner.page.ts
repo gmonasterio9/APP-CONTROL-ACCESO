@@ -982,6 +982,16 @@ export class ScannerPage implements OnDestroy {
 
   private async validarPatenteEscaneada(patenteRaw: string): Promise<void> {
     const patente = patenteRaw.trim().toUpperCase();
+    const acreNcorr = await this.resolverAcreNcorrParaOperar();
+
+    if (acreNcorr === null) {
+      await this.ui.presentToast(
+        'Debe seleccionar un recinto antes de validar la patente.',
+        { color: 'warning', duration: 3000 }
+      );
+      return;
+    }
+
     const modoOffline = !this.hayInternet;
     const loading = await this.ui.presentLoading(
       modoOffline ? 'Validando patente (sin conexión)...' : 'Validando patente...'
@@ -990,7 +1000,7 @@ export class ScannerPage implements OnDestroy {
     try {
       const res = modoOffline
         ? await this.validarPatenteOffline(patente)
-        : await firstValueFrom(this.validarPatenteService.validar(patente));
+        : await firstValueFrom(this.validarPatenteService.validar(patente, acreNcorr));
       await this.ui.dismissLoading(loading);
       await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
     } catch (err: unknown) {
@@ -1364,6 +1374,27 @@ export class ScannerPage implements OnDestroy {
       contexto,
       qr => this.qrOffline.parseCredencialInacap(qr)
     );
+  }
+
+  private async resolverAcreNcorrParaOperar(): Promise<number | null | undefined> {
+    const recintos = (await this.authService.getRecintos()).filter(
+      recinto => recinto.vigente
+    );
+
+    if (!recintos.length) {
+      return undefined;
+    }
+
+    if (recintos.length === 1) {
+      return recintos[0].id;
+    }
+
+    const recinto = await this.authService.getRecintoSeleccionado();
+    if (recinto && recintos.some(item => item.id === recinto.id)) {
+      return recinto.id;
+    }
+
+    return null;
   }
 
   private async validarPatenteOffline(patente: string): Promise<ValidarPatenteResponse> {

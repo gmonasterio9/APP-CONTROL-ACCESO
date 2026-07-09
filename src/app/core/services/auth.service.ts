@@ -4,6 +4,7 @@ import { firstValueFrom, Observable, from, throwError } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Sede } from '../models/sede.model';
 import {
+  AuthRecinto,
   AuthUser,
   LoginApiResponse,
   LogoutApiResponse,
@@ -24,6 +25,8 @@ export class AuthService {
   private readonly REFRESH_EXPIRES_KEY = 'auth_refresh_expires_at';
   private readonly USER_KEY = 'auth_user';
   private readonly SEDE_KEY = 'auth_sede';
+  private readonly RECINTOS_KEY = 'auth_recintos';
+  private readonly RECINTO_KEY = 'auth_recinto';
   private readonly ESTACIONAMIENTO_SESION_KEY = 'auth_estacionamiento_sesion';
   private readonly TOKEN_REFRESH_BUFFER_MS = 60_000;
 
@@ -101,6 +104,30 @@ export class AuthService {
     );
   }
 
+  async getRecintos(): Promise<AuthRecinto[]> {
+    return (await this.storage.get<AuthRecinto[]>(this.RECINTOS_KEY)) ?? [];
+  }
+
+  async getRecintoSeleccionado(): Promise<AuthRecinto | null> {
+    return this.storage.get<AuthRecinto>(this.RECINTO_KEY);
+  }
+
+  async setRecintoSeleccionado(recinto: AuthRecinto): Promise<void> {
+    await this.storage.set(this.RECINTO_KEY, recinto);
+
+    try {
+      const estacionamientoSesion = await this.getEstacionamientoSesion();
+      await firstValueFrom(
+        this.offlineService.sincronizarCatalogoAcceso(
+          estacionamientoSesion,
+          recinto.id
+        )
+      );
+    } catch {
+      console.warn('No se pudo sincronizar el catálogo offline del recinto.');
+    }
+  }
+
   async logout(): Promise<void> {
     const token = await this.getAccessToken();
     if (token) {
@@ -123,6 +150,8 @@ export class AuthService {
       this.storage.remove(this.REFRESH_EXPIRES_KEY),
       this.storage.remove(this.USER_KEY),
       this.storage.remove(this.SEDE_KEY),
+      this.storage.remove(this.RECINTOS_KEY),
+      this.storage.remove(this.RECINTO_KEY),
       this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY),
       this.offlineService.clearCatalogo(),
       this.offlineColaService.clearCola(),
@@ -237,6 +266,19 @@ export class AuthService {
       sedeNombre: response.sedeTdesc,
     };
     const sede: Sede = { id: response.sedeCcod, nombre: response.sedeTdesc };
+    const recintos = (response.recintos ?? []).map(recinto => ({
+      id: recinto.acreNcorr,
+      sedeId: recinto.sedeCcod,
+      nombre: recinto.acreTnombre,
+      ubicacion: recinto.acreTubicacion,
+      vigente: recinto.acreNvigencia === 1,
+    }));
+    const recintoConfirmado =
+      recintos.length <= 1
+        ? recintos[0] ?? null
+        : recintos.find(r => r.id === response.recintoDefaultAcreNcorr) ?? null;
+
+    await this.offlineService.clearCatalogo();
 
     await this.persistTokens(
       response.access_token,
@@ -246,6 +288,13 @@ export class AuthService {
     );
     await this.storage.set(this.USER_KEY, user);
     await this.storage.set(this.SEDE_KEY, sede);
+    await this.storage.set(this.RECINTOS_KEY, recintos);
+
+    if (recintoConfirmado) {
+      await this.storage.set(this.RECINTO_KEY, recintoConfirmado);
+    } else {
+      await this.storage.remove(this.RECINTO_KEY);
+    }
 
     if (response.estacionamiento) {
       await this.storage.set(
@@ -256,12 +305,17 @@ export class AuthService {
       await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
     }
 
-    try {
-      await firstValueFrom(
-        this.offlineService.sincronizarCatalogoAcceso(response.estacionamiento)
-      );
-    } catch {
-      console.warn('No se pudo sincronizar el catálogo offline.');
+    if (recintoConfirmado) {
+      try {
+        await firstValueFrom(
+          this.offlineService.sincronizarCatalogoAcceso(
+            response.estacionamiento,
+            recintoConfirmado.id
+          )
+        );
+      } catch {
+        console.warn('No se pudo sincronizar el catálogo offline.');
+      }
     }
 
     await this.offlineColaService.sincronizar();

@@ -86,6 +86,7 @@ export interface OfflineEstacionamientoDetalleCache {
 
 export interface OfflineCatalogoAccesoView {
   sedeCcod?: number;
+  acreNcorr?: number | null;
   periodoCcod?: number;
   generadoEn?: string;
   totales?: OfflineCatalogoTotales;
@@ -120,6 +121,7 @@ export function mapOfflineCatalogo(
 
   return {
     sedeCcod: res.sedeCcod,
+    acreNcorr: null,
     periodoCcod: res.periodoCcod,
     generadoEn: res.generadoEn,
     totales: res.totales,
@@ -144,18 +146,29 @@ export function buildPeatonalDetalleCacheUrl(): string {
   return `/peatonal/detalle?${buildPeatonalDetalleQuery({ page: 1, pageSize: 10 })}`;
 }
 
-export function buildEstacionamientosCacheUrl(): string {
+export function buildEstacionamientosCacheUrl(acreNcorr?: number | null): string {
+  if (acreNcorr != null && acreNcorr > 0) {
+    return `/estacionamiento?acreNcorr=${acreNcorr}`;
+  }
   return '/estacionamiento';
 }
 
-export function buildEstacionamientoDisponibilidadCacheUrl(aeseNcorr: number): string {
-  return `/estacionamiento/disponibilidad?aeseNcorr=${aeseNcorr}`;
+export function buildEstacionamientoDisponibilidadCacheUrl(
+  acreNcorr?: number | null
+): string {
+  if (acreNcorr != null && acreNcorr > 0) {
+    return `/estacionamiento/disponibilidad?acreNcorr=${acreNcorr}`;
+  }
+  return '/estacionamiento/disponibilidad';
 }
 
-export function buildEstacionamientoVehiculosCacheUrl(): string {
+export function buildEstacionamientoVehiculosCacheUrl(
+  acreNcorr?: number | null
+): string {
   return `/estacionamiento/vehiculos-activos?${buildVehiculosActivosQuery({
     page: 1,
     pageSize: 10,
+    acreNcorr: acreNcorr ?? undefined,
   })}`;
 }
 

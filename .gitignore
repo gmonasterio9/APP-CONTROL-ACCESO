@@ -40,3 +40,5 @@ coverage/
 
 # Cache
 .cache/
+# Added by ggshield
+.cache_ggshield

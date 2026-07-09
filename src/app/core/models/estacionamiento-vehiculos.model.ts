@@ -36,6 +36,7 @@ export interface VehiculosActivosQuery {
   page?: number;
   pageSize?: number;
   patente?: string;
+  acreNcorr?: number;
 }
 
 function mapVehiculo(item: VehiculoActivoApi): VehiculoActivoView {
@@ -67,6 +68,10 @@ export function buildVehiculosActivosQuery(params: VehiculosActivosQuery): strin
   const patente = params.patente?.trim();
   if (patente) {
     q.set('patente', patente);
+  }
+
+  if (params.acreNcorr != null && params.acreNcorr >= 0) {
+    q.set('acreNcorr', String(params.acreNcorr));
   }
 
   return q.toString();
