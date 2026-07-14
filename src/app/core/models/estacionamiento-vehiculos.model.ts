@@ -72,7 +72,7 @@ export function buildVehiculosActivosQuery(params: VehiculosActivosQuery): strin
     q.set('patente', patente);
   }
 
-  if (params.acreNcorr != null && params.acreNcorr >= 0) {
+  if (params.acreNcorr != null && params.acreNcorr > 0) {
     q.set('acreNcorr', String(params.acreNcorr));
   }
 

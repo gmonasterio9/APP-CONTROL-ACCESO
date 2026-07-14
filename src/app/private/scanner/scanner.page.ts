@@ -27,6 +27,7 @@ import {
   ResultadoControlPeatonal,
 } from '../../core/models/peatonal-control-ingreso.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { AuthService } from '../../core/services/auth.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
@@ -373,12 +374,14 @@ export class ScannerPage implements OnDestroy {
   private async navegarIngresoManualConPatente(patente: string): Promise<void> {
     const limpia = PatenteUtil.toApi(patente);
     const medio = PatenteUtil.inferirMedio(limpia) ?? 'auto';
+    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
     await this.apagarScanner();
     this.procesando = false;
     await this.navCtrl.navigateForward('/ingreso-manual', {
       queryParams: {
         patente: limpia,
         tipoMedio: medio,
+        ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
       },
     });
   }
@@ -552,13 +555,13 @@ export class ScannerPage implements OnDestroy {
         } else {
           await this.salirScannerHacia(
             '/ingreso-manual',
-            this.buildAccesoQueryParams(resp)
+            await this.buildAccesoQueryParams(resp)
           );
         }
         return;
       }
 
-      const params = this.buildAccesoQueryParams(resp);
+      const params = await this.buildAccesoQueryParams(resp);
       const ruta = esPatente || resp?.via === 'estacionamiento'
         ? '/estacionamiento'
         : '/ingreso-manual';
@@ -813,7 +816,7 @@ export class ScannerPage implements OnDestroy {
 
   private async salirScannerHacia(
     ruta: string,
-    params: Record<string, string | null>
+    params: Record<string, string | number | null>
   ): Promise<void> {
     await this.apagarScanner();
     await this.navCtrl.navigateRoot(ruta, { queryParams: params });
@@ -979,22 +982,19 @@ export class ScannerPage implements OnDestroy {
 
   private async validarPatenteEscaneada(patenteRaw: string): Promise<void> {
     const patente = patenteRaw.trim().toUpperCase();
-    const acreNcorr = await this.resolverAcreNcorrParaOperar();
-
-    if (acreNcorr === null) {
-      await this.ui.presentToast(
-        'Debe seleccionar un recinto antes de validar la patente.',
-        { color: 'warning', duration: 3000 }
-      );
-      return;
-    }
+    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
 
     const loading = await this.ui.presentLoading('Validando patente...');
 
     try {
       const res = !this.hayInternet
         ? await this.validarPatenteOffline(patente)
-        : await firstValueFrom(this.validarPatenteService.validar(patente, acreNcorr));
+        : await firstValueFrom(
+            this.validarPatenteService.validar(
+              patente,
+              acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : undefined
+            )
+          );
       await this.ui.dismissLoading(loading);
       await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
     } catch (err: unknown) {
@@ -1307,7 +1307,7 @@ export class ScannerPage implements OnDestroy {
     return apiRut || undefined;
   }
 
-  private buildAccesoQueryParams(resp: {
+  private async buildAccesoQueryParams(resp: {
     patente?: string;
     nombre?: string;
     rut?: string;
@@ -1319,7 +1319,7 @@ export class ScannerPage implements OnDestroy {
     tipo?: TipoEscaneo;
     code?: string;
     escaneoPorEmail?: boolean;
-  }): Record<string, string | null> {
+  }): Promise<Record<string, string | number | null>> {
     const perfil = resolverPerfilIngresoManual({
       code: resp.code,
       estado: resp.estado,
@@ -1328,6 +1328,8 @@ export class ScannerPage implements OnDestroy {
       origen: resp.tipo,
       escaneoPorEmail: resp.escaneoPorEmail,
     });
+
+    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
 
     return {
       patente: resp.patente ?? null,
@@ -1345,6 +1347,7 @@ export class ScannerPage implements OnDestroy {
           : null,
       origen: resp.tipo ?? null,
       estado: resp.estado ?? null,
+      ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
     };
   }
 
@@ -1368,27 +1371,6 @@ export class ScannerPage implements OnDestroy {
       contexto,
       qr => this.qrOffline.parseCredencialInacap(qr)
     );
-  }
-
-  private async resolverAcreNcorrParaOperar(): Promise<number | null | undefined> {
-    const recintos = (await this.authService.getRecintos()).filter(
-      recinto => recinto.vigente
-    );
-
-    if (!recintos.length) {
-      return undefined;
-    }
-
-    if (recintos.length === 1) {
-      return recintos[0].id;
-    }
-
-    const recinto = await this.authService.getRecintoSeleccionado();
-    if (recinto && recintos.some(item => item.id === recinto.id)) {
-      return recinto.id;
-    }
-
-    return null;
   }
 
   private async validarPatenteOffline(patente: string): Promise<ValidarPatenteResponse> {

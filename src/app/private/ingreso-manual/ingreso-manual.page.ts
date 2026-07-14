@@ -18,8 +18,11 @@ import {
   OpcionTipoMedioIngreso,
   OpcionTipoPersonaIngreso,
 } from '../../core/models/login-sesion.model';
+import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { AuthService } from '../../core/services/auth.service';
+import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { IngresoManualService } from '../../core/services/ingreso-manual.service';
+import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
@@ -28,6 +31,7 @@ import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
 
 const MEDIOS_SIN_PATENTE: TipoMedioIngreso[] = ['bicicleta', 'peatonal'];
+const MEDIOS_CON_ESTACIONAMIENTO: TipoMedioIngreso[] = ['auto', 'moto', 'bicicleta'];
 
 const NOMBRES_PLACEHOLDER = new Set(['visitante', 'visita']);
 
@@ -97,6 +101,11 @@ export class IngresoManualPage implements OnInit {
   tiposPersonaPeatonal: OpcionTipoPersonaIngreso[] = [];
   tiposMedio: OpcionTipoMedioIngreso[] = [];
 
+  acreNcorrSeleccionado: number | null = null;
+
+  /** Viene del scanner: usa recinto automático al aprobar. */
+  vieneDesdeScanner = false;
+
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
@@ -104,7 +113,9 @@ export class IngresoManualPage implements OnInit {
     private ui: UiService,
     private ingresoManualService: IngresoManualService,
     private authService: AuthService,
-    private offlineService: OfflineService
+    private offlineService: OfflineService,
+    private estacionamientoService: EstacionamientoService,
+    private network: NetworkService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -139,6 +150,7 @@ export class IngresoManualPage implements OnInit {
 
     await this.cargarCatalogosDesdeSesion();
     this.actualizarValidacionPatente();
+    await this.inicializarRecinto();
 
     const nombre = this.route.snapshot.queryParamMap.get('nombre');
     const rut = this.route.snapshot.queryParamMap.get('rut');
@@ -217,7 +229,6 @@ export class IngresoManualPage implements OnInit {
     return this.form?.get('tipoMedio')?.value === 'moto' ? 'moto' : 'auto';
   }
 
-
   get patenteFormatoHint(): string {
     return this.patenteMedio === 'moto'
       ? 'Moto: XXX-XX (ej. ABC-12 o 222-22) o ABCD-1 (nueva) — 5 caracteres'
@@ -278,15 +289,132 @@ export class IngresoManualPage implements OnInit {
       return;
     }
 
+    const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
+
+    // Auto/moto/bicicleta desde home: elegir estacionamiento/recinto en pantalla dedicada.
+    if (
+      !this.vieneDesdeScanner &&
+      MEDIOS_CON_ESTACIONAMIENTO.includes(tipoMedio)
+    ) {
+      await this.irASelectorEstacionamiento();
+      return;
+    }
+
+    if (tipoMedio !== 'peatonal') {
+      const acreNcorr = await this.resolverAcreNcorrParaIngreso();
+      if (!acreNcorrValidoParaRequest(acreNcorr)) {
+        await this.ui.presentToast(
+          'Debe seleccionar un recinto para operar esta sede.',
+          { color: 'warning', duration: 3000 }
+        );
+        return;
+      }
+    }
+
     const body = await this.buildRequestBody();
     if (!body) {
+      return;
+    }
+
+    await this.registrarIngreso(body);
+  }
+
+  volver(): void {
+    this.navCtrl.back();
+  }
+
+  private async irASelectorEstacionamiento(): Promise<void> {
+    const loading = await this.ui.presentLoading('Cargando estacionamientos...');
+    let lista: EstacionamientoCard[] = [];
+
+    try {
+      lista = await this.obtenerEstacionamientosDisponibles();
+    } catch (err: unknown) {
+      await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
-        'Debe seleccionar un recinto antes de registrar el ingreso.',
-        { color: 'warning', duration: 3000 }
+        mensajeErrorUsuario(err, 'No se pudieron cargar los estacionamientos.'),
+        { color: 'danger' }
       );
       return;
     }
 
+    await this.ui.dismissLoading(loading);
+
+    if (lista.length === 0) {
+      await this.ui.presentToast('No hay estacionamientos disponibles.', {
+        color: 'warning',
+      });
+      return;
+    }
+
+    // Un solo recinto/estacionamiento: registrar directo sin selector.
+    if (lista.length === 1) {
+      const unico = lista[0];
+      if (unico.cuposDisponibles === 0) {
+        await this.ui.presentToast(
+          'No hay cupos disponibles en este estacionamiento.',
+          { color: 'warning', duration: 2500 }
+        );
+        return;
+      }
+
+      this.acreNcorrSeleccionado = unico.id;
+      const body = await this.buildRequestBody();
+      if (!body) {
+        await this.ui.presentToast(
+          'No se pudo armar el ingreso. Revisa los datos.',
+          { color: 'warning' }
+        );
+        return;
+      }
+      await this.registrarIngreso(body);
+      return;
+    }
+
+    const tipoPersona = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
+    const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
+    const rut = RutUtil.normalizeManual(String(this.form.get('rut')?.value ?? ''));
+    const nombre = filtrarNombreSoloLetras(
+      String(this.form.get('nombre')?.value ?? '')
+    ).trim();
+    const observaciones = normalizarObservaciones(
+      String(this.form.get('observaciones')?.value ?? '')
+    );
+    const patente = this.requierePatente
+      ? PatenteUtil.toApi(String(this.form.get('patente')?.value ?? ''))
+      : null;
+
+    await this.navCtrl.navigateForward('/estacionamiento', {
+      queryParams: {
+        modo: 'ingreso-manual',
+        tipoPersona,
+        tipoMedio,
+        rut,
+        nombre,
+        observaciones: observaciones || null,
+        patente,
+        perfil:
+          this.tiposPersonaActivos.find(t => t.value === tipoPersona)?.label ??
+          tipoPersona,
+      },
+    });
+  }
+
+  private async obtenerEstacionamientosDisponibles(): Promise<EstacionamientoCard[]> {
+    const hayInternet = await this.network.hayInternet();
+    if (hayInternet) {
+      try {
+        // Sin filtrar por recinto: el usuario debe poder elegir si hay varios.
+        return await firstValueFrom(this.estacionamientoService.listar());
+      } catch {
+        // Fallback a caché offline.
+      }
+    }
+
+    return this.offlineService.getEstacionamientosOffline();
+  }
+
+  private async registrarIngreso(body: IngresoManualRequest): Promise<void> {
     const loading = await this.ui.presentLoading('Registrando ingreso...');
 
     try {
@@ -322,10 +450,6 @@ export class IngresoManualPage implements OnInit {
     }
   }
 
-  volver(): void {
-    this.navCtrl.back();
-  }
-
   private async buildRequestBody(): Promise<IngresoManualRequest | null> {
     const tipoPersona = this.form.get('tipoPersona')?.value as TipoPersonaIngreso;
     const tipoMedio = this.form.get('tipoMedio')?.value as TipoMedioIngreso;
@@ -338,17 +462,16 @@ export class IngresoManualPage implements OnInit {
     );
 
     if (tipoMedio === 'peatonal') {
-      const peatonal: IngresoManualPeatonalRequest = {
+      return {
         tipoPersona,
         rut,
         nombre,
         observaciones,
-      };
-      return peatonal;
+      } satisfies IngresoManualPeatonalRequest;
     }
 
-    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
-    if (acreNcorr === null) {
+    const acreNcorr = await this.resolverAcreNcorrParaIngreso();
+    if (!acreNcorrValidoParaRequest(acreNcorr)) {
       return null;
     }
 
@@ -358,7 +481,7 @@ export class IngresoManualPage implements OnInit {
       rut,
       nombre,
       observaciones,
-      ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
+      acreNcorr,
     };
 
     if (this.requierePatente) {
@@ -368,6 +491,44 @@ export class IngresoManualPage implements OnInit {
     }
 
     return vehiculos;
+  }
+
+  private async inicializarRecinto(): Promise<void> {
+    const origen = this.route.snapshot.queryParamMap.get('origen')?.trim();
+    this.vieneDesdeScanner = !!origen;
+
+    const desdeQuery =
+      this.leerAcreNcorrQuery('acreNcorr') ??
+      this.leerAcreNcorrQuery('aeseNcorr');
+    const desdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+
+    this.acreNcorrSeleccionado = acreNcorrValidoParaRequest(desdeAuth)
+      ? desdeAuth
+      : desdeQuery;
+  }
+
+  private leerAcreNcorrQuery(param: string): number | null {
+    const raw = this.route.snapshot.queryParamMap.get(param);
+    const parsed = raw != null ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private async resolverAcreNcorrParaIngreso(): Promise<number | null | undefined> {
+    if (acreNcorrValidoParaRequest(this.acreNcorrSeleccionado)) {
+      return this.acreNcorrSeleccionado;
+    }
+
+    const desdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+    if (acreNcorrValidoParaRequest(desdeAuth)) {
+      this.acreNcorrSeleccionado = desdeAuth;
+      return desdeAuth;
+    }
+
+    const desdeQuery =
+      this.leerAcreNcorrQuery('acreNcorr') ??
+      this.leerAcreNcorrQuery('aeseNcorr');
+    this.acreNcorrSeleccionado = desdeQuery;
+    return desdeQuery;
   }
 
   private async cargarCatalogosDesdeSesion(): Promise<void> {
@@ -412,7 +573,6 @@ export class IngresoManualPage implements OnInit {
     } else {
       patente.setValidators([Validators.required, patenteValidator]);
     }
-
     patente.updateValueAndValidity({ emitEvent: false });
   }
 }

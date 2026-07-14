@@ -5,10 +5,10 @@ import {
   RefresherCustomEvent,
 } from '@ionic/angular';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { AuthRecinto } from '../../core/models/auth.model';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { AuthService } from '../../core/services/auth.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { NetworkService } from '../../core/services/network.service';
@@ -31,14 +31,9 @@ export interface AccesoPeatonal {
 })
 export class HomePage implements OnDestroy {
   segmentoActivo = 'estacionamientos';
-  private alertaRecintosMostrada = false;
-  private recintoSeleccionadoId: number | null = null;
   private catalogoSub?: Subscription;
   private sincronizandoCacheOffline = false;
   private suprimirRefreshCatalogo = false;
-  esperandoRecinto = false;
-  recintosDisponibles: AuthRecinto[] = [];
-  recintoSeleccionadoNombre = 'Seleccionar recinto';
 
   tiposEscaneo = [
     { id: 'credencial', label: 'Credencial', svg: 'assets/svg/credencial.svg', color: '#FEEB80' },
@@ -75,7 +70,6 @@ export class HomePage implements OnDestroy {
   ) {}
 
   ionViewWillEnter(): void {
-    this.alertaRecintosMostrada = false;
     this.catalogoSub?.unsubscribe();
     this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
       void this.refrescarDatosLocales();
@@ -88,11 +82,7 @@ export class HomePage implements OnDestroy {
   }
 
   private async refrescarDatosLocales(): Promise<void> {
-    if (
-      this.esperandoRecinto ||
-      this.suprimirRefreshCatalogo ||
-      this.sincronizandoCacheOffline
-    ) {
+    if (this.suprimirRefreshCatalogo || this.sincronizandoCacheOffline) {
       return;
     }
 
@@ -104,24 +94,8 @@ export class HomePage implements OnDestroy {
     await this.cargarResumenPeatonal({ silencioso: true });
   }
 
-  ionViewDidEnter(): void {
-    void this.mostrarSelectorRecintoSiCorresponde();
-  }
-
   private async inicializarHome(): Promise<void> {
-    await this.cargarRecintosDisponibles();
-    await this.cargarRecintoSeleccionado();
     await this.hidratarDesdeCacheLocal();
-
-    const recintos = this.recintosDisponibles;
-    const debeEsperarRecinto =
-      recintos.length > 1 && this.recintoSeleccionadoId == null;
-    this.esperandoRecinto = debeEsperarRecinto;
-
-    if (debeEsperarRecinto) {
-      return;
-    }
-
     void this.cargarResumenPeatonal({ silencioso: true });
     void this.cargarEstacionamientos({ silencioso: true });
     void this.sincronizarCacheOfflineEnSegundoPlano();
@@ -159,7 +133,7 @@ export class HomePage implements OnDestroy {
 
     try {
       const estacionamientoSesion = await this.authService.getEstacionamientoSesion();
-      const acreNcorr = this.recintoSeleccionadoId;
+      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
       const catalogo = await this.offlineService.getCatalogo();
 
       if (!catalogo?.detallePeatonal) {
@@ -168,11 +142,6 @@ export class HomePage implements OnDestroy {
 
       if (await this.offlineService.necesitaSyncRecinto(acreNcorr)) {
         await this.authService.sincronizarSoloRecintoOffline(
-          acreNcorr,
-          this.estacionamientos
-        );
-      } else if (await this.offlineService.necesitaDetallesRecinto(acreNcorr)) {
-        await this.authService.sincronizarDetallesRecintoOffline(
           acreNcorr,
           this.estacionamientos
         );
@@ -192,77 +161,12 @@ export class HomePage implements OnDestroy {
     }
   }
 
-  private async sincronizarRecintoEnSegundoPlano(
-    recinto: AuthRecinto
-  ): Promise<void> {
-    if (this.sincronizandoCacheOffline) {
-      return;
-    }
-
-    if (!(await this.network.hayInternet())) {
-      return;
-    }
-
-    this.sincronizandoCacheOffline = true;
-    this.suprimirRefreshCatalogo = true;
-
-    try {
-      if (await this.offlineService.necesitaSyncRecinto(recinto.id)) {
-        await this.authService.sincronizarSoloRecintoOffline(
-          recinto.id,
-          this.estacionamientos
-        );
-      } else if (
-        await this.offlineService.necesitaDetallesRecinto(recinto.id)
-      ) {
-        await this.authService.sincronizarDetallesRecintoOffline(
-          recinto.id,
-          this.estacionamientos
-        );
-      }
-
-      if (await this.offlineService.necesitaCatalogoBase()) {
-        const estacionamientoSesion =
-          await this.authService.getEstacionamientoSesion();
-        await this.authService.sincronizarCatalogoBaseOffline(
-          estacionamientoSesion,
-          recinto.id
-        );
-      }
-
-      this.offlineService.notificarActualizacionCatalogo();
-    } finally {
-      this.suprimirRefreshCatalogo = false;
-      this.sincronizandoCacheOffline = false;
-    }
-  }
-
-  get puedeCambiarRecinto(): boolean {
-    return this.recintosDisponibles.length > 1;
-  }
-
-  get tieneRecintos(): boolean {
-    return this.recintosDisponibles.length > 0;
-  }
-
   get mostrandoSkeletonEstacionamientos(): boolean {
     return (
       this.segmentoActivo === 'estacionamientos' &&
-      (this.cargandoEstacionamientos || this.esperandoRecinto) &&
+      this.cargandoEstacionamientos &&
       this.estacionamientos.length === 0
     );
-  }
-
-  private async cargarRecintosDisponibles(): Promise<void> {
-    this.recintosDisponibles = (await this.authService.getRecintos()).filter(
-      recinto => recinto.vigente
-    );
-  }
-
-  private async cargarRecintoSeleccionado(): Promise<void> {
-    const recinto = await this.authService.getRecintoSeleccionado();
-    this.recintoSeleccionadoId = recinto?.id ?? null;
-    this.recintoSeleccionadoNombre = recinto?.nombre?.trim() || 'Seleccionar recinto';
   }
 
   porcentaje(item: EstacionamientoCard): number {
@@ -284,7 +188,7 @@ export class HomePage implements OnDestroy {
     this.navCtrl.navigateForward('/acceso-peatonal-detalle');
   }
 
-  ingresoManual(): void {
+  async ingresoManual(): Promise<void> {
     this.navCtrl.navigateForward('/ingreso-manual');
   }
 
@@ -310,12 +214,6 @@ export class HomePage implements OnDestroy {
     silencioso?: boolean;
     evitarCache?: boolean;
   }): Promise<void> {
-    const puedeCargar = await this.asegurarRecintoSeleccionado();
-    if (!puedeCargar) {
-      this.estacionamientos = [];
-      return;
-    }
-
     if (!opciones?.silencioso) {
       this.cargandoEstacionamientos = true;
     }
@@ -330,7 +228,7 @@ export class HomePage implements OnDestroy {
         this.estacionamientos = [];
         this.errorEstacionamientos =
           'No hay estacionamientos disponibles.';
-      } 
+      }
       if (!opciones?.silencioso) {
         this.cargandoEstacionamientos = false;
       }
@@ -338,15 +236,17 @@ export class HomePage implements OnDestroy {
     }
 
     try {
+      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
       const lista = await firstValueFrom(
-        this.estacionamientoService.listar(this.recintoSeleccionadoId ?? undefined, {
-          evitarCache: opciones?.evitarCache,
-        })
+        this.estacionamientoService.listar(
+          acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : undefined,
+          { evitarCache: opciones?.evitarCache }
+        )
       );
       this.estacionamientos = [...lista];
       await this.offlineService.persistirEstacionamientosEnCache(
         lista,
-        this.recintoSeleccionadoId
+        acreNcorr ?? null
       );
     } catch (err: unknown) {
       const cache = await this.offlineService.getEstacionamientosOffline();
@@ -470,170 +370,4 @@ export class HomePage implements OnDestroy {
     });
     await sheet.present();
   }
-
-  async cambiarRecinto(): Promise<void> {
-    if (!this.puedeCambiarRecinto) {
-      return;
-    }
-
-    const seleccionadoInicial =
-      this.recintoSeleccionadoId ?? this.recintosDisponibles[0]?.id ?? null;
-
-    if (seleccionadoInicial == null) {
-      return;
-    }
-
-    const elegido = await this.seleccionarRecintoConAlert(
-      this.recintosDisponibles,
-      seleccionadoInicial,
-      true
-    );
-
-    if (!elegido || elegido.id === this.recintoSeleccionadoId) {
-      return;
-    }
-
-    await this.aplicarRecintoSeleccionado(elegido);
-  }
-
-  private async aplicarRecintoSeleccionado(
-    recinto: AuthRecinto,
-    opciones?: { silencioso?: boolean }
-  ): Promise<void> {
-    const silencioso = opciones?.silencioso === true;
-
-    if (silencioso) {
-      this.cargandoEstacionamientos = true;
-    } else {
-      this.esperandoRecinto = true;
-    }
-
-    const loading = silencioso
-      ? null
-      : await this.ui.presentLoading('Sincronizando');
-
-    try {
-      await this.authService.guardarRecintoSeleccionado(recinto);
-      this.recintoSeleccionadoId = recinto.id;
-      this.recintoSeleccionadoNombre = recinto.nombre;
-      await this.cargarEstacionamientos({ silencioso: true, evitarCache: true });
-      void this.sincronizarRecintoEnSegundoPlano(recinto);
-    } finally {
-      if (silencioso) {
-        this.cargandoEstacionamientos = false;
-      } else {
-        this.esperandoRecinto = false;
-      }
-
-      if (loading) {
-        await this.ui.dismissLoading(loading);
-      }
-    }
-  }
-
-  private async mostrarSelectorRecintoSiCorresponde(): Promise<void> {
-    if (this.alertaRecintosMostrada) {
-      return;
-    }
-
-    const recintos = this.recintosDisponibles;
-    const recintoGuardado = await this.authService.getRecintoSeleccionado();
-
-    if (recintos.length <= 1) {
-      this.alertaRecintosMostrada = true;
-      return;
-    }
-
-    if (
-      recintoGuardado &&
-      recintos.some(recinto => recinto.id === recintoGuardado.id)
-    ) {
-      this.recintoSeleccionadoId = recintoGuardado.id;
-      this.recintoSeleccionadoNombre = recintoGuardado.nombre;
-      this.esperandoRecinto = false;
-      this.alertaRecintosMostrada = true;
-      return;
-    }
-
-    const seleccionado =
-      recintoGuardado ?? recintos[0];
-    this.alertaRecintosMostrada = true;
-
-    const elegido = await this.seleccionarRecintoConAlert(
-      recintos,
-      seleccionado.id
-    );
-
-    if (!elegido) {
-      this.esperandoRecinto = false;
-      return;
-    }
-
-    await this.aplicarRecintoSeleccionado(elegido);
-  }
-
-  private async asegurarRecintoSeleccionado(): Promise<boolean> {
-    if (this.recintoSeleccionadoId != null) {
-      return true;
-    }
-
-    const recintos = this.recintosDisponibles;
-
-    if (!recintos.length) {
-      return true;
-    }
-
-    if (recintos.length === 1) {
-      const recinto = recintos[0];
-      if (this.recintoSeleccionadoId !== recinto.id) {
-        await this.authService.guardarRecintoSeleccionado(recinto);
-        this.recintoSeleccionadoId = recinto.id;
-        this.recintoSeleccionadoNombre = recinto.nombre;
-      }
-      return true;
-    }
-
-    await this.mostrarSelectorRecintoSiCorresponde();
-    return this.recintoSeleccionadoId != null;
-  }
-
-  private async seleccionarRecintoConAlert(
-    recintos: AuthRecinto[],
-    selectedId: number,
-    permitirCancelar = false
-  ): Promise<AuthRecinto | null> {
-    return new Promise<AuthRecinto | null>(resolve => {
-      void this.ui.presentAlert({
-        header: 'Selecciona un recinto',
-        cssClass: 'alert-recinto',
-        backdropDismiss: false,
-        inputs: recintos.map(recinto => ({
-          type: 'radio',
-          label: recinto.ubicacion?.trim()
-            ? `${recinto.nombre} - ${recinto.ubicacion}`
-            : recinto.nombre,
-          value: recinto.id,
-          checked: recinto.id === selectedId,
-        })),
-        buttons: [
-          ...(permitirCancelar
-            ? [
-                {
-                  text: 'Cancelar',
-                  role: 'cancel' as const,
-                  handler: () => resolve(null),
-                },
-              ]
-            : []),
-          {
-            text: 'Continuar',
-            handler: (recintoId: number) => {
-              resolve(recintos.find(recinto => recinto.id === recintoId) ?? null);
-            },
-          },
-        ],
-      });
-    });
-  }
-
 }

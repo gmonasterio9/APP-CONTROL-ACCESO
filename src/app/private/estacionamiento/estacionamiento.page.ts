@@ -4,14 +4,22 @@ import { NavController } from '@ionic/angular';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento-ingreso.model';
+import {
+  ingresoManualFueRegistrado,
+  IngresoManualVehiculosRequest,
+  normalizarObservaciones,
+  resolverPerfilIngresoManual,
+  TipoMedioVehiculo,
+  TipoPersonaIngreso,
+} from '../../core/models/ingreso-manual.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { AuthService } from '../../core/services/auth.service';
 import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
+import { IngresoManualService } from '../../core/services/ingreso-manual.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
-import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { PatenteUtil } from '../../core/utils/patente.util';
 
 @Component({
@@ -30,10 +38,15 @@ export class EstacionamientoPage implements OnDestroy {
   estadoScan: string | null = null;
   persNcorr: number | null = null;
 
+  /** Flujo: ingreso manual → seleccionar estacionamiento → registrar. */
+  modoIngresoManual = false;
+  private imTipoPersona: TipoPersonaIngreso | null = null;
+  private imTipoMedio: TipoMedioVehiculo | null = null;
+  private imObservaciones = '';
+
   estacionamientos: EstacionamientoCard[] = [];
   cargandoEstacionamientos = false;
   errorEstacionamientos: string | null = null;
-  private recintoSeleccionadoId: number | null = null;
   private catalogoSub?: Subscription;
 
   constructor(
@@ -43,7 +56,8 @@ export class EstacionamientoPage implements OnDestroy {
     private authService: AuthService,
     private network: NetworkService,
     private offlineService: OfflineService,
-    private estacionamientoService: EstacionamientoService
+    private estacionamientoService: EstacionamientoService,
+    private ingresoManualService: IngresoManualService
   ) {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
     this.credencial = this.route.snapshot.queryParamMap.get('credencial');
@@ -56,6 +70,21 @@ export class EstacionamientoPage implements OnDestroy {
     const persParsed = persNcorrParam != null ? Number(persNcorrParam) : NaN;
     this.persNcorr =
       Number.isFinite(persParsed) && persParsed > 0 ? persParsed : null;
+
+    this.modoIngresoManual =
+      this.route.snapshot.queryParamMap.get('modo') === 'ingreso-manual';
+    if (this.modoIngresoManual) {
+      const tipoPersona = this.route.snapshot.queryParamMap.get('tipoPersona');
+      const tipoMedio = this.route.snapshot.queryParamMap.get('tipoMedio');
+      this.imTipoPersona = (tipoPersona as TipoPersonaIngreso) || null;
+      this.imTipoMedio =
+        tipoMedio === 'auto' || tipoMedio === 'moto' || tipoMedio === 'bicicleta'
+          ? tipoMedio
+          : null;
+      this.imObservaciones = normalizarObservaciones(
+        this.route.snapshot.queryParamMap.get('observaciones') ?? ''
+      );
+    }
   }
 
   ionViewWillEnter(): void {
@@ -79,8 +108,6 @@ export class EstacionamientoPage implements OnDestroy {
   }
 
   private async inicializarPagina(): Promise<void> {
-    const recinto = await this.authService.getRecintoSeleccionado();
-    this.recintoSeleccionadoId = recinto?.id ?? null;
     await this.cargarEstacionamientos();
   }
 
@@ -104,7 +131,84 @@ export class EstacionamientoPage implements OnDestroy {
       return;
     }
 
+    if (this.modoIngresoManual) {
+      await this.registrarDesdeIngresoManual(e);
+      return;
+    }
+
     await this.ingresar(e);
+  }
+
+  private async registrarDesdeIngresoManual(
+    e: EstacionamientoCard
+  ): Promise<void> {
+    if (!this.imTipoPersona || !this.imTipoMedio) {
+      await this.ui.presentToast('Faltan datos del ingreso manual.', {
+        color: 'warning',
+      });
+      return;
+    }
+
+    const rut = String(this.rut ?? '').trim();
+    const nombre = (this.nombre ?? '').trim();
+    if (!rut || !nombre) {
+      await this.ui.presentToast(
+        'Faltan RUT o nombre para registrar el ingreso.',
+        { color: 'warning' }
+      );
+      return;
+    }
+
+    const acreNcorr = e.id;
+
+    const body: IngresoManualVehiculosRequest = {
+      tipoPersona: this.imTipoPersona,
+      tipoMedio: this.imTipoMedio,
+      rut,
+      nombre,
+      observaciones: this.imObservaciones,
+      acreNcorr,
+    };
+
+    if (this.imTipoMedio === 'auto' || this.imTipoMedio === 'moto') {
+      const patente = PatenteUtil.toApi(String(this.patente ?? ''));
+      if (!patente) {
+        await this.ui.presentToast('Falta la patente.', { color: 'warning' });
+        return;
+      }
+      body.patente = patente;
+    }
+
+    const loading = await this.ui.presentLoading('Registrando ingreso...');
+
+    try {
+      const res = await firstValueFrom(this.ingresoManualService.registrar(body));
+      await this.ui.dismissLoading(loading);
+
+      if (!ingresoManualFueRegistrado(res)) {
+        await this.ui.presentToast(
+          res.message || 'No se pudo registrar el ingreso.',
+          { color: 'warning' }
+        );
+        return;
+      }
+
+      const sede = await this.authService.getSede();
+      await this.navCtrl.navigateRoot('/confirmacion', {
+        queryParams: {
+          nombre,
+          sede: sede?.nombre ?? e.ubicacion,
+          perfil: this.perfil ?? this.imTipoPersona,
+          patente: body.patente ?? null,
+        },
+      });
+    } catch (err: unknown) {
+      await this.ui.dismissLoading(loading);
+      await this.ui.presentToast(
+        mensajeErrorUsuario(err, 'Error al registrar el ingreso.'),
+        { color: 'danger' }
+      );
+    }
   }
 
   async ingresar(e: EstacionamientoCard): Promise<void> {
@@ -128,6 +232,7 @@ export class EstacionamientoPage implements OnDestroy {
     const nombreReal = (this.nombre ?? '').trim() || null;
 
     if (rechazado) {
+      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
       await this.navCtrl.navigateForward('/ingreso-manual', {
         queryParams: {
           nombre: nombreReal,
@@ -138,6 +243,7 @@ export class EstacionamientoPage implements OnDestroy {
             ? PatenteUtil.inferirMedio(PatenteUtil.toApi(this.patente)) ?? 'auto'
             : null,
           aeseNcorr: e.id,
+          acreNcorr: acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : e.id,
           estacionamiento: e.nombre,
           origen: this.origen,
         },
@@ -147,7 +253,7 @@ export class EstacionamientoPage implements OnDestroy {
 
     const nombre = nombreReal ?? (this.patente ? this.patente : 'Visitante');
 
-    const body = await this.buildIngresoBody();
+    const body = await this.buildIngresoBody(e.id);
     if (!body) {
       await this.ui.presentToast(
         'Faltan datos para confirmar el ingreso del vehículo.',
@@ -191,11 +297,13 @@ export class EstacionamientoPage implements OnDestroy {
     }
   }
 
-  private async buildIngresoBody(): Promise<EstacionamientoIngresoRequest | null> {
-    const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
-    if (acreNcorr === null) {
-      return null;
-    }
+  private async buildIngresoBody(
+    estacionamientoId?: number
+  ): Promise<EstacionamientoIngresoRequest | null> {
+    const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+    const acreNcorr = acreNcorrValidoParaRequest(acreDesdeAuth)
+      ? acreDesdeAuth
+      : estacionamientoId;
 
     const patente = PatenteUtil.toApi(String(this.patente ?? ''));
     if (patente) {
@@ -229,6 +337,10 @@ export class EstacionamientoPage implements OnDestroy {
   }
 
   volver(): void {
+    if (this.modoIngresoManual) {
+      void this.navCtrl.back();
+      return;
+    }
     void this.navCtrl.navigateRoot('/home');
   }
 
@@ -244,8 +356,13 @@ export class EstacionamientoPage implements OnDestroy {
     }
 
     try {
+      const acreNcorr = this.modoIngresoManual
+        ? undefined
+        : await this.authService.resolverAcreNcorrParaOperar();
       this.estacionamientos = await firstValueFrom(
-        this.estacionamientoService.listar(this.recintoSeleccionadoId ?? undefined)
+        this.estacionamientoService.listar(
+          acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : undefined
+        )
       );
     } catch (err: unknown) {
       if (!(await this.cargarEstacionamientosDesdeCache())) {
@@ -273,5 +390,4 @@ export class EstacionamientoPage implements OnDestroy {
     this.errorEstacionamientos = null;
     return true;
   }
-
 }

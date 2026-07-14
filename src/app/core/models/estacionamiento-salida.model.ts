@@ -1,5 +1,6 @@
 export interface EstacionamientoSalidaRequest {
   patente: string;
+  acreNcorr?: number;
 }
 
 export interface EstacionamientoSalidaResponse {

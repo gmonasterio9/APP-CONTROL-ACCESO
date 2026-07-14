@@ -218,19 +218,11 @@ export class OfflineService {
               catchError(() => of(null as EstacionamientoCard[] | null))
             ),
     }).pipe(
-      switchMap(({ resumen, detalle, estacionamientos }) =>
-        this.cargarDetallesEstacionamientos(
-          omitirEstacionamientos ? [] : estacionamientos ?? [],
-          acreNcorr
-        ).pipe(
-          map(estacionamientosDetalle => ({
-            resumenPeatonal: resumen ?? undefined,
-            detallePeatonal: detalle ?? undefined,
-            estacionamientos: estacionamientos ?? undefined,
-            estacionamientosDetalle,
-          }))
-        )
-      )
+      map(({ resumen, detalle, estacionamientos }) => ({
+        resumenPeatonal: resumen ?? undefined,
+        detallePeatonal: detalle ?? undefined,
+        estacionamientos: estacionamientos ?? undefined,
+      }))
     );
   }
 
@@ -251,28 +243,23 @@ export class OfflineService {
             );
 
     return lista$.pipe(
-      switchMap(estacionamientos =>
-        this.cargarDetallesEstacionamientos(estacionamientos, acreNcorr).pipe(
-          map(estacionamientosDetalle => ({
-            estacionamientos,
-            estacionamientosDetalle,
-          }))
+      map(estacionamientos => ({
+        estacionamientos,
+      })),
+      switchMap(parcial =>
+        from(this.getCatalogoAlmacenado()).pipe(
+          map(existente => {
+            const base =
+              existente ??
+              ({
+                sincronizadoEn: new Date().toISOString(),
+                personas: [],
+                patentes: [],
+              } satisfies OfflineCatalogoAccesoView);
+            return this.fusionarCatalogo(base, parcial, acreNcorr);
+          })
         )
       ),
-        switchMap(parcial =>
-          from(this.getCatalogoAlmacenado()).pipe(
-            map(existente => {
-              const base =
-                existente ??
-                ({
-                  sincronizadoEn: new Date().toISOString(),
-                  personas: [],
-                  patentes: [],
-                } satisfies OfflineCatalogoAccesoView);
-              return this.fusionarCatalogo(base, parcial, acreNcorr);
-            })
-          )
-        ),
       switchMap(catalogo =>
         from(this.persistirCatalogo(catalogo, acreNcorr, false)).pipe(map(() => catalogo))
       )
@@ -408,14 +395,7 @@ export class OfflineService {
       return true;
     }
 
-    if (!catalogo.estacionamientos?.length) {
-      return true;
-    }
-
-    const detalles = catalogo.estacionamientosDetalle ?? {};
-    return !catalogo.estacionamientos.every(
-      est => detalles[est.id]?.disponibilidad != null
-    );
+    return !catalogo.estacionamientos?.length;
   }
 
   async necesitaDetallesRecinto(acreNcorr?: number | null): Promise<boolean> {

@@ -15,8 +15,9 @@ import {
   EstacionamientoIngresoRequest,
   EstacionamientoIngresoResponse,
 } from '../models/estacionamiento-ingreso.model';
-import { EstacionamientoSalidaResponse } from '../models/estacionamiento-salida.model';
+import { EstacionamientoSalidaRequest, EstacionamientoSalidaResponse } from '../models/estacionamiento-salida.model';
 import { assertApiSuccess } from '../utils/api-response.util';
+import { acreNcorrValidoParaRequest } from '../utils/acre-ncorr.util';
 import {
   VehiculosActivosQuery,
   VehiculosActivosResponse,
@@ -50,12 +51,15 @@ export class EstacionamientoService {
   }
 
   obtenerDisponibilidad(
-    acreNcorr: number,
+    acreNcorr?: number,
     nombreFallback = 'Estacionamiento'
   ): Observable<EstacionamientoDisponibilidadView> {
+    const query =
+      acreNcorr != null && acreNcorr > 0 ? `?acreNcorr=${acreNcorr}` : '';
+
     return this.api
       .get<EstacionamientoDisponibilidadResponse>(
-        `/estacionamiento/disponibilidad?acreNcorr=${acreNcorr}`
+        `/estacionamiento/disponibilidad${query}`
       )
       .pipe(
         switchMap(res => {
@@ -88,11 +92,17 @@ export class EstacionamientoService {
       .pipe(map(assertEstacionamientoIngresoOk));
   }
 
-  registrarSalida(patente: string): Observable<EstacionamientoSalidaResponse> {
+  registrarSalida(
+    patente: string,
+    acreNcorr?: number | null
+  ): Observable<EstacionamientoSalidaResponse> {
+    const body: EstacionamientoSalidaRequest = {
+      patente: patente.trim().toUpperCase(),
+      ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
+    };
+
     return this.api
-      .post<EstacionamientoSalidaResponse>('/estacionamiento/salida', {
-        patente: patente.trim().toUpperCase(),
-      })
+      .post<EstacionamientoSalidaResponse>('/estacionamiento/salida', body)
       .pipe(
         switchMap(res => {
           assertApiSuccess(res);

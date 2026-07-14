@@ -94,7 +94,19 @@
     flex-shrink: 0;
   }
 
-  svg { flex-shrink: 0; }
+  svg {
+    flex-shrink: 0;
+  }
+
+  &.active {
+    background: transparent;
+  }
+}
+
+.im-divider {
+  height: 1px;
+  background: #EAECF0;
+  margin-top: 12px;
 }
 
 .im-input {
@@ -108,55 +120,45 @@
   font-weight: 400;
   line-height: 22px;
   padding: 0;
-  box-sizing: border-box;
 
-  &::placeholder {
-    color: #B0B8C1;
-  }
+  &::placeholder { color: #B0B8C1; }
 
   &--patente {
     text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-}
-
-.im-divider {
-  height: 1px;
-  background: #E4E7EC;
-  margin-top: 8px;
 }
 
 .im-hint {
   margin: 6px 0 0;
+  font-family: Roboto, sans-serif;
   font-size: 12px;
-  color: #6a7282;
+  color: #6A7282;
 
-  &--error {
-    color: #cc0000;
-  }
+  &--error { color: #CC0000; }
 }
 
 .im-obs-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 10px;
 
-  .im-label { margin-bottom: 0; }
+  .im-label { margin: 0; }
 }
 
 .im-obs-counter {
   color: #6A7282;
   font-family: Roboto, sans-serif;
   font-size: 12px;
-  font-weight: 400;
 }
 
 .im-textarea {
   width: 100%;
   border: none;
   outline: none;
-  background: transparent;
   resize: none;
+  background: transparent;
   color: #101828;
   font-family: Roboto, sans-serif;
   font-size: 15px;

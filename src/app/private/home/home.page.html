@@ -2,22 +2,6 @@
   <ion-toolbar class="home-toolbar">
     <ion-title>Sistema Unificado de Control</ion-title>
   </ion-toolbar>
-  @if (puedeCambiarRecinto) {
-    <ion-toolbar class="recinto-toolbar">
-      <button
-        type="button"
-        class="recinto-bar"
-        [class.recinto-bar--disabled]="!puedeCambiarRecinto"
-        (click)="cambiarRecinto()">
-        <div class="recinto-bar__content">
-          <span class="recinto-bar__name">Recinto: {{ recintoSeleccionadoNombre }}</span>
-          @if (puedeCambiarRecinto) {
-            <ion-icon name="chevron-down-outline" class="recinto-bar__icon"></ion-icon>
-          }
-        </div>
-      </button>
-    </ion-toolbar>
-  }
 </ion-header>
 
 <ion-content class="home-content">

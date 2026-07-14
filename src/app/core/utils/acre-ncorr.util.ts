@@ -8,10 +8,6 @@ export function resolverAcreNcorrDesdeRecintos(
     return undefined;
   }
 
-  if (recintosVigentes.length === 1) {
-    return recintosVigentes[0].id;
-  }
-
   if (
     recintoSeleccionado &&
     recintosVigentes.some(recinto => recinto.id === recintoSeleccionado.id)
@@ -19,7 +15,7 @@ export function resolverAcreNcorrDesdeRecintos(
     return recintoSeleccionado.id;
   }
 
-  return null;
+  return recintosVigentes[0].id;
 }
 
 export function acreNcorrValidoParaRequest(

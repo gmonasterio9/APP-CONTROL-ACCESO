@@ -350,10 +350,11 @@ export class AuthService {
       ubicacion: recinto.acreTubicacion,
       vigente: recinto.acreNvigencia === 1,
     }));
+    const vigentes = recintos.filter(recinto => recinto.vigente);
     const recintoConfirmado =
-      recintos.length <= 1
-        ? recintos[0] ?? null
-        : recintos.find(r => r.id === response.recintoDefaultAcreNcorr) ?? null;
+      vigentes.find(r => r.id === response.recintoDefaultAcreNcorr) ??
+      vigentes[0] ??
+      null;
 
     await this.offlineService.clearCatalogo();
 

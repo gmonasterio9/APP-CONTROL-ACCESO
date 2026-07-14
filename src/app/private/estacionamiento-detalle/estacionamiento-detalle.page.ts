@@ -13,6 +13,7 @@ import {
   VehiculoActivoView,
 } from '../../core/models/estacionamiento-disponibilidad.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
@@ -112,8 +113,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
 
     this.aeseNcorr = parsed;
-    const recinto = await this.authService.getRecintoSeleccionado();
-    this.acreNcorr = recinto?.id ?? 0;
+    const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+    this.acreNcorr = acreNcorrValidoParaRequest(acreDesdeAuth)
+      ? acreDesdeAuth
+      : parsed;
     this.catalogoSub?.unsubscribe();
     this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
       void this.refrescarDesdeCacheLocal();
@@ -150,6 +153,13 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
   get filtrosActivos(): boolean {
     return this.filtroTipoPersona != null || this.filtroTipoIngreso != null;
+  }
+
+  get mostrarFiltroVehiculos(): boolean {
+    return (
+      this.opcionesFiltroPersona.length > 1 ||
+      this.opcionesFiltroIngreso.length > 1
+    );
   }
 
   colorCirculo(c: CupoCategoriaView): string {
@@ -255,7 +265,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
     try {
       const res = await firstValueFrom(
-        this.estacionamientoService.registrarSalida(v.patente)
+        this.estacionamientoService.registrarSalida(v.patente, this.acreNcorr)
       );
       await this.ui.dismissLoading(loading);
 
@@ -306,7 +316,9 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   async cargarDisponibilidad(opciones?: { silencioso?: boolean }): Promise<void> {
-    if (this.acreNcorr == null || this.acreNcorr < 0) {
+    if (!acreNcorrValidoParaRequest(this.acreNcorr)) {
+      this.cupos = [];
+      this.errorCupos = 'Debe seleccionar un recinto para ver la disponibilidad.';
       return;
     }
 
@@ -353,6 +365,17 @@ export class EstacionamientoDetallePage implements OnDestroy {
     reset: boolean,
     opciones?: { silencioso?: boolean }
   ): Promise<void> {
+    if (!acreNcorrValidoParaRequest(this.acreNcorr)) {
+      if (reset) {
+        this.vehiculos = [];
+        this.totalRegistrosVehiculos = 0;
+        this.totalPaginasVehiculos = 0;
+        this.errorVehiculos =
+          'Debe seleccionar un recinto para ver los vehículos.';
+      }
+      return;
+    }
+
     if (reset) {
       this.paginaVehiculos = 1;
       if (!opciones?.silencioso) {
@@ -404,7 +427,9 @@ export class EstacionamientoDetallePage implements OnDestroy {
           page: this.paginaVehiculos,
           pageSize: this.pageSizeVehiculos,
           patente: this.busqueda.trim() || undefined,
-          acreNcorr: this.acreNcorr ?? undefined,
+          acreNcorr: acreNcorrValidoParaRequest(this.acreNcorr)
+            ? this.acreNcorr
+            : undefined,
         })
       );
 
@@ -541,7 +566,9 @@ export class EstacionamientoDetallePage implements OnDestroy {
   private async cargarVehiculosConFiltroCliente(): Promise<void> {
     const paramsBase = {
       patente: this.busqueda.trim() || undefined,
-      acreNcorr: this.acreNcorr ?? undefined,
+      acreNcorr: acreNcorrValidoParaRequest(this.acreNcorr)
+        ? this.acreNcorr
+        : undefined,
     };
 
     const primera = await firstValueFrom(
@@ -618,7 +645,9 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
       const paramsBase = {
         patente: this.busqueda.trim() || undefined,
-        acreNcorr: this.acreNcorr ?? undefined,
+        acreNcorr: acreNcorrValidoParaRequest(this.acreNcorr)
+          ? this.acreNcorr
+          : undefined,
       };
       const primera = await firstValueFrom(
         this.estacionamientoService.listarVehiculosActivos({
@@ -668,6 +697,13 @@ export class EstacionamientoDetallePage implements OnDestroy {
       this.filtroTipoIngreso &&
       !this.opcionesFiltroIngreso.some(o => o.value === this.filtroTipoIngreso)
     ) {
+      this.filtroTipoIngreso = null;
+      this.filtroTipoIngresoDraft = null;
+    }
+
+    if (!this.mostrarFiltroVehiculos && this.filtrosActivos) {
+      this.filtroTipoPersona = null;
+      this.filtroTipoPersonaDraft = null;
       this.filtroTipoIngreso = null;
       this.filtroTipoIngresoDraft = null;
     }
