@@ -91,6 +91,18 @@ ion-footer {
   align-items: center;
 }
 
+
+ion-toast {
+  --background: #333333;
+  --color: #ffffff;
+  color: #ffffff;
+}
+
+ion-toast::part(message),
+ion-toast::part(header) {
+  color: #ffffff;
+}
+
 .action-sheet-cancel .action-sheet-button-inner {
   color: #CC0000 !important;
 }
