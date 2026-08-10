@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, firstValueFrom, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Sede, SedesApiResponse } from '../models/sede.model';
+import { SEDES_DEFAULT, mergeSedes } from '../models/sedes.default';
 import { ApiHttpService } from './api-http.service';
 import { AppStorageService } from './app-storage.service';
 
@@ -20,9 +21,20 @@ export class SedesService {
     void this.refreshAndCache().catch(() => undefined);
   }
 
+  /** Listado local inmediato, sin esperar red ni storage. */
+  getSedesInmediatas(): Sede[] {
+    return [...SEDES_DEFAULT];
+  }
+
   async getCachedSedes(): Promise<Sede[]> {
     const cached = await this.storage.get<Sede[]>(this.CACHE_KEY);
-    return Array.isArray(cached) ? cached : [];
+    if (Array.isArray(cached) && cached.length) {
+      return mergeSedes(SEDES_DEFAULT, cached);
+    }
+
+    const locales = this.getSedesInmediatas();
+    await this.storage.set(this.CACHE_KEY, locales);
+    return locales;
   }
 
   refreshSedes(): Observable<Sede[]> {
@@ -44,9 +56,17 @@ export class SedesService {
   }
 
   private async fetchAndPersist(): Promise<Sede[]> {
-    const sedes = await firstValueFrom(this.fetchFromApi());
-    await this.storage.set(this.CACHE_KEY, sedes);
-    return sedes;
+    const actuales = await this.getCachedSedes();
+
+    try {
+      const remotas = await firstValueFrom(this.fetchFromApi());
+      const sedes = mergeSedes(actuales, remotas);
+      await this.storage.set(this.CACHE_KEY, sedes);
+      return sedes;
+    } catch (err) {
+      await this.storage.set(this.CACHE_KEY, actuales);
+      throw err;
+    }
   }
 
   private fetchFromApi(): Observable<Sede[]> {

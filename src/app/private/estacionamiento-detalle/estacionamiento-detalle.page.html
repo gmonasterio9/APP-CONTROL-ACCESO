@@ -90,18 +90,16 @@
           placeholder="Buscar patente"
           [(ngModel)]="busqueda"
           (ngModelChange)="onBusquedaPatente()" />
+        @if (busqueda.trim()) {
+          <button
+            type="button"
+            class="busqueda-limpiar"
+            aria-label="Limpiar búsqueda"
+            (click)="limpiarBusqueda()">
+            <ion-icon name="close-circle"></ion-icon>
+          </button>
+        }
       </div>
-      @if (mostrarFiltroVehiculos) {
-        <button
-          type="button"
-          class="filtro-btn"
-          aria-label="Filtrar vehículos"
-          (click)="abrirFiltroModal()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" class="filtro-icono" aria-hidden="true">
-            <path d="M5.85049 13.3333C5.61438 13.3333 5.41646 13.2535 5.25674 13.0937C5.09702 12.934 5.01716 12.7361 5.01716 12.5V7.5L0.183824 1.33333C-0.0245098 1.05555 -0.0557598 0.763888 0.0900735 0.458333C0.235907 0.152778 0.489379 0 0.85049 0H12.5172C12.8783 0 13.1317 0.152778 13.2776 0.458333C13.4234 0.763888 13.3922 1.05555 13.1838 1.33333L8.35049 7.5V12.5C8.35049 12.7361 8.27063 12.934 8.11091 13.0937C7.95118 13.2535 7.75327 13.3333 7.51716 13.3333H5.85049Z" fill="currentColor"/>
-          </svg>
-        </button>
-      }
     </div>
 
     @if (errorVehiculos && vehiculos.length === 0) {
@@ -186,77 +184,3 @@
 
 </ion-content>
 
-<ion-modal #filtroModal cssClass="modal-filtro-vehiculos">
-  <ng-template>
-    <ion-content class="filtro-modal-content">
-      <div class="filtro-modal-body">
-        <button
-          type="button"
-          class="filtro-modal-cerrar"
-          aria-label="Cerrar"
-          (click)="cerrarFiltroModal()">
-          <ion-icon name="close-outline"></ion-icon>
-        </button>
-
-        <div class="filtro-field-block">
-          <p class="filtro-label">Tipo de persona</p>
-          <div class="filtro-chip-group">
-            @for (opcion of opcionesFiltroPersona; track opcion.value) {
-              <button
-                type="button"
-                class="filtro-chip"
-                [class.active]="filtroTipoPersonaDraft === opcion.value"
-                (click)="seleccionarFiltroPersona(opcion.value)">
-                @if (filtroTipoPersonaDraft === opcion.value) {
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M7 14C5.61553 14 4.26215 13.5895 3.11101 12.8203C1.95987 12.0511 1.06266 10.9579 0.532846 9.67879C0.00303298 8.3997 -0.13559 6.99224 0.134506 5.63437C0.404603 4.2765 1.07129 3.02922 2.05026 2.05026C3.02922 1.07129 4.2765 0.404603 5.63437 0.134506C6.99224 -0.13559 8.3997 0.00303298 9.67879 0.532846C10.9579 1.06266 12.0511 1.95987 12.8203 3.11101C13.5895 4.26215 14 5.61553 14 7C13.998 8.85589 13.2598 10.6352 11.9475 11.9475C10.6352 13.2598 8.85589 13.998 7 14ZM3.087 6.013L2.1 7L5.6 10.5L11.2 4.9L10.213 3.906L5.6 8.519L3.087 6.013Z" fill="#1D78BF"/>
-                  </svg>
-                } @else {
-                  <span class="chip-radio"></span>
-                }
-                {{ opcion.label }}
-              </button>
-            }
-            @if (opcionesFiltroPersona.length === 0) {
-              <p class="filtro-vacio">Sin tipos disponibles</p>
-            }
-          </div>
-        </div>
-
-        <div class="filtro-field-block">
-          <p class="filtro-label">Tipo de ingreso</p>
-          <div class="filtro-chip-group">
-            @for (opcion of opcionesFiltroIngreso; track opcion.value) {
-              <button
-                type="button"
-                class="filtro-chip"
-                [class.active]="filtroTipoIngresoDraft === opcion.value"
-                (click)="seleccionarFiltroIngreso(opcion.value)">
-                @if (filtroTipoIngresoDraft === opcion.value) {
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M7 14C5.61553 14 4.26215 13.5895 3.11101 12.8203C1.95987 12.0511 1.06266 10.9579 0.532846 9.67879C0.00303298 8.3997 -0.13559 6.99224 0.134506 5.63437C0.404603 4.2765 1.07129 3.02922 2.05026 2.05026C3.02922 1.07129 4.2765 0.404603 5.63437 0.134506C6.99224 -0.13559 8.3997 0.00303298 9.67879 0.532846C10.9579 1.06266 12.0511 1.95987 12.8203 3.11101C13.5895 4.26215 14 5.61553 14 7C13.998 8.85589 13.2598 10.6352 11.9475 11.9475C10.6352 13.2598 8.85589 13.998 7 14ZM3.087 6.013L2.1 7L5.6 10.5L11.2 4.9L10.213 3.906L5.6 8.519L3.087 6.013Z" fill="#1D78BF"/>
-                  </svg>
-                } @else {
-                  <span class="chip-radio"></span>
-                }
-                {{ opcion.label }}
-              </button>
-            }
-            @if (opcionesFiltroIngreso.length === 0) {
-              <p class="filtro-vacio">Sin tipos disponibles</p>
-            }
-          </div>
-        </div>
-
-        <div class="filtro-acciones">
-          <button type="button" class="btn-filtro-limpiar" (click)="limpiarFiltrosModal()">
-            Limpiar
-          </button>
-          <ion-button class="btn-filtro-aplicar" (click)="aplicarFiltrosModal()">
-            Aplicar
-          </ion-button>
-        </div>
-      </div>
-    </ion-content>
-  </ng-template>
-</ion-modal>

@@ -55,9 +55,27 @@ function mapVehiculo(item: VehiculoActivoApi): VehiculoActivoView {
 }
 
 export function mapVehiculosActivos(res: VehiculosActivosResponse): VehiculosActivosView {
+  const pag = res.paginacion ?? {
+    pagina: 1,
+    tamanoPagina: 10,
+    totalRegistros: 0,
+    totalPaginas: 0,
+  };
+
+  const totalRegistros = Number(pag.totalRegistros) || 0;
+  const tamanoPagina = Number(pag.tamanoPagina) || 10;
+  const totalPaginas =
+    Number(pag.totalPaginas) ||
+    (totalRegistros > 0 ? Math.ceil(totalRegistros / tamanoPagina) : 0);
+
   return {
     sedeCcod: res.sedeCcod,
-    paginacion: res.paginacion,
+    paginacion: {
+      pagina: Number(pag.pagina) || 1,
+      tamanoPagina,
+      totalRegistros,
+      totalPaginas,
+    },
     vehiculos: (res.vehiculos ?? []).map(mapVehiculo),
   };
 }
@@ -65,7 +83,9 @@ export function mapVehiculosActivos(res: VehiculosActivosResponse): VehiculosAct
 export function buildVehiculosActivosQuery(params: VehiculosActivosQuery): string {
   const q = new URLSearchParams();
   q.set('page', String(params.page ?? 1));
-  q.set('pageSize', String(params.pageSize ?? 10));
+
+  const pageSize = Math.min(50, Math.max(1, params.pageSize ?? 50));
+  q.set('pageSize', String(pageSize));
 
   const patente = params.patente?.trim();
   if (patente) {

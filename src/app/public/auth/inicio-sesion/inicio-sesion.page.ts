@@ -41,6 +41,7 @@ export class InicioSesionPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.mostrarSedesLocales();
     void this.loadSedes();
   }
 
@@ -51,8 +52,9 @@ export class InicioSesionPage implements OnInit {
     }
 
     if (!this.sedes.length) {
-      void this.loadSedes();
+      this.mostrarSedesLocales();
     }
+    void this.loadSedes();
   }
 
   get pin() { return this.form.get('pin')!; }
@@ -65,30 +67,29 @@ export class InicioSesionPage implements OnInit {
 
   async loadSedes(): Promise<void> {
     this.sedesLoadError = false;
-    const cached = await this.sedesService.getCachedSedes();
+    this.loadingSedes = false;
 
-    if (cached.length > 0) {
-      this.sedes = cached;
-      this.loadingSedes = false;
-      this.sedesLoadError = false;
-      await this.restaurarSedeGuardada();
-      this.actualizarSedesEnSegundoPlano();
-      return;
+    if (!this.sedes.length) {
+      this.mostrarSedesLocales();
     }
 
-    this.loadingSedes = true;
-    this.sedesService.refreshSedes().subscribe({
-      next: async sedes => {
-        this.sedes = sedes;
-        this.loadingSedes = false;
-        this.sedesLoadError = sedes.length === 0;
+    try {
+      const cached = await this.sedesService.getCachedSedes();
+      if (cached.length) {
+        this.sedes = cached;
         await this.restaurarSedeGuardada();
-      },
-      error: () => {
-        this.loadingSedes = false;
-        this.sedesLoadError = true;
-      },
-    });
+      }
+    } catch {
+      /* El listado local ya está visible. */
+    }
+
+    this.actualizarSedesEnSegundoPlano();
+  }
+
+  private mostrarSedesLocales(): void {
+    this.sedes = this.sedesService.getSedesInmediatas();
+    this.loadingSedes = false;
+    this.sedesLoadError = false;
   }
 
   private actualizarSedesEnSegundoPlano(): void {
@@ -99,7 +100,7 @@ export class InicioSesionPage implements OnInit {
         await this.restaurarSedeGuardada();
       },
       error: () => {
-        /* Mantiene el listado en caché sin molestar al usuario. */
+        this.sedesLoadError = this.sedes.length === 0;
       },
     });
   }
