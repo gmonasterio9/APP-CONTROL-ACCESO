@@ -117,7 +117,8 @@
   --padding-end: 38px;
   --padding-top: 13px;
   --padding-bottom: 13px;
-  width: clamp(160px, 45vw, 200px);
+  width: clamp(160px, 70vw, 200px);
+  max-width: 100%;
   margin: 0;
   text-transform: none !important;
 
@@ -126,5 +127,23 @@
     font-size: var(--font-size-body);
     font-weight: var(--font-weight-regular);
     text-transform: none !important;
+  }
+}
+
+@media (max-width: 380px), (max-height: 740px) {
+  .sedes-modal-header ion-toolbar {
+    --min-height: 48px;
+  }
+
+  .modal-close-btn ion-icon {
+    font-size: 24px;
+  }
+
+  .sedes-searchbar {
+    padding: 8px 12px;
+  }
+
+  .sede-option {
+    --min-height: 44px;
   }
 }

@@ -159,7 +159,9 @@ export class EstacionamientoPage implements OnDestroy {
       return;
     }
 
-    const acreNcorr = e.id;
+    const acreNcorr = acreNcorrValidoParaRequest(e.acreNcorr)
+      ? e.acreNcorr
+      : undefined;
 
     const body: IngresoManualVehiculosRequest = {
       tipoPersona: this.imTipoPersona,
@@ -167,7 +169,7 @@ export class EstacionamientoPage implements OnDestroy {
       rut,
       nombre,
       observaciones: this.imObservaciones,
-      acreNcorr,
+      ...(acreNcorr != null ? { acreNcorr } : {}),
     };
 
     if (this.imTipoMedio === 'auto' || this.imTipoMedio === 'moto') {
@@ -232,7 +234,12 @@ export class EstacionamientoPage implements OnDestroy {
     const nombreReal = (this.nombre ?? '').trim() || null;
 
     if (rechazado) {
-      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
+      const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+      const acreNcorr = acreNcorrValidoParaRequest(e.acreNcorr)
+        ? e.acreNcorr
+        : acreNcorrValidoParaRequest(acreDesdeAuth)
+          ? acreDesdeAuth
+          : null;
       await this.navCtrl.navigateForward('/ingreso-manual', {
         queryParams: {
           nombre: nombreReal,
@@ -242,8 +249,8 @@ export class EstacionamientoPage implements OnDestroy {
           tipoMedio: this.patente
             ? PatenteUtil.inferirMedio(PatenteUtil.toApi(this.patente)) ?? 'auto'
             : null,
-          aeseNcorr: e.id,
-          acreNcorr: acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : e.id,
+          aeseNcorr: e.aeseNcorr,
+          acreNcorr,
           estacionamiento: e.nombre,
           origen: this.origen,
         },
@@ -253,7 +260,7 @@ export class EstacionamientoPage implements OnDestroy {
 
     const nombre = nombreReal ?? (this.patente ? this.patente : 'Visitante');
 
-    const body = await this.buildIngresoBody(e.id);
+    const body = await this.buildIngresoBody(e);
     if (!body) {
       await this.ui.presentToast(
         'Faltan datos para confirmar el ingreso del vehículo.',
@@ -298,21 +305,22 @@ export class EstacionamientoPage implements OnDestroy {
   }
 
   private async buildIngresoBody(
-    estacionamientoId?: number
+    e: EstacionamientoCard
   ): Promise<EstacionamientoIngresoRequest | null> {
+    // Preferir acreNcorr del estacionamiento seleccionado; si no, el de sesión; si no, omitir.
     const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
-    const acreNcorr = acreNcorrValidoParaRequest(acreDesdeAuth)
-      ? acreDesdeAuth
-      : estacionamientoId;
+    const acreNcorr = acreNcorrValidoParaRequest(e.acreNcorr)
+      ? e.acreNcorr
+      : acreNcorrValidoParaRequest(acreDesdeAuth)
+        ? acreDesdeAuth
+        : undefined;
 
     const patente = PatenteUtil.toApi(String(this.patente ?? ''));
     if (patente) {
-      return acreNcorrValidoParaRequest(acreNcorr)
-        ? { patente, acreNcorr }
-        : { patente };
+      return acreNcorr != null ? { patente, acreNcorr } : { patente };
     }
     if (this.persNcorr != null && this.persNcorr > 0) {
-      return acreNcorrValidoParaRequest(acreNcorr)
+      return acreNcorr != null
         ? { persNcorr: this.persNcorr, acreNcorr }
         : { persNcorr: this.persNcorr };
     }

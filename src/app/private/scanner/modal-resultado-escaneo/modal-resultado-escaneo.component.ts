@@ -45,6 +45,9 @@ export class ModalResultadoEscaneoComponent {
   @Input() escaneoPorEmail = false;
   @Input() codigoEscaneado?: string;
   @Input() email?: string;
+  @Input() pendienteSalida = false;
+  @Input() acreNcorr?: number | null;
+  @Input() aeseNcorr?: number | null;
 
   constructor(private modalCtrl: ModalController) {}
 
@@ -57,14 +60,15 @@ export class ModalResultadoEscaneoComponent {
   }
 
   get tituloModal(): string {
+    if (this.pendienteSalida) {
+      return 'Acceso Autorizado';
+    }
+
     if (this.titulo) {
       return this.titulo;
     }
 
     if (this.tipo === 'patente') {
-      if (this.titulo) {
-        return this.titulo;
-      }
       return this.estado === 'autorizado'
         ? 'Acceso Autorizado'
         : 'Acceso No Autorizado';
@@ -77,6 +81,10 @@ export class ModalResultadoEscaneoComponent {
   }
 
   get subtitulo(): string {
+    if (this.pendienteSalida) {
+      return '';
+    }
+
     if (this.mensaje && this.mensaje !== this.titulo) {
       return this.mensaje;
     }
@@ -94,11 +102,15 @@ export class ModalResultadoEscaneoComponent {
 
   /** Autorizado, rechazado y expirado: peatonal + estacionamiento (excepto escaneo de patente). */
   get mostrarAccesoPeatonal(): boolean {
-    return !this.esAccesoBloqueado && this.tipo !== 'patente';
+    return (
+      !this.pendienteSalida &&
+      !this.esAccesoBloqueado &&
+      this.tipo !== 'patente'
+    );
   }
 
   get mostrarAccesoEstacionamiento(): boolean {
-    return !this.esAccesoBloqueado;
+    return !this.pendienteSalida && !this.esAccesoBloqueado;
   }
 
   get mostrarOpcionesAcceso(): boolean {
@@ -145,6 +157,22 @@ export class ModalResultadoEscaneoComponent {
         escaneoPorEmail: this.escaneoPorEmail,
         codigoEscaneado: this.codigoEscaneado,
         email: this.email,
+      },
+      'accion'
+    );
+  }
+
+  confirmarSalida() {
+    this.modalCtrl.dismiss(
+      {
+        via: 'salida',
+        tipo: this.tipo,
+        estado: this.estado,
+        nombre: this.nombre,
+        patente: this.plateResult?.plate,
+        perfil: this.perfilDescripcion ?? this.perfil,
+        acreNcorr: this.acreNcorr,
+        aeseNcorr: this.aeseNcorr,
       },
       'accion'
     );

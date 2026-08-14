@@ -203,5 +203,25 @@
   line-height: normal;
   text-align: center;
   margin: 0;
-  width: 280px;
+  width: min(280px, 100%);
+}
+
+@media (max-height: 740px) {
+  .im-header-block {
+    padding: 12px 16px 10px;
+  }
+
+  .im-titulo {
+    font-size: 20px;
+    line-height: 26px;
+    margin-bottom: 6px;
+  }
+
+  .im-field-block {
+    padding: 10px 16px;
+  }
+
+  .btn-aprobar-wrap {
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  }
 }

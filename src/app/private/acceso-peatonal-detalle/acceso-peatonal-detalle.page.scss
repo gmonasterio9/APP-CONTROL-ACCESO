@@ -23,6 +23,21 @@
   margin-bottom: 16px;
 }
 
+@media (max-height: 740px) {
+  .det-header {
+    padding: 12px 16px 10px;
+    margin-bottom: 10px;
+  }
+
+  .det-titulo {
+    font-size: 18px;
+  }
+
+  .stats-row {
+    margin-bottom: 12px;
+  }
+}
+
 .det-titulo {
   color:       #040B15;
   font-family: Roboto, sans-serif;

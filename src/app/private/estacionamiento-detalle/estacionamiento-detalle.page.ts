@@ -75,25 +75,37 @@ export class EstacionamientoDetallePage implements OnDestroy {
   ) {}
 
   async ionViewWillEnter(): Promise<void> {
-    const idParam = this.route.snapshot.queryParamMap.get('aeseNcorr');
-    const parsed = idParam != null ? Number(idParam) : NaN;
+    const aeseParam = this.route.snapshot.queryParamMap.get('aeseNcorr');
+    const acreParam = this.route.snapshot.queryParamMap.get('acreNcorr');
+    const aeseParsed = aeseParam != null ? Number(aeseParam) : NaN;
+    const acreParsed = acreParam != null ? Number(acreParam) : NaN;
 
     this.nombre =
       this.route.snapshot.queryParamMap.get('nombre') ?? 'Estacionamiento';
     const ubicacion = this.route.snapshot.queryParamMap.get('ubicacion');
     this.subtitulo = ubicacion?.trim() || 'Registro de vehículos';
 
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    this.aeseNcorr =
+      Number.isFinite(aeseParsed) && aeseParsed > 0 ? aeseParsed : null;
+    this.acreNcorr =
+      Number.isFinite(acreParsed) && acreParsed > 0 ? acreParsed : null;
+
+    if (this.acreNcorr == null) {
+      const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
+      this.acreNcorr = acreNcorrValidoParaRequest(acreDesdeAuth)
+        ? acreDesdeAuth
+        : null;
+    }
+
+    if (
+      !acreNcorrValidoParaRequest(this.acreNcorr) &&
+      (this.aeseNcorr == null || this.aeseNcorr <= 0)
+    ) {
       this.errorCupos = 'Estacionamiento no válido.';
       return;
     }
 
-    this.aeseNcorr = parsed;
     this.busqueda = '';
-    const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
-    this.acreNcorr = acreNcorrValidoParaRequest(acreDesdeAuth)
-      ? acreDesdeAuth
-      : parsed;
     this.catalogoSub?.unsubscribe();
     this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
       void this.refrescarDesdeCacheLocal();
@@ -199,7 +211,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
 
     try {
       const res = await firstValueFrom(
-        this.estacionamientoService.registrarSalida(v.patente, this.acreNcorr)
+        this.estacionamientoService.registrarSalida(v.patente, {
+          acreNcorr: this.acreNcorr,
+          aeseNcorr: this.aeseNcorr,
+        })
       );
       await this.ui.dismissLoading(loading);
 
@@ -236,7 +251,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   async refrescarDetalle(event?: RefresherCustomEvent): Promise<void> {
-    if (this.aeseNcorr == null) {
+    if (
+      !acreNcorrValidoParaRequest(this.acreNcorr) &&
+      (this.aeseNcorr == null || this.aeseNcorr <= 0)
+    ) {
       await event?.target.complete();
       return;
     }
@@ -250,9 +268,12 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   async cargarDisponibilidad(opciones?: { silencioso?: boolean }): Promise<void> {
-    if (!acreNcorrValidoParaRequest(this.acreNcorr)) {
+    if (
+      !acreNcorrValidoParaRequest(this.acreNcorr) &&
+      (this.aeseNcorr == null || this.aeseNcorr <= 0)
+    ) {
       this.cupos = [];
-      this.errorCupos = 'Debe seleccionar un recinto para ver la disponibilidad.';
+      this.errorCupos = 'Estacionamiento no válido.';
       return;
     }
 
@@ -273,7 +294,10 @@ export class EstacionamientoDetallePage implements OnDestroy {
     try {
       const data = await firstValueFrom(
         this.estacionamientoService.obtenerDisponibilidad(
-          this.acreNcorr,
+          {
+            acreNcorr: this.acreNcorr,
+            aeseNcorr: this.aeseNcorr,
+          },
           this.nombre
         )
       );
@@ -299,13 +323,15 @@ export class EstacionamientoDetallePage implements OnDestroy {
     reset: boolean,
     opciones?: { silencioso?: boolean }
   ): Promise<void> {
-    if (!acreNcorrValidoParaRequest(this.acreNcorr)) {
+    if (
+      !acreNcorrValidoParaRequest(this.acreNcorr) &&
+      (this.aeseNcorr == null || this.aeseNcorr <= 0)
+    ) {
       if (reset) {
         this.vehiculos = [];
         this.totalRegistrosVehiculos = 0;
         this.totalPaginasVehiculos = 0;
-        this.errorVehiculos =
-          'Debe seleccionar un recinto para ver los vehículos.';
+        this.errorVehiculos = 'Estacionamiento no válido.';
       }
       return;
     }
@@ -343,7 +369,12 @@ export class EstacionamientoDetallePage implements OnDestroy {
           page: this.paginaVehiculos,
           pageSize: this.pageSizeVehiculos,
           patente: this.busqueda.trim() || undefined,
-          acreNcorr: this.acreNcorr!,
+          ...(acreNcorrValidoParaRequest(this.acreNcorr)
+            ? { acreNcorr: this.acreNcorr! }
+            : {}),
+          ...(this.aeseNcorr != null && this.aeseNcorr > 0
+            ? { aeseNcorr: this.aeseNcorr }
+            : {}),
         })
       );
 
@@ -406,7 +437,12 @@ export class EstacionamientoDetallePage implements OnDestroy {
             page: this.paginaVehiculos,
             pageSize: this.pageSizeVehiculos,
             patente: this.busqueda.trim() || undefined,
-            acreNcorr: this.acreNcorr!,
+            ...(acreNcorrValidoParaRequest(this.acreNcorr)
+              ? { acreNcorr: this.acreNcorr! }
+              : {}),
+            ...(this.aeseNcorr != null && this.aeseNcorr > 0
+              ? { aeseNcorr: this.aeseNcorr }
+              : {}),
           })
         );
 
@@ -480,12 +516,13 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   private async cargarDisponibilidadDesdeCache(): Promise<boolean> {
-    if (this.aeseNcorr == null) {
+    const cacheKey = this.aeseNcorr ?? this.acreNcorr;
+    if (cacheKey == null) {
       return false;
     }
 
     const cache = await this.offlineService.getEstacionamientoDetalleOffline(
-      this.aeseNcorr
+      cacheKey
     );
     if (!cache?.disponibilidad) {
       this.cupos = [];
@@ -499,7 +536,8 @@ export class EstacionamientoDetallePage implements OnDestroy {
   }
 
   private async cargarVehiculosDesdeCache(reset: boolean): Promise<boolean> {
-    if (this.aeseNcorr == null) {
+    const cacheKey = this.aeseNcorr ?? this.acreNcorr;
+    if (cacheKey == null) {
       return false;
     }
 
@@ -508,7 +546,7 @@ export class EstacionamientoDetallePage implements OnDestroy {
     }
 
     const cache = await this.offlineService.getEstacionamientoDetalleOffline(
-      this.aeseNcorr
+      cacheKey
     );
     if (!cache?.vehiculosActivos) {
       this.vehiculos = [];

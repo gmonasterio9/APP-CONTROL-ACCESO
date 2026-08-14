@@ -63,6 +63,27 @@
   margin: 0;
 }
 
+@media (max-height: 740px) {
+  .conf-center {
+    padding: 20px 16px;
+  }
+
+  .conf-circle {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+  }
+
+  .conf-check {
+    font-size: 28px;
+  }
+
+  .conf-titulo {
+    font-size: 20px;
+    line-height: 26px;
+  }
+}
+
 .conf-detalle {
   color: #6A7282;
   font-family: Roboto, sans-serif;

@@ -54,14 +54,26 @@ ion-footer {
 } 
 
 .modal-75 {
-  --height: 60%;
-  --width: calc(100% - 48px);
+  --height: min(82vh, 620px);
+  --max-height: min(90vh, calc(100% - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  --width: min(420px, calc(100% - 24px));
   --border-radius: 16px;
   --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  --background: #fff;
   align-items: center;
 
+  &::part(content) {
+    max-height: var(--max-height);
+    overflow: hidden;
+    background: #fff;
+  }
+
   &--bloqueado {
-    --height: 40%;
+    --height: min(48vh, 360px);
+  }
+
+  &--salida {
+    --height: min(52vh, 420px);
   }
 
   .btn-cancelar {
@@ -203,10 +215,17 @@ body.barcode-scanning-active {
 }
 
 body.barcode-scanning-active ion-app,
-body.barcode-scanning-active ion-content,
-body.barcode-scanning-active ion-router-outlet {
+body.barcode-scanning-active ion-router-outlet,
+body.barcode-scanning-active app-scanner ion-content {
   background: transparent !important;
   --background: transparent !important;
+}
+
+body.barcode-scanning-active ion-modal,
+body.barcode-scanning-active ion-modal ion-content,
+body.barcode-scanning-active ion-modal ion-footer {
+  background: #fff !important;
+  --background: #fff !important;
 }
 
 body.barcode-scanning-active app-scanner {
@@ -224,3 +243,5 @@ body.barcode-scanning-active .scanner-overlay {
     rgba(0,0,0,0.75) 100%
   );
 }
+
+@import "./theme/compact.scss";

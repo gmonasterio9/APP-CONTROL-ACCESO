@@ -25,6 +25,8 @@ export interface EstacionamientoListResponse {
 
 export interface EstacionamientoCard {
   id: number;
+  acreNcorr: number | null;
+  aeseNcorr: number | null;
   nombre: string;
   ubicacion: string;
   cuposDisponibles: number;
@@ -32,8 +34,14 @@ export interface EstacionamientoCard {
   hinicioVespertino: string;
 }
 
+function ncorrPositivo(value?: number | null): number | null {
+  return typeof value === 'number' && value > 0 ? value : null;
+}
+
 export function mapEstacionamientoCard(item: EstacionamientoItem): EstacionamientoCard {
-  const id = item.acreNcorr ?? item.aeseNcorr ?? 0;
+  const acreNcorr = ncorrPositivo(item.acreNcorr);
+  const aeseNcorr = ncorrPositivo(item.aeseNcorr);
+  const id = aeseNcorr ?? acreNcorr ?? 0;
   const nombre = item.acreTnombre ?? item.aeseTnombre ?? 'Estacionamiento';
   const ubicacion =
     item.acreTubicacion?.trim() ||
@@ -44,6 +52,8 @@ export function mapEstacionamientoCard(item: EstacionamientoItem): Estacionamien
 
   return {
     id,
+    acreNcorr,
+    aeseNcorr,
     nombre,
     ubicacion,
     cuposDisponibles: item.totales.disponibles,

@@ -34,6 +34,7 @@ export class HomePage implements OnDestroy {
   private catalogoSub?: Subscription;
   private sincronizandoCacheOffline = false;
   private suprimirRefreshCatalogo = false;
+  private catalogoAccesoSync: Promise<void> | null = null;
 
   tiposEscaneo = [
     { id: 'credencial', label: 'Credencial', svg: 'assets/svg/credencial.svg', color: '#FEEB80' },
@@ -96,6 +97,8 @@ export class HomePage implements OnDestroy {
 
   private async inicializarHome(): Promise<void> {
     await this.hidratarDesdeCacheLocal();
+    // Una sola sync de catálogo-acceso; el resto de cache espera ese resultado.
+    this.catalogoAccesoSync = this.sincronizarCatalogoAccesoEnSegundoPlano();
     void this.cargarResumenPeatonal({ silencioso: true });
     void this.cargarEstacionamientos({ silencioso: true });
     void this.sincronizarCacheOfflineEnSegundoPlano();
@@ -119,6 +122,28 @@ export class HomePage implements OnDestroy {
     }
   }
 
+  private async sincronizarCatalogoAccesoEnSegundoPlano(): Promise<void> {
+    if (!(await this.network.hayInternet())) {
+      return;
+    }
+
+    if (!(await this.offlineService.necesitaCatalogoBase())) {
+      return;
+    }
+
+    try {
+      const estacionamientoSesion =
+        await this.authService.getEstacionamientoSesion();
+      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
+      await this.authService.sincronizarCatalogoBaseOffline(
+        estacionamientoSesion,
+        acreNcorr
+      );
+    } catch (err: unknown) {
+      console.warn('No se pudo sincronizar /offline/catalogo-acceso.', err);
+    }
+  }
+
   private async sincronizarCacheOfflineEnSegundoPlano(): Promise<void> {
     if (this.sincronizandoCacheOffline) {
       return;
@@ -132,7 +157,9 @@ export class HomePage implements OnDestroy {
     this.suprimirRefreshCatalogo = true;
 
     try {
-      const estacionamientoSesion = await this.authService.getEstacionamientoSesion();
+      // Esperar la sync única; no volver a llamar /offline/catalogo-acceso.
+      await this.catalogoAccesoSync;
+
       const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
       const catalogo = await this.offlineService.getCatalogo();
 
@@ -144,13 +171,6 @@ export class HomePage implements OnDestroy {
         await this.authService.sincronizarSoloRecintoOffline(
           acreNcorr,
           this.estacionamientos
-        );
-      }
-
-      if (await this.offlineService.necesitaCatalogoBase()) {
-        await this.authService.sincronizarCatalogoBaseOffline(
-          estacionamientoSesion,
-          acreNcorr
         );
       }
 
@@ -203,7 +223,8 @@ export class HomePage implements OnDestroy {
 
     this.navCtrl.navigateForward('/estacionamiento-detalle', {
       queryParams: {
-        aeseNcorr: e.id,
+        aeseNcorr: e.aeseNcorr,
+        acreNcorr: e.acreNcorr,
         nombre: e.nombre,
         ubicacion: e.ubicacion,
       },

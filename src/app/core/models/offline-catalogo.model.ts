@@ -153,22 +153,32 @@ export function buildEstacionamientosCacheUrl(acreNcorr?: number | null): string
   return '/estacionamiento';
 }
 
-export function buildEstacionamientoDisponibilidadCacheUrl(
-  acreNcorr?: number | null
-): string {
-  if (acreNcorr != null && acreNcorr > 0) {
-    return `/estacionamiento/disponibilidad?acreNcorr=${acreNcorr}`;
+export function buildEstacionamientoDisponibilidadCacheUrl(opts?: {
+  acreNcorr?: number | null;
+  aeseNcorr?: number | null;
+}): string {
+  const q = new URLSearchParams();
+  if (opts?.acreNcorr != null && opts.acreNcorr > 0) {
+    q.set('acreNcorr', String(opts.acreNcorr));
   }
-  return '/estacionamiento/disponibilidad';
+  if (opts?.aeseNcorr != null && opts.aeseNcorr > 0) {
+    q.set('aeseNcorr', String(opts.aeseNcorr));
+  }
+  const query = q.toString();
+  return query
+    ? `/estacionamiento/disponibilidad?${query}`
+    : '/estacionamiento/disponibilidad';
 }
 
-export function buildEstacionamientoVehiculosCacheUrl(
-  acreNcorr?: number | null
-): string {
+export function buildEstacionamientoVehiculosCacheUrl(opts?: {
+  acreNcorr?: number | null;
+  aeseNcorr?: number | null;
+}): string {
   return `/estacionamiento/vehiculos-activos?${buildVehiculosActivosQuery({
     page: 1,
     pageSize: 10,
-    acreNcorr: acreNcorr ?? undefined,
+    acreNcorr: opts?.acreNcorr ?? undefined,
+    aeseNcorr: opts?.aeseNcorr ?? undefined,
   })}`;
 }
 

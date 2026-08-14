@@ -3,10 +3,12 @@ import {
   Observable,
   Subject,
   catchError,
+  finalize,
   forkJoin,
   from,
   map,
   of,
+  shareReplay,
   switchMap,
 } from 'rxjs';
 import { EstacionamientoDisponibilidadResponse } from '../models/estacionamiento-disponibilidad.model';
@@ -55,6 +57,13 @@ export class OfflineService {
   private readonly RECINTO_KEY = 'auth_recinto';
   private readonly catalogoActualizadoSubject = new Subject<void>();
   readonly catalogoActualizado$ = this.catalogoActualizadoSubject.asObservable();
+  private catalogoWriteChain: Promise<void> = Promise.resolve();
+  private catalogoBaseEnVuelo: Observable<OfflineCatalogoAccesoView> | null =
+    null;
+  /** Sube en logout/login para descartar persists de una sync anterior. */
+  private catalogoGeneracion = 0;
+  /** Tras login siempre se vuelve a pedir el catálogo base. */
+  private forzarSyncCatalogoBase = false;
 
   constructor(
     private api: ApiHttpService,
@@ -83,8 +92,16 @@ export class OfflineService {
     estacionamientoSesion?: LoginEstacionamientoSesion | null,
     acreNcorr?: number | null
   ): Observable<OfflineCatalogoAccesoView> {
-    return this.api
-      .get<OfflineCatalogoAccesoResponse>('/offline/catalogo-acceso')
+    if (this.catalogoBaseEnVuelo) {
+      return this.catalogoBaseEnVuelo;
+    }
+
+    const generacion = this.catalogoGeneracion;
+
+    this.catalogoBaseEnVuelo = this.api
+      .get<OfflineCatalogoAccesoResponse>('/offline/catalogo-acceso', {
+        timeoutMs: 300_000,
+      })
       .pipe(
         map(res =>
           this.completarCatalogo(
@@ -93,19 +110,42 @@ export class OfflineService {
             acreNcorr
           )
         ),
-        switchMap(catalogoBase =>
-          from(this.getCatalogoAlmacenado()).pipe(
+        switchMap(catalogoBase => {
+          if (generacion !== this.catalogoGeneracion) {
+            return of(catalogoBase);
+          }
+          return from(this.getCatalogoAlmacenado()).pipe(
             map(existente =>
               existente
                 ? this.fusionarCatalogo(existente, catalogoBase, acreNcorr)
                 : catalogoBase
             )
-          )
-        ),
-        switchMap(catalogo =>
-          from(this.persistirCatalogo(catalogo, acreNcorr, false)).pipe(map(() => catalogo))
-        )
+          );
+        }),
+        switchMap(catalogo => {
+          if (generacion !== this.catalogoGeneracion) {
+            return of(catalogo);
+          }
+          return from(this.persistirCatalogo(catalogo, acreNcorr, false)).pipe(
+            map(() => catalogo)
+          );
+        }),
+        map(catalogo => {
+          if (generacion === this.catalogoGeneracion) {
+            this.forzarSyncCatalogoBase = false;
+          }
+          return catalogo;
+        }),
+        finalize(() => {
+          // No anular una sync más nueva iniciada tras logout/login.
+          if (generacion === this.catalogoGeneracion) {
+            this.catalogoBaseEnVuelo = null;
+          }
+        }),
+        shareReplay({ bufferSize: 1, refCount: true })
       );
+
+    return this.catalogoBaseEnVuelo;
   }
 
   sincronizarPeatonalCache(): Observable<Partial<OfflineCatalogoAccesoView>> {
@@ -381,7 +421,20 @@ export class OfflineService {
   }
 
   async necesitaCatalogoBase(): Promise<boolean> {
+    if (this.forzarSyncCatalogoBase) {
+      return true;
+    }
     return !(await this.tieneCatalogoBase());
+  }
+
+  /** Llamar en login/logout: limpia cache e invalida syncs en curso. */
+  async invalidarCatalogoPorNuevaSesion(): Promise<void> {
+    this.catalogoGeneracion += 1;
+    this.catalogoBaseEnVuelo = null;
+    this.forzarSyncCatalogoBase = true;
+    await this.enqueueCatalogoWrite(async () => {
+      await this.storage.remove(OFFLINE_CATALOGO_STORAGE_KEY);
+    });
   }
 
   async necesitaSyncRecinto(acreNcorr?: number | null): Promise<boolean> {
@@ -421,9 +474,17 @@ export class OfflineService {
     }
 
     const contextoActual = await this.obtenerContextoActual();
-    const sedeCatalogo = catalogo.sedeCcod ?? null;
+    const sedeCatalogo =
+      catalogo.sedeCcod != null ? Number(catalogo.sedeCcod) : null;
+    const sedeActual =
+      contextoActual.sedeCcod != null ? Number(contextoActual.sedeCcod) : null;
 
-    if (sedeCatalogo !== contextoActual.sedeCcod) {
+    // Solo invalidar si ambas sedes están definidas y no coinciden.
+    if (
+      sedeCatalogo != null &&
+      sedeActual != null &&
+      sedeCatalogo !== sedeActual
+    ) {
       await this.storage.remove(OFFLINE_CATALOGO_STORAGE_KEY);
       return null;
     }
@@ -448,11 +509,34 @@ export class OfflineService {
       ...base,
       ...actualizacion,
       acreNcorr: acreNcorr ?? base.acreNcorr ?? null,
-      personas: actualizacion.personas ?? base.personas,
-      patentes: actualizacion.patentes ?? base.patentes,
+      // No dejar que un [] de un persist parcial (resumen/estacionamientos) borre el catálogo base.
+      personas: this.preferirListaConDatos(actualizacion.personas, base.personas),
+      patentes: this.preferirListaConDatos(actualizacion.patentes, base.patentes),
       estacionamiento: actualizacion.estacionamiento ?? base.estacionamiento,
       sincronizadoEn: new Date().toISOString(),
     };
+  }
+
+  private preferirListaConDatos<T>(
+    nuevo?: T[] | null,
+    base?: T[] | null
+  ): T[] {
+    if (nuevo != null && nuevo.length > 0) {
+      return nuevo;
+    }
+    if (base != null && base.length > 0) {
+      return base;
+    }
+    return nuevo ?? base ?? [];
+  }
+
+  private enqueueCatalogoWrite<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.catalogoWriteChain.then(fn, fn);
+    this.catalogoWriteChain = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
   }
 
   async getEstacionamientoOffline(): Promise<LoginEstacionamientoSesion | null> {
@@ -514,7 +598,7 @@ export class OfflineService {
   }
 
   async clearCatalogo(): Promise<void> {
-    await this.storage.remove(OFFLINE_CATALOGO_STORAGE_KEY);
+    await this.invalidarCatalogoPorNuevaSesion();
   }
 
   async aplicarAjusteLocalPorOperacion(
@@ -569,42 +653,58 @@ export class OfflineService {
 
   private cargarDetallesEstacionamientos(
     estacionamientos: EstacionamientoCard[],
-    acreNcorr?: number | null
+    _acreNcorr?: number | null
   ): Observable<Record<number, OfflineEstacionamientoDetalleCache>> {
     if (!estacionamientos.length) {
       return of({});
     }
 
-    return forkJoin({
-      disponibilidad: this.api
-        .get<EstacionamientoDisponibilidadResponse>(
-          buildEstacionamientoDisponibilidadCacheUrl(acreNcorr)
-        )
-        .pipe(catchError(() => of(null))),
-      vehiculosActivos: this.api
-        .get<VehiculosActivosResponse>(
-          buildEstacionamientoVehiculosCacheUrl(acreNcorr)
-        )
-        .pipe(
-          map(mapVehiculosActivosEstacionamientoDesdeApi),
-          catchError(() => of(null))
-        ),
-    }).pipe(
-      map(({ disponibilidad, vehiculosActivos }) => {
-        const mapa: Record<number, OfflineEstacionamientoDetalleCache> = {};
-
-        for (const est of estacionamientos) {
-          mapa[est.id] = {
-            aeseNcorr: est.id,
+    const porEstacionamiento = estacionamientos.map(est =>
+      forkJoin({
+        disponibilidad: this.api
+          .get<EstacionamientoDisponibilidadResponse>(
+            buildEstacionamientoDisponibilidadCacheUrl({
+              acreNcorr: est.acreNcorr,
+              aeseNcorr: est.aeseNcorr,
+            })
+          )
+          .pipe(catchError(() => of(null))),
+        vehiculosActivos: this.api
+          .get<VehiculosActivosResponse>(
+            buildEstacionamientoVehiculosCacheUrl({
+              acreNcorr: est.acreNcorr,
+              aeseNcorr: est.aeseNcorr,
+            })
+          )
+          .pipe(
+            map(mapVehiculosActivosEstacionamientoDesdeApi),
+            catchError(() => of(null))
+          ),
+      }).pipe(
+        map(({ disponibilidad, vehiculosActivos }) => ({
+          id: est.id,
+          detalle: {
+            aeseNcorr: est.aeseNcorr ?? est.id,
             nombre: est.nombre,
             ubicacion: est.ubicacion,
             disponibilidad: disponibilidad
-              ? mapDisponibilidadEstacionamientoDesdeApi(disponibilidad, est.nombre)
+              ? mapDisponibilidadEstacionamientoDesdeApi(
+                  disponibilidad,
+                  est.nombre
+                )
               : undefined,
             vehiculosActivos: vehiculosActivos ?? undefined,
-          };
-        }
+          } satisfies OfflineEstacionamientoDetalleCache,
+        }))
+      )
+    );
 
+    return forkJoin(porEstacionamiento).pipe(
+      map(items => {
+        const mapa: Record<number, OfflineEstacionamientoDetalleCache> = {};
+        for (const item of items) {
+          mapa[item.id] = item.detalle;
+        }
         return mapa;
       })
     );
@@ -615,19 +715,37 @@ export class OfflineService {
     acreNcorr?: number | null,
     notificar = true
   ): Promise<void> {
-    const contextoActual = await this.obtenerContextoActual();
-    await this.storage.set(OFFLINE_CATALOGO_STORAGE_KEY, {
-      ...catalogo,
-      sedeCcod: catalogo.sedeCcod ?? contextoActual.sedeCcod ?? undefined,
-      acreNcorr:
-        acreNcorr ??
-        catalogo.acreNcorr ??
-        contextoActual.acreNcorr ??
-        null,
-    });
+    const generacionAlSolicitar = this.catalogoGeneracion;
+    await this.enqueueCatalogoWrite(async () => {
+      // Logout/login invalidó esta sync: no reescribir el storage.
+      if (generacionAlSolicitar !== this.catalogoGeneracion) {
+        return;
+      }
 
-    if (notificar) {
-      this.notificarCatalogoActualizado();
-    }
+      const contextoActual = await this.obtenerContextoActual();
+      // Re-leer dentro de la cola: un persist paralelo no puede pisar personas/patentes.
+      const existente = await this.getCatalogoAlmacenado();
+      const aGuardar = existente
+        ? this.fusionarCatalogo(
+            existente,
+            catalogo,
+            acreNcorr ?? catalogo.acreNcorr
+          )
+        : catalogo;
+
+      await this.storage.set(OFFLINE_CATALOGO_STORAGE_KEY, {
+        ...aGuardar,
+        sedeCcod: aGuardar.sedeCcod ?? contextoActual.sedeCcod ?? undefined,
+        acreNcorr:
+          acreNcorr ??
+          aGuardar.acreNcorr ??
+          contextoActual.acreNcorr ??
+          null,
+      });
+
+      if (notificar) {
+        this.notificarCatalogoActualizado();
+      }
+    });
   }
 }

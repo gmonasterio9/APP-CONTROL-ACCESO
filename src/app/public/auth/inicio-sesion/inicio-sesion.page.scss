@@ -6,9 +6,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   min-height: 100%;
-  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-xl);
+  padding: max(var(--spacing-lg), env(safe-area-inset-top))
+    var(--spacing-md)
+    max(var(--spacing-xl), env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -19,17 +21,20 @@
   width: 100%;
   max-width: 480px;
   gap: var(--spacing-lg);
+  min-width: 0;
 }
 
 .login-card {
   width: 100%;
+  max-width: 100%;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   margin: 0;
   background: var(--color-surface);
+  overflow: hidden;
 
   ion-card-content {
-    padding: clamp(20px, 6vw, 40px);
+    padding: clamp(16px, 5vw, 40px);
   }
 }
 
@@ -39,8 +44,9 @@
   margin-bottom: var(--spacing-md);
 
   .logo {
-    height: clamp(32px, 6vw, 48px);
+    height: clamp(28px, 6vw, 48px);
     width: auto;
+    max-width: 100%;
   }
 }
 
@@ -58,7 +64,7 @@
   text-align: center;
   font-size: var(--font-size-subtitle);
   font-weight: var(--font-weight-regular);
-  line-height: normal;
+  line-height: 1.35;
   margin: 0 0 var(--spacing-lg);
 }
 
@@ -112,6 +118,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-family: inherit;
+  box-sizing: border-box;
 
   &:disabled {
     opacity: 0.55;
@@ -155,6 +162,8 @@
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-xl);
   width: 100%;
+  min-width: 0;
+  container-type: inline-size;
 
   .lock-icon {
     width: 20px;
@@ -163,7 +172,9 @@
   }
 
   .otp-input {
-    flex: 1;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     --background: var(--color-surface);
     --border-color: var(--color-border);
@@ -172,6 +183,11 @@
     --highlight-color-focused: var(--color-border);
     --highlight-color-valid: var(--color-border);
     --highlight-color-invalid: var(--color-border);
+    --min-width: 22px;
+    --width: clamp(22px, calc((100cqi - 36px) / 6), 44px);
+    --height: 48px;
+    --gap: clamp(2px, 1.2cqi, 8px);
+    font-size: 16px;
   }
 }
 
@@ -191,7 +207,8 @@
   --padding-end: 38px;
   --padding-top: 13px;
   --padding-bottom: 13px;
-  width: clamp(160px, 45vw, 200px);
+  width: clamp(160px, 70vw, 200px);
+  max-width: 100%;
   margin: 0;
   text-transform: none !important;
 
@@ -218,4 +235,74 @@
   text-underline-offset: auto;
   text-underline-position: from-font;
   cursor: pointer;
+}
+
+@media (max-width: 380px), (max-height: 740px) {
+  .login-content::part(scroll) {
+    justify-content: safe center;
+    padding: max(12px, env(safe-area-inset-top))
+      12px
+      max(16px, env(safe-area-inset-bottom));
+  }
+
+  .login-wrapper {
+    gap: 12px;
+  }
+
+  .login-card ion-card-content {
+    padding: 14px 12px 16px;
+  }
+
+  .logo-area {
+    margin-bottom: 8px;
+
+    .logo {
+      height: 28px;
+    }
+  }
+
+  .login-title {
+    font-size: 18px;
+  }
+
+  .login-subtitle {
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+
+  .sede-field {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+  }
+
+  .otp-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .otp-row .lock-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+  }
+
+  .otp-input {
+    --min-width: 22px;
+    --width: clamp(22px, calc((100cqi - 20px) / 6), 40px);
+    --height: 40px;
+    --gap: 4px;
+  }
+
+  .login-btn {
+    --padding-start: 24px;
+    --padding-end: 24px;
+    --padding-top: 11px;
+    --padding-bottom: 11px;
+  }
+
+  .privacy-link {
+    font-size: 13px;
+  }
 }

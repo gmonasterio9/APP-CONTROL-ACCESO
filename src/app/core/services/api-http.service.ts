@@ -26,6 +26,8 @@ export type { ApiHttpError } from '../utils/api-response.util';
 export interface ApiRequestOptions {
   noCache?: boolean;
   skipOfflineQueue?: boolean;
+  /** Timeout en ms (nativo CapacitorHttp). Útil para payloads lentos como catálogo-acceso. */
+  timeoutMs?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -215,9 +217,12 @@ export class ApiHttpService {
     }
 
     const url = this.buildAbsoluteUrl(path);
+    const timeoutMs = options?.timeoutMs ?? 120_000;
     const httpOptions = {
       url,
       headers,
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
       ...(body !== undefined ? { data: body } : {}),
     };
 

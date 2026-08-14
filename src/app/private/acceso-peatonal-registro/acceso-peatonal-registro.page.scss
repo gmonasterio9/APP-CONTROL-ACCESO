@@ -24,6 +24,17 @@
   margin-bottom: 8px;
 }
 
+@media (max-height: 740px) {
+  .apr-header-block {
+    padding: 12px 16px 10px;
+  }
+
+  .apr-titulo {
+    font-size: 20px;
+    line-height: 26px;
+  }
+}
+
 .apr-titulo {
   color: #101828;
   font-family: Roboto, sans-serif;

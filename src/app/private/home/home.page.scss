@@ -577,6 +577,43 @@
   color: var(--color-primary) !important;
 }
 
+@media (max-height: 740px) {
+  .scan-section {
+    padding: 12px 12px 8px;
+
+    .scan-title {
+      font-size: 18px;
+      line-height: 24px;
+    }
+
+    .scan-subtitle {
+      margin-bottom: 12px;
+    }
+  }
+
+  .tipo-row {
+    gap: 20px;
+    margin-bottom: 12px;
+
+    .tipo-icon {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  .home-segment {
+    min-height: 40px;
+  }
+
+  .logout-wrapper {
+    padding: 16px 12px 20px;
+  }
+
+  .stat-card .stat-valor {
+    font-size: 22px;
+  }
+}
+
 .btn-logout {
   --background: #FEFFFE;
   --background-activated: #f5f5f5;

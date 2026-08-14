@@ -497,9 +497,7 @@ export class IngresoManualPage implements OnInit {
     const origen = this.route.snapshot.queryParamMap.get('origen')?.trim();
     this.vieneDesdeScanner = !!origen;
 
-    const desdeQuery =
-      this.leerAcreNcorrQuery('acreNcorr') ??
-      this.leerAcreNcorrQuery('aeseNcorr');
+    const desdeQuery = this.leerNcorrQuery('acreNcorr');
     const desdeAuth = await this.authService.resolverAcreNcorrParaOperar();
 
     this.acreNcorrSeleccionado = acreNcorrValidoParaRequest(desdeAuth)
@@ -507,7 +505,7 @@ export class IngresoManualPage implements OnInit {
       : desdeQuery;
   }
 
-  private leerAcreNcorrQuery(param: string): number | null {
+  private leerNcorrQuery(param: string): number | null {
     const raw = this.route.snapshot.queryParamMap.get(param);
     const parsed = raw != null ? Number(raw) : NaN;
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -524,9 +522,8 @@ export class IngresoManualPage implements OnInit {
       return desdeAuth;
     }
 
-    const desdeQuery =
-      this.leerAcreNcorrQuery('acreNcorr') ??
-      this.leerAcreNcorrQuery('aeseNcorr');
+    // Solo acreNcorr (recinto). No usar aeseNcorr como acre.
+    const desdeQuery = this.leerNcorrQuery('acreNcorr');
     this.acreNcorrSeleccionado = desdeQuery;
     return desdeQuery;
   }

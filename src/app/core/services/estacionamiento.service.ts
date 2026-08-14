@@ -51,11 +51,17 @@ export class EstacionamientoService {
   }
 
   obtenerDisponibilidad(
-    acreNcorr?: number,
+    opts?: { acreNcorr?: number | null; aeseNcorr?: number | null },
     nombreFallback = 'Estacionamiento'
   ): Observable<EstacionamientoDisponibilidadView> {
-    const query =
-      acreNcorr != null && acreNcorr > 0 ? `?acreNcorr=${acreNcorr}` : '';
+    const q = new URLSearchParams();
+    if (opts?.acreNcorr != null && opts.acreNcorr > 0) {
+      q.set('acreNcorr', String(opts.acreNcorr));
+    }
+    if (opts?.aeseNcorr != null && opts.aeseNcorr > 0) {
+      q.set('aeseNcorr', String(opts.aeseNcorr));
+    }
+    const query = q.toString() ? `?${q}` : '';
 
     return this.api
       .get<EstacionamientoDisponibilidadResponse>(
@@ -94,11 +100,14 @@ export class EstacionamientoService {
 
   registrarSalida(
     patente: string,
-    acreNcorr?: number | null
+    opts?: { acreNcorr?: number | null; aeseNcorr?: number | null }
   ): Observable<EstacionamientoSalidaResponse> {
     const body: EstacionamientoSalidaRequest = {
       patente: patente.trim().toUpperCase(),
-      ...(acreNcorrValidoParaRequest(acreNcorr) ? { acreNcorr } : {}),
+      ...(acreNcorrValidoParaRequest(opts?.acreNcorr) ? { acreNcorr: opts!.acreNcorr! } : {}),
+      ...(opts?.aeseNcorr != null && opts.aeseNcorr > 0
+        ? { aeseNcorr: opts.aeseNcorr }
+        : {}),
     };
 
     return this.api

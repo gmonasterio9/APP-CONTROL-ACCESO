@@ -17,6 +17,32 @@ export class ValidarPatenteUtil {
     return res.success === true;
   }
 
+  static esPendienteSalida(res: ValidarPatenteResponse): boolean {
+    if (
+      res.ingresoActivo === true ||
+      res.dentro === true ||
+      res.salidaPendiente === true
+    ) {
+      return true;
+    }
+
+    const code = String(res.code ?? '').toLowerCase();
+    if (
+      code === 'salida' ||
+      code === 'ingreso_activo' ||
+      code === 'dentro'
+    ) {
+      return true;
+    }
+
+    const texto = [res.message, ...(res.messages ?? [])]
+      .join(' ')
+      .toLowerCase();
+    return /marcar la salida|ya se encuentra|ya ingres[oó]|ya est[aá]|ingreso activo|dentro del estacionamiento/.test(
+      texto
+    );
+  }
+
   static extraerTituloYMensaje(
     res: ValidarPatenteResponse
   ): { titulo?: string; mensaje?: string } {

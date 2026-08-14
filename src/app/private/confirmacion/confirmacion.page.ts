@@ -14,6 +14,7 @@ export class ConfirmacionPage {
   perfil:  string | null = null;
   patente: string | null = null;
   retorno: string | null = null;
+  accion: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -24,6 +25,7 @@ export class ConfirmacionPage {
     this.perfil = this.route.snapshot.queryParamMap.get('perfil') ?? 'Visita';
     this.patente = this.route.snapshot.queryParamMap.get('patente');
     this.retorno = this.route.snapshot.queryParamMap.get('retorno');
+    this.accion = this.route.snapshot.queryParamMap.get('accion');
   }
 
   cerrar(): void {

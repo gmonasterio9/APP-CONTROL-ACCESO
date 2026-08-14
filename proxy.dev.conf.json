@@ -4,6 +4,8 @@
     "secure": true,
     "changeOrigin": true,
     "logLevel": "debug",
+    "timeout": 300000,
+    "proxyTimeout": 300000,
     "pathRewrite": {
       "^/api": "/Inacap.Api.ControlAcceso.V2/api"
     }

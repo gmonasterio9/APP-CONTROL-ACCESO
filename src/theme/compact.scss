@@ -1,0 +1,31 @@
+ion-app,
+ion-content {
+  overflow-x: hidden;
+}
+
+ion-content {
+  --keyboard-offset: 0px;
+}
+
+@media (max-width: 380px), (max-height: 740px) {
+  ion-toolbar {
+    --min-height: 48px;
+  }
+
+  ion-title {
+    font-size: 16px;
+  }
+
+  ion-button {
+    --padding-top: 10px;
+    --padding-bottom: 10px;
+  }
+
+  ion-alert .alert-wrapper {
+    max-width: min(270px, calc(100vw - 32px));
+  }
+
+  ion-action-sheet .action-sheet-wrapper {
+    max-height: min(70vh, calc(100% - env(safe-area-inset-bottom)));
+  }
+}

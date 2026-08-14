@@ -37,6 +37,7 @@ export interface VehiculosActivosQuery {
   pageSize?: number;
   patente?: string;
   acreNcorr?: number;
+  aeseNcorr?: number;
   tipoPerfil?: string;
   tipoVehiculo?: string;
 }
@@ -94,6 +95,10 @@ export function buildVehiculosActivosQuery(params: VehiculosActivosQuery): strin
 
   if (params.acreNcorr != null && params.acreNcorr > 0) {
     q.set('acreNcorr', String(params.acreNcorr));
+  }
+
+  if (params.aeseNcorr != null && params.aeseNcorr > 0) {
+    q.set('aeseNcorr', String(params.aeseNcorr));
   }
 
   const tipoPerfil = params.tipoPerfil?.trim();

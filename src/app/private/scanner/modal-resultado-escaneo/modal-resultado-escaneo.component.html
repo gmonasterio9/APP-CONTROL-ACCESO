@@ -9,18 +9,27 @@
       <p class="modal-subtitulo">{{ subtitulo }}</p>
     }
 
-    @if (perfilDescripcion) {
+    @if (nombre) {
+      <p class="modal-nombre">{{ nombre }}</p>
+    }
+
+    @if (!pendienteSalida && perfilDescripcion) {
       <p class="modal-perfil">{{ perfilDescripcion }}</p>
     }
 
-    @if (tipo === 'patente' && plateResult) {
+    @if (credencial) {
+      <p class="modal-credencial">{{ credencial }}</p>
+    } @else if (tipo === 'patente' && plateResult) {
       <p class="modal-patente">{{ plateResult.plate }}</p>
     }
 
-    @if (mostrarOpcionesAcceso) {
+    @if (pendienteSalida) {
+      <p class="modal-pregunta modal-pregunta--salida">¿Deseas marcar la salida?</p>
+    } @else if (mostrarOpcionesAcceso) {
       <p class="modal-pregunta">{{ preguntaAcceso }}</p>
     }
 
+    @if (!pendienteSalida) {
     <div class="acceso-lista">
 
       @if (mostrarAccesoPeatonal) {
@@ -54,8 +63,15 @@
       }
 
     </div>
+    }
 
-    <button class="btn-cancelar" (click)="cerrar()">Cancelar</button>
-
+    @if (pendienteSalida) {
+      <div class="salida-acciones">
+        <button type="button" class="salida-btn" (click)="cerrar()">No, cancelar</button>
+        <button type="button" class="salida-btn" (click)="confirmarSalida()">Sí</button>
+      </div>
+    } @else {
+      <button type="button" class="btn-cancelar" (click)="cerrar()">Cancelar</button>
+    }
   </div>
 </ion-content>

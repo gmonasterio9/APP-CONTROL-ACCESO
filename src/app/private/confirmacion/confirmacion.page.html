@@ -5,7 +5,9 @@
       <ion-icon name="checkmark" class="conf-check"></ion-icon>
     </div>
 
-    @if (perfil === 'Visita') {
+    @if (accion === 'salida') {
+      <h1 class="conf-titulo">Salida registrada</h1>
+    } @else if (perfil === 'Visita') {
       <h1 class="conf-titulo">Visita Registrado</h1>
     } @else {
       <h1 class="conf-titulo">Ingreso Registrado</h1>
@@ -20,7 +22,7 @@
       <p class="conf-detalle">Sede: {{ sede }}</p>
     }
 
-    @if (perfil) {
+    @if (accion !== 'salida' && perfil) {
       <p class="conf-detalle">Perfil: {{ perfil }}</p>
     }
 

@@ -170,8 +170,11 @@ export class AuthService {
           acreNcorr ?? null
         )
       );
-    } catch {
-      console.warn('No se pudo sincronizar el catálogo base offline.');
+    } catch (err: unknown) {
+      console.warn(
+        'No se pudo sincronizar el catálogo base offline.',
+        err
+      );
     }
   }
 

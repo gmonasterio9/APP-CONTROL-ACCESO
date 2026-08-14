@@ -31,9 +31,12 @@ import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { AuthService } from '../../core/services/auth.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
+import { EstacionamientoService } from '../../core/services/estacionamiento.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { QrOfflineService } from '../../core/services/qr-offline.service';
 import { OfflineValidacionUtil } from '../../core/utils/offline-validacion.util';
+import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
+import { OfflineCatalogoAccesoView } from '../../core/models/offline-catalogo.model';
 import {
   ModalResultadoEscaneoComponent,
   TipoEscaneo,
@@ -98,6 +101,7 @@ export class ScannerPage implements OnDestroy {
     private authService: AuthService,
     private network: NetworkService,
     private offlineService: OfflineService,
+    private estacionamientoService: EstacionamientoService,
     private qrOffline: QrOfflineService,
     private zone: NgZone,
     private route: ActivatedRoute,
@@ -508,11 +512,19 @@ export class ScannerPage implements OnDestroy {
     fotoPreview?: string;
     controlPeatonalExito?: boolean;
     escaneoPorEmail?: boolean;
+    pendienteSalida?: boolean;
+    acreNcorr?: number | null;
+    aeseNcorr?: number | null;
   }) {
     const esBloqueado = String(data.code ?? '').toLowerCase() === 'bloqueado';
+    const cssClass = data.pendienteSalida
+      ? 'modal-75 modal-75--salida'
+      : esBloqueado
+        ? 'modal-75 modal-75--bloqueado'
+        : 'modal-75';
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
-      cssClass: esBloqueado ? 'modal-75 modal-75--bloqueado' : 'modal-75',
+      cssClass,
       componentProps: {
         tipo:        data.tipo,
         estado:      data.estado ?? 'autorizado',
@@ -531,6 +543,9 @@ export class ScannerPage implements OnDestroy {
         fotoPreview: data.fotoPreview,
         controlPeatonalExito: data.controlPeatonalExito ?? false,
         escaneoPorEmail: data.escaneoPorEmail ?? false,
+        pendienteSalida: data.pendienteSalida ?? false,
+        acreNcorr: data.acreNcorr,
+        aeseNcorr: data.aeseNcorr,
       },
     });
 
@@ -541,6 +556,11 @@ export class ScannerPage implements OnDestroy {
     const { data: resp, role } = await modal.onDidDismiss();
 
     if (role === 'accion') {
+      if (resp?.via === 'salida') {
+        await this.registrarSalidaDesdeEscaneo(resp);
+        return;
+      }
+
       const esPatente = resp?.tipo === 'patente';
 
       if (resp?.via === 'peatonal' && !esPatente) {
@@ -995,13 +1015,24 @@ export class ScannerPage implements OnDestroy {
               acreNcorrValidoParaRequest(acreNcorr) ? acreNcorr : undefined
             )
           );
+      const modalData = await this.enriquecerPatenteConSalidaPendiente(
+        this.mapValidarPatenteToModal(res, patente),
+        res,
+        patente
+      );
       await this.ui.dismissLoading(loading);
-      await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
+      await this.mostrarResultadoModal(modalData);
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       const res = ValidarPatenteUtil.extraerResponse(err);
       if (res) {
-        await this.mostrarResultadoModal(this.mapValidarPatenteToModal(res, patente));
+        await this.mostrarResultadoModal(
+          await this.enriquecerPatenteConSalidaPendiente(
+            this.mapValidarPatenteToModal(res, patente),
+            res,
+            patente
+          )
+        );
       } else {
         const mensaje = mensajeErrorUsuario(err, 'No se pudo validar la patente.');
         await this.mostrarResultadoModal({
@@ -1152,6 +1183,240 @@ export class ScannerPage implements OnDestroy {
         'La persona no pertenece a INACAP. Debe ingresarla como visita.',
       plateResult,
     };
+  }
+
+  private async enriquecerPatenteConSalidaPendiente(
+    modalData: {
+      tipo: TipoEscaneo;
+      estado: EstadoEscaneo;
+      nombre?: string;
+      perfil?: string;
+      perfilDescripcion?: string;
+      persNcorr?: number;
+      code?: string;
+      titulo?: string;
+      mensaje?: string;
+      plateResult?: PlateResult;
+    },
+    res: ValidarPatenteResponse,
+    patente: string
+  ): Promise<typeof modalData & {
+    pendienteSalida?: boolean;
+    acreNcorr?: number | null;
+    aeseNcorr?: number | null;
+  }> {
+    const activo = await this.buscarVehiculoActivoPorPatente(patente);
+    if (!activo && !ValidarPatenteUtil.esPendienteSalida(res)) {
+      return modalData;
+    }
+
+    const nombreActivo = activo?.nombre?.trim();
+    const nombre =
+      nombreActivo && nombreActivo !== '—'
+        ? nombreActivo
+        : modalData.nombre;
+
+    return {
+      ...modalData,
+      estado: 'autorizado',
+      titulo: 'Acceso Autorizado',
+      mensaje: undefined,
+      code: undefined,
+      pendienteSalida: true,
+      nombre,
+      acreNcorr: activo?.acreNcorr ?? res.acreNcorr ?? null,
+      aeseNcorr: activo?.aeseNcorr ?? res.aeseNcorr ?? null,
+    };
+  }
+
+  private async buscarVehiculoActivoPorPatente(patenteRaw: string): Promise<{
+    patente: string;
+    nombre?: string;
+    acreNcorr: number | null;
+    aeseNcorr: number | null;
+  } | null> {
+    const patente = patenteRaw.trim().toUpperCase();
+    const acreSesion = await this.authService.resolverAcreNcorrParaOperar();
+    const acreNcorr = acreNcorrValidoParaRequest(acreSesion) ? acreSesion! : null;
+    const catalogo = await this.offlineService.getCatalogo();
+
+    if (!this.hayInternet) {
+      return this.buscarVehiculoActivoEnCatalogo(catalogo, patente);
+    }
+
+    const directo = await this.consultarVehiculoActivo({
+      patente,
+      acreNcorr: acreNcorr ?? undefined,
+    });
+    if (directo) {
+      return {
+        ...directo,
+        acreNcorr,
+        aeseNcorr: null,
+      };
+    }
+
+    const enCatalogo = this.buscarVehiculoActivoEnCatalogo(catalogo, patente);
+    if (directo === null) {
+      return enCatalogo;
+    }
+
+    const lotes = await this.obtenerEstacionamientosParaSalida(acreNcorr, catalogo);
+    const hallazgos = await Promise.all(
+      lotes.map(async e => {
+        const v = await this.consultarVehiculoActivo({
+          patente,
+          acreNcorr: e.acreNcorr ?? acreNcorr ?? undefined,
+          aeseNcorr: e.aeseNcorr ?? undefined,
+        });
+        return v
+          ? {
+              ...v,
+              acreNcorr: e.acreNcorr,
+              aeseNcorr: e.aeseNcorr,
+            }
+          : null;
+      })
+    );
+
+    return hallazgos.find(item => item != null) ?? enCatalogo;
+  }
+
+  private async consultarVehiculoActivo(params: {
+    patente: string;
+    acreNcorr?: number;
+    aeseNcorr?: number | null;
+  }): Promise<{ patente: string; nombre?: string } | null | undefined> {
+    try {
+      const view = await firstValueFrom(
+        this.estacionamientoService.listarVehiculosActivos({
+          patente: params.patente,
+          page: 1,
+          pageSize: 10,
+          acreNcorr: params.acreNcorr,
+          aeseNcorr: params.aeseNcorr ?? undefined,
+        })
+      );
+      const v = view.vehiculos.find(
+        item => item.patente.toUpperCase() === params.patente
+      );
+      return v ? { patente: v.patente, nombre: v.nombre } : null;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async obtenerEstacionamientosParaSalida(
+    acreNcorr: number | null,
+    catalogo: OfflineCatalogoAccesoView | null
+  ): Promise<EstacionamientoCard[]> {
+    if (catalogo?.estacionamientos?.length) {
+      return catalogo.estacionamientos;
+    }
+
+    try {
+      return await firstValueFrom(
+        this.estacionamientoService.listar(acreNcorr ?? undefined)
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private buscarVehiculoActivoEnCatalogo(
+    catalogo: OfflineCatalogoAccesoView | null,
+    patente: string
+  ): {
+    patente: string;
+    nombre?: string;
+    acreNcorr: number | null;
+    aeseNcorr: number | null;
+  } | null {
+    const detalles = catalogo?.estacionamientosDetalle;
+    if (!detalles) {
+      return null;
+    }
+
+    for (const [id, detalle] of Object.entries(detalles)) {
+      const v = detalle.vehiculosActivos?.vehiculos.find(
+        item => item.patente.toUpperCase() === patente
+      );
+      if (!v) {
+        continue;
+      }
+
+      const est = catalogo?.estacionamientos?.find(
+        e => e.id === Number(id) || e.aeseNcorr === detalle.aeseNcorr
+      );
+
+      return {
+        patente: v.patente,
+        nombre: v.nombre,
+        acreNcorr: est?.acreNcorr ?? catalogo?.acreNcorr ?? null,
+        aeseNcorr: detalle.aeseNcorr ?? est?.aeseNcorr ?? null,
+      };
+    }
+
+    return null;
+  }
+
+  private async registrarSalidaDesdeEscaneo(resp: {
+    patente?: string;
+    nombre?: string;
+    perfil?: string;
+    acreNcorr?: number | null;
+    aeseNcorr?: number | null;
+  }): Promise<void> {
+    const patente = PatenteUtil.toApi(String(resp.patente ?? ''));
+    if (!patente) {
+      await this.ui.presentToast('Falta la patente para marcar la salida.', {
+        color: 'warning',
+      });
+      await this.reanudarEscaneoTrasModal();
+      return;
+    }
+
+    const loading = await this.ui.presentLoading('Registrando salida...');
+
+    try {
+      const acreSesion = await this.authService.resolverAcreNcorrParaOperar();
+      const acreNcorr = acreNcorrValidoParaRequest(resp.acreNcorr)
+        ? resp.acreNcorr
+        : acreNcorrValidoParaRequest(acreSesion)
+          ? acreSesion
+          : null;
+
+      const res = await firstValueFrom(
+        this.estacionamientoService.registrarSalida(patente, {
+          acreNcorr,
+          aeseNcorr: resp.aeseNcorr,
+        })
+      );
+      await this.ui.dismissLoading(loading);
+
+      const sede = await this.authService.getSede();
+      await this.salirScannerHacia('/confirmacion', {
+        accion: 'salida',
+        nombre: resp.nombre ?? null,
+        sede: sede?.nombre ?? null,
+        perfil: resp.perfil ?? null,
+        patente,
+      });
+
+      if (res.message) {
+        await this.ui.presentToast(res.message, {
+          color: 'success',
+          duration: 2500,
+        });
+      }
+    } catch (err: unknown) {
+      await this.ui.dismissLoading(loading);
+      await this.ui.presentToast(
+        mensajeErrorUsuario(err, 'No se pudo registrar la salida.'),
+        { color: 'danger' }
+      );
+      await this.reanudarEscaneoTrasModal();
+    }
   }
 
   private toPlateResult(patente: string): PlateResult {

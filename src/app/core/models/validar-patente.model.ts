@@ -16,4 +16,9 @@ export interface ValidarPatenteResponse {
   messages?: string[];
   patente?: string;
   persNcorr?: number;
+  ingresoActivo?: boolean;
+  dentro?: boolean;
+  salidaPendiente?: boolean;
+  acreNcorr?: number;
+  aeseNcorr?: number;
 }
