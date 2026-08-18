@@ -1,7 +1,7 @@
 import { ValidarPerfilRequest } from '../models/validar-perfil.model';
 import { RutUtil } from './rut.util';
 
-const SIDIV_HOST = 'portal.sidiv.registrocivil.cl';
+const SIDIV_HOST = 'sidiv.registrocivil.cl';
 
 export class ScanPerfilUtil {
   private constructor() {}
@@ -106,6 +106,10 @@ export class ScanPerfilUtil {
   }
 
   private static isSidivUrl(value: string): boolean {
+    return ScanPerfilUtil.esHostSidiv(value);
+  }
+
+  private static esHostSidiv(value: string): boolean {
     try {
       const url = new URL(value);
       return url.hostname.toLowerCase().includes(SIDIV_HOST);
@@ -115,17 +119,11 @@ export class ScanPerfilUtil {
   }
 
   private static extractRutFromSidivUrl(value: string): string | null {
-    try {
-      const url = new URL(value);
-      if (!url.hostname.toLowerCase().includes(SIDIV_HOST)) {
-        return null;
-      }
-      const run = ScanPerfilUtil.readRunParam(value);
-      return run ? RutUtil.extractBodyOnly(run) : null;
-    } catch {
-      const run = ScanPerfilUtil.readRunParam(value);
-      return run ? RutUtil.extractBodyOnly(run) : null;
+    if (!ScanPerfilUtil.esHostSidiv(value)) {
+      return null;
     }
+    const run = ScanPerfilUtil.readRunParam(value);
+    return run ? RutUtil.extractBodyOnly(run) : null;
   }
 
   private static readRunParam(value: string): string | null {
