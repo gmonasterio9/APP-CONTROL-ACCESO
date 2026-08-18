@@ -19,7 +19,7 @@
       <div class="camera-loading"></div>
     }
 
-    <div class="scanner-overlay">
+    <div class="scanner-overlay" (click)="enfocarCamara($event)">
 
       <div class="scanner-top">
         <button type="button" class="btn-cerrar" (click)="volver()" aria-label="Cerrar">
@@ -74,6 +74,10 @@
           </button>
         </div>
       }
+
+      <div class="scanner-center">
+        <app-scanner-enfoque [toque]="toqueEnfoque"></app-scanner-enfoque>
+      </div>
 
       <div class="scanner-bottom">
         <button

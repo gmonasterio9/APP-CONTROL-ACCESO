@@ -1,0 +1,14 @@
+<div class="enfoque" aria-hidden="true">
+  <span class="enfoque-corner enfoque-corner--tl"></span>
+  <span class="enfoque-corner enfoque-corner--tr"></span>
+  <span class="enfoque-corner enfoque-corner--bl"></span>
+  <span class="enfoque-corner enfoque-corner--br"></span>
+</div>
+
+@if (toque) {
+  <div
+    class="enfoque-toque"
+    [style.left.%]="toque.x"
+    [style.top.%]="toque.y">
+  </div>
+}

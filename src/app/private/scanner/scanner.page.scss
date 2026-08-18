@@ -45,7 +45,7 @@
   inset:           0;
   display:         flex;
   flex-direction:  column;
-  pointer-events:  none;
+  pointer-events:  auto;
   background: linear-gradient(
     to bottom,
     rgba(0,0,0,0.55) 0%,
@@ -56,10 +56,16 @@
 
   .btn-cerrar,
   .btn-flash,
-  .scanner-zoom-stack,
   .btn-captura,
   .btn-ingreso-manual {
     pointer-events: auto;
+    position: relative;
+    z-index: 2;
+  }
+
+  .scanner-zoom-stack {
+    pointer-events: auto;
+    z-index: 4;
   }
 }
 
@@ -128,10 +134,10 @@
 
 .scanner-zoom-stack {
   position:        absolute;
-  right:           20px;
+  right:           16px;
   top:             50%;
   transform:       translateY(-50%);
-  z-index:         3;
+  z-index:         4;
   display:         flex;
   flex-direction:  column;
   align-items:     center;

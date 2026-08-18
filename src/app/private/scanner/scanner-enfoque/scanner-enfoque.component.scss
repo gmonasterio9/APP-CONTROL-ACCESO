@@ -1,0 +1,105 @@
+:host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.enfoque {
+  position: relative;
+  width: min(72vw, 280px);
+  height: min(46vw, 180px);
+  animation: enfoque-pulse 2.4s ease-in-out infinite;
+}
+
+.enfoque-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: #fff;
+  border-style: solid;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.45));
+
+  &--tl {
+    top: 0;
+    left: 0;
+    border-width: 3px 0 0 3px;
+    border-radius: 6px 0 0 0;
+  }
+
+  &--tr {
+    top: 0;
+    right: 0;
+    border-width: 3px 3px 0 0;
+    border-radius: 0 6px 0 0;
+  }
+
+  &--bl {
+    bottom: 0;
+    left: 0;
+    border-width: 0 0 3px 3px;
+    border-radius: 0 0 0 6px;
+  }
+
+  &--br {
+    bottom: 0;
+    right: 0;
+    border-width: 0 3px 3px 0;
+    border-radius: 0 0 6px 0;
+  }
+}
+
+.enfoque-toque {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  margin-left: -36px;
+  margin-top: -36px;
+  border: 2px solid #ffd60a;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  animation: enfoque-toque 0.7s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes enfoque-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes enfoque-toque {
+  0% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@media (max-height: 740px) {
+  .enfoque {
+    width: min(68vw, 240px);
+    height: min(40vw, 150px);
+  }
+
+  .enfoque-corner {
+    width: 22px;
+    height: 22px;
+  }
+}

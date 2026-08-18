@@ -42,15 +42,20 @@ import {
   TipoEscaneo,
   EstadoEscaneo,
 } from './modal-resultado-escaneo/modal-resultado-escaneo.component';
+import { ToqueEnfoque } from './scanner-enfoque/scanner-enfoque.component';
 
 type CamaraTrackCapabilities = MediaTrackCapabilities & {
   torch?: boolean;
   zoom?: { min: number; max: number; step?: number };
+  focusMode?: string[];
+  pointsOfInterest?: boolean;
 };
 
 type CamaraTrackConstraint = MediaTrackConstraintSet & {
   torch?: boolean;
   zoom?: number;
+  focusMode?: string;
+  pointsOfInterest?: Array<{ x: number; y: number }>;
 };
 
 @Component({
@@ -74,6 +79,7 @@ export class ScannerPage implements OnDestroy {
   zoomMin         = 1;
   zoomMax         = 3;
   zoomStep        = 0.1;
+  toqueEnfoque: ToqueEnfoque | null = null;
 
   private readonly zoomDigitalMax = 3;
   private readonly zoomNiveles = [1, 1.5, 2, 2.5, 3];
@@ -87,6 +93,7 @@ export class ScannerPage implements OnDestroy {
   private networkSub?: Subscription;
   private modoAcompanantes = false;
   private retornoEstacionamiento: Record<string, string | null> = {};
+  private toqueEnfoqueTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private navCtrl:      NavController,
@@ -140,11 +147,13 @@ export class ScannerPage implements OnDestroy {
     this.backButtonSub = undefined;
     this.networkSub?.unsubscribe();
     this.networkSub = undefined;
+    this.limpiarToqueEnfoque();
     void this.apagarScanner();
   }
 
   ngOnDestroy() {
     this.backButtonSub?.unsubscribe();
+    this.limpiarToqueEnfoque();
     void this.detenerTodo();
   }
 
@@ -412,6 +421,71 @@ export class ScannerPage implements OnDestroy {
 
   get tieneZoomAplicado(): boolean {
     return this.zoomActual > 1.05;
+  }
+
+  enfocarCamara(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button')) {
+      return;
+    }
+
+    const overlay = event.currentTarget as HTMLElement;
+    const rect = overlay.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return;
+    }
+
+    const x = Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(100, Math.max(0, ((event.clientY - rect.top) / rect.height) * 100));
+    this.mostrarToqueEnfoque(x, y);
+    void this.aplicarEnfoqueCamara(x / 100, y / 100);
+  }
+
+  private mostrarToqueEnfoque(x: number, y: number): void {
+    this.limpiarToqueEnfoque();
+    this.toqueEnfoque = { x, y };
+    this.toqueEnfoqueTimer = setTimeout(() => {
+      this.toqueEnfoque = null;
+      this.toqueEnfoqueTimer = null;
+    }, 700);
+  }
+
+  private limpiarToqueEnfoque(): void {
+    if (this.toqueEnfoqueTimer) {
+      clearTimeout(this.toqueEnfoqueTimer);
+      this.toqueEnfoqueTimer = null;
+    }
+    this.toqueEnfoque = null;
+  }
+
+  private async aplicarEnfoqueCamara(x: number, y: number): Promise<void> {
+    if (!this.videoTrack?.applyConstraints) {
+      return;
+    }
+
+    const caps = this.videoTrack.getCapabilities?.() as CamaraTrackCapabilities | undefined;
+    const modos = caps?.focusMode ?? [];
+    const constraint: CamaraTrackConstraint = {};
+
+    if (modos.includes('single-shot')) {
+      constraint.focusMode = 'single-shot';
+    } else if (modos.includes('continuous')) {
+      constraint.focusMode = 'continuous';
+    }
+
+    if (caps?.pointsOfInterest) {
+      constraint.pointsOfInterest = [{ x, y }];
+    }
+
+    if (!constraint.focusMode && !constraint.pointsOfInterest) {
+      return;
+    }
+
+    try {
+      await this.videoTrack.applyConstraints({
+        advanced: [constraint],
+      });
+    } catch {}
   }
 
   async toggleFlash(): Promise<void> {
@@ -918,6 +992,7 @@ export class ScannerPage implements OnDestroy {
     }
 
     this.videoTrack = track;
+    void this.activarEnfoqueContinuo(track);
 
     if (track.getCapabilities) {
       const caps = track.getCapabilities() as CamaraTrackCapabilities;
@@ -937,6 +1012,19 @@ export class ScannerPage implements OnDestroy {
     }
 
     this.activarZoomDigital();
+  }
+
+  private async activarEnfoqueContinuo(track: MediaStreamTrack): Promise<void> {
+    const caps = track.getCapabilities?.() as CamaraTrackCapabilities | undefined;
+    if (!caps?.focusMode?.includes('continuous')) {
+      return;
+    }
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ focusMode: 'continuous' } as CamaraTrackConstraint],
+      });
+    } catch {}
   }
 
   private activarZoomDigital(): void {

@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import {
   InfiniteScrollCustomEvent,
+  IonInfiniteScroll,
   NavController,
   RefresherCustomEvent,
 } from '@ionic/angular';
@@ -23,6 +24,8 @@ import { UiService } from '../../core/services/ui.service';
   standalone: false,
 })
 export class AccesoPeatonalDetallePage {
+  @ViewChild(IonInfiniteScroll) infiniteScroll?: IonInfiniteScroll;
+
   readonly statsSkeleton = [0, 1, 2];
   readonly accesosSkeleton = [0, 1, 2];
 
@@ -52,10 +55,14 @@ export class AccesoPeatonalDetallePage {
   }
 
   get hayMasAccesos(): boolean {
-    if (this.totalPaginas > 0) {
-      return this.pagina < this.totalPaginas;
+    const pagina = Number(this.pagina) || 1;
+    const totalPaginas = Number(this.totalPaginas) || 0;
+    const totalRegistros = Number(this.totalRegistros) || 0;
+
+    if (totalPaginas > 0) {
+      return pagina < totalPaginas;
     }
-    return this.totalRegistros > 0 && this.accesos.length < this.totalRegistros;
+    return totalRegistros > 0 && this.accesos.length < totalRegistros;
   }
 
   chipLabel(estado: PeatonalAccesoEstado): string {
@@ -89,25 +96,21 @@ export class AccesoPeatonalDetallePage {
   async refrescar(event?: RefresherCustomEvent): Promise<void> {
     await this.cargarDetalle(true, { silencioso: true });
     await event?.target.complete();
+    this.activarInfiniteScrollSiCorresponde();
   }
 
-  async cargarMasAccesos(event?: InfiniteScrollCustomEvent): Promise<void> {
-    if (!this.hayMasAccesos || this.cargandoMas) {
-      await event?.target.complete();
-      return;
-    }
+  async cargarMasAccesos(event: InfiniteScrollCustomEvent): Promise<void> {
+    try {
+      if (!this.hayMasAccesos || this.cargandoMas || this.cargando) {
+        return;
+      }
 
-    this.pagina += 1;
-    await this.cargarDetalle(false);
-    await event?.target.complete();
-  }
-
-  async cargarMasManual(): Promise<void> {
-    if (!this.hayMasAccesos || this.cargandoMas) {
-      return;
+      this.pagina += 1;
+      await this.cargarDetalle(false);
+    } finally {
+      await event.target.complete();
+      this.activarInfiniteScrollSiCorresponde();
     }
-    this.pagina += 1;
-    await this.cargarDetalle(false);
   }
 
   reintentar(): void {
@@ -151,9 +154,13 @@ export class AccesoPeatonalDetallePage {
 
       this.stats = data.stats;
       this.fecha = data.fecha ?? null;
-      this.totalRegistros = data.paginacion.totalRegistros;
-      this.totalPaginas = data.paginacion.totalPaginas;
-      this.pagina = data.paginacion.pagina;
+      this.totalRegistros = Number(data.paginacion?.totalRegistros) || 0;
+      this.totalPaginas =
+        Number(data.paginacion?.totalPaginas) ||
+        (this.totalRegistros > 0
+          ? Math.ceil(this.totalRegistros / this.pageSize)
+          : 0);
+      this.pagina = Number(data.paginacion?.pagina) || this.pagina;
 
       if (reset) {
         this.accesos = data.accesos;
@@ -189,7 +196,17 @@ export class AccesoPeatonalDetallePage {
       } else {
         this.cargandoMas = false;
       }
+      this.activarInfiniteScrollSiCorresponde();
     }
+  }
+
+  private activarInfiniteScrollSiCorresponde(): void {
+    const deshabilitar = !this.hayMasAccesos;
+    setTimeout(() => {
+      if (this.infiniteScroll) {
+        this.infiniteScroll.disabled = deshabilitar;
+      }
+    });
   }
 
   private async cargarDetalleDesdeCache(reset: boolean): Promise<boolean> {

@@ -1,5 +1,6 @@
 .det-content {
   --background: #F2F3F8;
+  --padding-bottom: 24px;
 }
 
 .det-toolbar {
@@ -271,21 +272,6 @@
   font-size:  14px;
   text-align: center;
   margin:     8px 0 0;
-}
-
-.btn-cargar-mas {
-  display:         block;
-  width:           100%;
-  margin-top:      12px;
-  padding:         12px;
-  border:          1px solid #1D78BF;
-  border-radius:   8px;
-  background:      transparent;
-  color:           #1D78BF;
-  font-family:     Roboto, sans-serif;
-  font-size:       14px;
-  font-weight:     500;
-  cursor:          pointer;
 }
 
 .chip-estado {

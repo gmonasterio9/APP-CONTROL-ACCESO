@@ -5,11 +5,12 @@ import { IonicModule } from '@ionic/angular';
 
 import { ScannerPage } from './scanner.page';
 import { ModalResultadoEscaneoComponent } from './modal-resultado-escaneo/modal-resultado-escaneo.component';
+import { ScannerEnfoqueComponent } from './scanner-enfoque/scanner-enfoque.component';
 
 const routes: Routes = [{ path: '', component: ScannerPage }];
 
 @NgModule({
   imports: [CommonModule, IonicModule, RouterModule.forChild(routes)],
-  declarations: [ScannerPage, ModalResultadoEscaneoComponent],
+  declarations: [ScannerPage, ModalResultadoEscaneoComponent, ScannerEnfoqueComponent],
 })
 export class ScannerModule {}

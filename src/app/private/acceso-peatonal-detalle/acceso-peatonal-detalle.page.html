@@ -100,33 +100,12 @@
         <p class="sin-resultados">Sin accesos registrados</p>
       }
     </div>
-
-    @if (cargandoMas) {
-      <div class="accesos-lista accesos-lista--mas" aria-busy="true" aria-label="Cargando más accesos">
-        <div class="acceso-item acceso-item--skeleton" aria-hidden="true">
-          <div class="acceso-info">
-            <ion-skeleton-text class="sk-acceso-nombre" [animated]="true"></ion-skeleton-text>
-            <ion-skeleton-text class="sk-acceso-rut" [animated]="true"></ion-skeleton-text>
-          </div>
-          <div class="acceso-trailing">
-            <ion-skeleton-text class="sk-acceso-hora" [animated]="true"></ion-skeleton-text>
-            <ion-skeleton-text class="sk-acceso-chip" [animated]="true"></ion-skeleton-text>
-          </div>
-        </div>
-      </div>
-    }
-
-    @if (hayMasAccesos && !cargandoMas) {
-      <button type="button" class="btn-cargar-mas" (click)="cargarMasManual()">
-        Cargar más accesos
-      </button>
-    }
   </div>
 
   <ion-infinite-scroll
-    threshold="100px"
+    threshold="120px"
     position="bottom"
-    [disabled]="!hayMasAccesos || cargandoMas"
+    [disabled]="!hayMasAccesos"
     (ionInfinite)="cargarMasAccesos($event)">
     <ion-infinite-scroll-content
       loadingSpinner="crescent"
