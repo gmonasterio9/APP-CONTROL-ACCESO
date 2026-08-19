@@ -50,44 +50,36 @@
         }
       </div>
 
-      @if (mostrarControlesZoom) {
-        <div class="scanner-zoom-stack">
-          @if (tieneZoomAplicado) {
-            <button
-              type="button"
-              class="btn-zoom-lateral btn-zoom-lateral--bajar"
-              (click)="bajarZoom()"
-              [disabled]="procesando"
-              aria-label="Disminuir zoom">
-              <ion-icon name="remove-outline"></ion-icon>
-            </button>
-          }
-
-          <button
-            type="button"
-            class="btn-zoom-lateral btn-zoom-lateral--subir"
-            (click)="subirZoom()"
-            [disabled]="procesando"
-            aria-label="Aumentar zoom">
-            <ion-icon name="add-outline"></ion-icon>
-            <span>{{ zoomEtiqueta }}</span>
-          </button>
-        </div>
-      }
-
       <div class="scanner-center">
         <app-scanner-enfoque [toque]="toqueEnfoque"></app-scanner-enfoque>
       </div>
 
       <div class="scanner-bottom">
+        @if (mostrarControlesZoom) {
+          <div class="zoom-pills" (click)="$event.stopPropagation()">
+            @for (z of zoomOpciones; track z) {
+              <button
+                type="button"
+                class="zoom-pill"
+                [class.activo]="esZoomActivo(z)"
+                (click)="aplicarZoomNivel(z)"
+                [disabled]="procesando"
+                [attr.aria-label]="'Zoom ' + etiquetaZoom(z)">
+                {{ etiquetaZoom(z) }}
+              </button>
+            }
+          </div>
+        }
+
         <button
           type="button"
           class="btn-captura"
           (click)="capturarPatente()"
           [disabled]="procesando"
-          aria-label="Escanear patente">
-          <div class="btn-captura-inner"></div>
+          aria-label="Fotografiar patente">
+          <span class="btn-captura-inner"></span>
         </button>
+        <p class="captura-label"> Escaneo de Patente Vehicular</p>
       </div>
 
     </div>

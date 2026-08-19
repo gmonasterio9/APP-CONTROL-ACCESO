@@ -1,4 +1,4 @@
-import { Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { NavController, ModalController, Platform } from '@ionic/angular';
 import { Capacitor, PluginListenerHandle } from '@capacitor/core';
@@ -82,11 +82,10 @@ export class ScannerPage implements OnDestroy {
   toqueEnfoque: ToqueEnfoque | null = null;
 
   private readonly zoomDigitalMax = 3;
-  private readonly zoomNiveles = [1, 1.5, 2, 2.5, 3];
+  private readonly zoomNiveles = [0.5, 1, 2, 3];
 
   private videoStream:   MediaStream | null = null;
   private videoTrack:    MediaStreamTrack | null = null;
-  private scanInterval:  any = null;
   private mlkitListener: PluginListenerHandle | null = null;
   private usandoMLKit  = false;
   private backButtonSub?: Subscription;
@@ -112,6 +111,7 @@ export class ScannerPage implements OnDestroy {
     private qrOffline: QrOfflineService,
     private zone: NgZone,
     private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   async ionViewWillEnter() {
@@ -175,72 +175,91 @@ export class ScannerPage implements OnDestroy {
   async iniciarEscaneo() {
     this.camaraLista = false;
 
-    if (Capacitor.isNativePlatform() && !('BarcodeDetector' in window)) {
+    if (Capacitor.isNativePlatform()) {
       await this.iniciarMLKit();
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
+      const stream = await this.abrirCamaraWeb();
       this.videoStream = stream;
       this.inicializarControlesCamara(stream);
-
-      setTimeout(async () => {
-        const video = this.videoRef?.nativeElement;
-        if (!video) { return; }
-        video.srcObject = stream;
-        video.oncanplay = () => { this.zone.run(() => { this.camaraLista = true; }); };
-        await video.play();
-        this.iniciarDeteccionQR();
-      }, 80);
-
+      this.cdr.detectChanges();
+      await this.asignarStreamAlVideo(stream);
     } catch (e: unknown) {
+      this.scannerVisible = false;
+      this.detenerVideoStream();
       if (this.esErrorPermisoCamara(e)) {
-        this.scannerVisible = false;
         await this.mostrarAlertPermisoCamara();
         return;
       }
-      await this.iniciarMLKit();
+      await this.mostrarError('No se pudo iniciar la cámara.');
     }
   }
 
-  private iniciarDeteccionQR() {
-    if (!('BarcodeDetector' in window)) {
-      this.iniciarMLKit();
-      return;
+  private async abrirCamaraWeb(): Promise<MediaStream> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Este navegador no permite usar la cámara.');
     }
 
-    const detector = new (window as any).BarcodeDetector({
-      formats: ['qr_code'],
-    });
+    const intentos: MediaStreamConstraints[] = [
+      {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      },
+      { video: { facingMode: { ideal: 'environment' } }, audio: false },
+      { video: true, audio: false },
+    ];
 
-    this.scanInterval = setInterval(async () => {
-      if (this.procesando) { return; }
-      const video = this.videoRef?.nativeElement;
-      if (!video || video.readyState < 2) { return; }
-
+    let ultimoError: unknown;
+    for (const constraints of intentos) {
       try {
-        const barcodes = await detector.detect(video);
-        const qr = barcodes?.find(
-          (code: { format?: string; rawValue?: string }) =>
-            code.format === 'qr_code' && !!code.rawValue?.trim()
-        );
-        const valor = qr?.rawValue?.trim();
-        if (valor) {
-          this.zone.run(() => this.onCodigoDetectado(valor));
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        if (this.esErrorPermisoCamara(e)) {
+          throw e;
         }
-      } catch {}
-    }, 400);
+        ultimoError = e;
+      }
+    }
+    throw ultimoError;
+  }
+
+  private async asignarStreamAlVideo(stream: MediaStream): Promise<void> {
+    for (let i = 0; i < 20; i++) {
+      const video = this.videoRef?.nativeElement;
+      if (video) {
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        video.oncanplay = () => {
+          this.zone.run(() => {
+            this.camaraLista = true;
+          });
+        };
+        await video.play();
+        this.camaraLista = true;
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
+      this.cdr.detectChanges();
+    }
+    throw new Error('No se encontró el elemento de video.');
   }
 
   private async iniciarMLKit() {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+
     this.detenerVideoStream();
     try {
-      const permisos = await BarcodeScanner.requestPermissions();
-      if (permisos.camera !== 'granted' && permisos.camera !== 'limited') {
+      const permitido = await this.obtenerPermisoCamaraNativo();
+      if (!permitido) {
         await this.mostrarAlertPermisoCamara();
         return;
       }
@@ -407,20 +426,36 @@ export class ScannerPage implements OnDestroy {
     return this.usandoMLKit;
   }
 
-  get zoomEtiqueta(): string {
-    return `${this.zoomActual.toFixed(1)}x`;
+  get zoomOpciones(): number[] {
+    return this.zoomNiveles.filter(
+      z => z + 0.05 >= this.zoomMin && z - 0.05 <= this.zoomMax
+    );
   }
 
   get mostrarControlesZoom(): boolean {
-    return !!this.videoStream && !this.usandoMLKit;
+    return !!this.videoStream && !this.usandoMLKit && this.zoomOpciones.length > 1;
   }
 
   get zoomVideoTransform(): string {
     return this.zoomEsHardware ? 'none' : `scale(${this.zoomActual})`;
   }
 
-  get tieneZoomAplicado(): boolean {
-    return this.zoomActual > 1.05;
+  esZoomActivo(nivel: number): boolean {
+    return Math.abs(this.zoomActual - nivel) < 0.2;
+  }
+
+  etiquetaZoom(nivel: number): string {
+    if (nivel === 1 && this.esZoomActivo(1)) {
+      return '1x';
+    }
+    if (nivel === 0.5) {
+      return '0.5';
+    }
+    return String(nivel);
+  }
+
+  async aplicarZoomNivel(nivel: number): Promise<void> {
+    await this.aplicarZoom(nivel);
   }
 
   enfocarCamara(event: MouseEvent): void {
@@ -505,27 +540,6 @@ export class ScannerPage implements OnDestroy {
         duration: 2000,
       });
     }
-  }
-
-  async subirZoom(): Promise<void> {
-    const idx = this.indiceZoomActual();
-    if (idx >= this.zoomNiveles.length - 1) {
-      return;
-    }
-    await this.aplicarZoom(this.zoomNiveles[idx + 1]);
-  }
-
-  async bajarZoom(): Promise<void> {
-    const idx = this.indiceZoomActual();
-    if (idx <= 0) {
-      return;
-    }
-    await this.aplicarZoom(this.zoomNiveles[idx - 1]);
-  }
-
-  private indiceZoomActual(): number {
-    const idx = this.zoomNiveles.findIndex(z => Math.abs(z - this.zoomActual) < 0.05);
-    return idx >= 0 ? idx : 0;
   }
 
   private async flujoEscaneoQr(codigo: string): Promise<void> {
@@ -920,9 +934,6 @@ export class ScannerPage implements OnDestroy {
     this.procesando = false;
 
     if (this.scannerEnMarcha()) {
-      if (!this.usandoMLKit && this.videoStream && !this.scanInterval) {
-        this.iniciarDeteccionQR();
-      }
       return;
     }
 
@@ -955,7 +966,6 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async detenerDeteccion(): Promise<void> {
-    if (this.scanInterval) { clearInterval(this.scanInterval); this.scanInterval = null; }
     if (this.usandoMLKit) {
       document.body.classList.remove('barcode-scanning-active');
       try {
@@ -1751,25 +1761,17 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async verificarPermisoCamara(): Promise<boolean> {
-    try {
-      const estado = await navigator.permissions.query({
-        name: 'camera' as PermissionName,
-      });
-      if (estado.state === 'denied') {
-        return false;
-      }
-      if (estado.state === 'granted') {
-        return true;
-      }
-    } catch {}
+    if (Capacitor.isNativePlatform()) {
+      return this.obtenerPermisoCamaraNativo();
+    }
+    return true;
+  }
 
+  private async obtenerPermisoCamaraNativo(): Promise<boolean> {
     try {
       const check = await BarcodeScanner.checkPermissions();
       if (check.camera === 'granted' || check.camera === 'limited') {
         return true;
-      }
-      if (check.camera === 'denied') {
-        return false;
       }
     } catch {}
 
@@ -1782,13 +1784,17 @@ export class ScannerPage implements OnDestroy {
   }
 
   private esErrorPermisoCamara(error: unknown): boolean {
-    if (!(error instanceof Error)) {
+    if (!error || typeof error !== 'object') {
       return false;
     }
-    const nombre = error.name;
+    const err = error as { name?: string; message?: string };
+    const nombre = err.name ?? '';
+    const mensaje = (err.message ?? '').toLowerCase();
     return (
       nombre === 'NotAllowedError' ||
-      nombre === 'PermissionDeniedError'
+      nombre === 'PermissionDeniedError' ||
+      nombre === 'SecurityError' ||
+      mensaje.includes('permission')
     );
   }
 
