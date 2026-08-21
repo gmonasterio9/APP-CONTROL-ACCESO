@@ -66,6 +66,8 @@ export interface PeatonalDetalleView {
 export interface PeatonalDetalleQuery {
   page?: number;
   pageSize?: number;
+  q?: string;
+  estado?: PeatonalAccesoEstado;
 }
 
 const ESTADO_API_MAP: Record<string, PeatonalAccesoEstado> = {
@@ -163,6 +165,16 @@ export function mapPeatonalDetalle(res: PeatonalDetalleResponse): PeatonalDetall
 export function buildPeatonalDetalleQuery(params: PeatonalDetalleQuery): string {
   const q = new URLSearchParams();
   q.set('page', String(params.page ?? 1));
-  q.set('pageSize', String(params.pageSize ?? 10));
+  q.set('pageSize', String(params.pageSize ?? 50));
+
+  const busqueda = params.q?.trim();
+  if (busqueda) {
+    q.set('q', busqueda);
+  }
+
+  if (params.estado) {
+    q.set('estado', params.estado);
+  }
+
   return q.toString();
 }

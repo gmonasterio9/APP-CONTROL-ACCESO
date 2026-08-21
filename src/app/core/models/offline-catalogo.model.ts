@@ -143,7 +143,7 @@ export function buildPeatonalResumenCacheUrl(): string {
 }
 
 export function buildPeatonalDetalleCacheUrl(): string {
-  return `/peatonal/detalle?${buildPeatonalDetalleQuery({ page: 1, pageSize: 10 })}`;
+  return `/peatonal/detalle?${buildPeatonalDetalleQuery({ page: 1, pageSize: 50 })}`;
 }
 
 export function buildEstacionamientosCacheUrl(acreNcorr?: number | null): string {

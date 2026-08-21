@@ -81,9 +81,25 @@
   flex-direction:  column;
   align-items:     center;
   gap:             4px;
+  appearance:      none;
+  margin:          0;
+  cursor:          pointer;
+
+  &:active {
+    opacity: 0.85;
+  }
 
   &--skeleton {
     pointer-events: none;
+  }
+
+  &--activa {
+    border-color: #1D78BF;
+    box-shadow:   0 0 0 2px rgba(29, 120, 191, 0.18);
+  }
+
+  &:disabled {
+    cursor: default;
   }
 }
 
@@ -129,6 +145,64 @@
   font-weight:   400;
   line-height:   normal;
   margin:        0 0 10px;
+}
+
+.busqueda-wrap {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  margin:        0 0 12px;
+  padding:       10px 14px;
+  background:    #FEFFFE;
+  border:        0.689px solid #E5E7EB;
+  border-radius: 14px;
+  box-shadow:    0 4px 8px 0 rgba(194, 201, 252, 0.15);
+
+  > ion-icon {
+    font-size: 18px;
+    color:     #6A7282;
+    flex-shrink: 0;
+  }
+}
+
+.busqueda-input {
+  flex:        1;
+  min-width:   0;
+  border:      none;
+  outline:     none;
+  background:  transparent;
+  color:       #040B15;
+  font-family: Roboto, sans-serif;
+  font-size:   14px;
+  font-weight: 400;
+  line-height: 20px;
+  padding:     0;
+
+  &::placeholder {
+    color: #B0B8C1;
+  }
+
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+.busqueda-limpiar {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-shrink:     0;
+  width:           24px;
+  height:          24px;
+  padding:         0;
+  border:          none;
+  background:      transparent;
+  color:           #828599;
+  cursor:          pointer;
+
+  ion-icon {
+    font-size: 18px;
+  }
 }
 
 .accesos-lista {
@@ -272,6 +346,10 @@
   font-size:  14px;
   text-align: center;
   margin:     8px 0 0;
+}
+
+ion-infinite-scroll {
+  padding: 5px 0;
 }
 
 .chip-estado {

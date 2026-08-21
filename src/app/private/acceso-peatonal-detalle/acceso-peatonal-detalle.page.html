@@ -17,7 +17,7 @@
     <h1 class="det-titulo">Acceso Peatonal</h1>
     <p class="det-subtitulo">
       @if (fecha) {
-        Control de ingreso · {{ fecha }}
+        Control de ingreso · {{ fechaDisplay }}
       } @else {
         Control de ingreso de personas
       }
@@ -47,12 +47,45 @@
           <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
           <span class="stat-label">{{ s.label }}</span>
         </div>
+        <!-- Filtro Autorizados / Visitas / Ingreso Manual
+        <button
+          type="button"
+          class="stat-card"
+          [class.stat-card--activa]="filtroEstado === estadoDeStat(s)"
+          [disabled]="!estadoDeStat(s)"
+          (click)="alternarFiltro(s)">
+          <span class="stat-valor" [style.color]="s.color">{{ s.valor }}</span>
+          <span class="stat-label">{{ s.label }}</span>
+        </button>
+        -->
       }
     </div>
   }
 
   <div class="accesos-section">
     <p class="accesos-titulo">Accesos recientes</p>
+
+    <!--
+    <div class="busqueda-wrap">
+      <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+      <input
+        class="busqueda-input"
+        type="search"
+        placeholder="Buscar por nombre o RUT"
+        [value]="busqueda"
+        (input)="onBusqueda($event)"
+        autocomplete="off" />
+      @if (busqueda.trim()) {
+        <button
+          type="button"
+          class="busqueda-limpiar"
+          aria-label="Limpiar búsqueda"
+          (click)="limpiarBusqueda()">
+          <ion-icon name="close-circle"></ion-icon>
+        </button>
+      }
+    </div>
+    -->
 
     @if (error && accesos.length === 0 && stats.length > 0) {
       <p class="lista-estado lista-estado--error">{{ error }}</p>

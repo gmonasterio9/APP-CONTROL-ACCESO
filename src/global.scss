@@ -44,6 +44,27 @@ ion-toolbar {
   --padding-bottom: 0;
 }
 
+ion-header ion-toolbar {
+  position: relative;
+
+  ion-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    pointer-events: none;
+    padding-inline: 48px;
+  }
+
+  ion-buttons {
+    position: relative;
+    z-index: 1;
+  }
+}
+
 ion-header ion-toolbar:first-of-type {
   padding-top: env(safe-area-inset-top) !important;
 }

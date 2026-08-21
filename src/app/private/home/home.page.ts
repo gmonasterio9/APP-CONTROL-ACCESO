@@ -34,7 +34,9 @@ export class HomePage implements OnDestroy {
   private catalogoSub?: Subscription;
   private sincronizandoCacheOffline = false;
   private suprimirRefreshCatalogo = false;
-  private catalogoAccesoSync: Promise<void> | null = null;
+  private refrescoTimer?: ReturnType<typeof setInterval>;
+  private refrescandoAutomatico = false;
+  private readonly REFRESCO_MS = 60_000;
 
   tiposEscaneo = [
     { id: 'credencial', label: 'Credencial', svg: 'assets/svg/credencial.svg', color: '#FEEB80' },
@@ -76,9 +78,15 @@ export class HomePage implements OnDestroy {
       void this.refrescarDatosLocales();
     });
     void this.inicializarHome();
+    this.iniciarRefrescoAutomatico();
+  }
+
+  ionViewWillLeave(): void {
+    this.detenerRefrescoAutomatico();
   }
 
   ngOnDestroy(): void {
+    this.detenerRefrescoAutomatico();
     this.catalogoSub?.unsubscribe();
   }
 
@@ -97,11 +105,42 @@ export class HomePage implements OnDestroy {
 
   private async inicializarHome(): Promise<void> {
     await this.hidratarDesdeCacheLocal();
-    // Una sola sync de catálogo-acceso; el resto de cache espera ese resultado.
-    this.catalogoAccesoSync = this.sincronizarCatalogoAccesoEnSegundoPlano();
     void this.cargarResumenPeatonal({ silencioso: true });
     void this.cargarEstacionamientos({ silencioso: true });
     void this.sincronizarCacheOfflineEnSegundoPlano();
+  }
+
+  private iniciarRefrescoAutomatico(): void {
+    this.detenerRefrescoAutomatico();
+    this.refrescoTimer = setInterval(() => {
+      void this.refrescarListasAutomatico();
+    }, this.REFRESCO_MS);
+  }
+
+  private detenerRefrescoAutomatico(): void {
+    if (this.refrescoTimer) {
+      clearInterval(this.refrescoTimer);
+      this.refrescoTimer = undefined;
+    }
+  }
+
+  private async refrescarListasAutomatico(): Promise<void> {
+    if (this.refrescandoAutomatico || this.sincronizandoCacheOffline) {
+      return;
+    }
+
+    this.refrescandoAutomatico = true;
+    try {
+      await Promise.all([
+        this.cargarEstacionamientos({
+          silencioso: true,
+          evitarCache: true,
+        }),
+        this.cargarResumenPeatonal({ silencioso: true }),
+      ]);
+    } finally {
+      this.refrescandoAutomatico = false;
+    }
   }
 
   private async hidratarDesdeCacheLocal(): Promise<void> {
@@ -122,28 +161,6 @@ export class HomePage implements OnDestroy {
     }
   }
 
-  private async sincronizarCatalogoAccesoEnSegundoPlano(): Promise<void> {
-    if (!(await this.network.hayInternet())) {
-      return;
-    }
-
-    if (!(await this.offlineService.necesitaCatalogoBase())) {
-      return;
-    }
-
-    try {
-      const estacionamientoSesion =
-        await this.authService.getEstacionamientoSesion();
-      const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
-      await this.authService.sincronizarCatalogoBaseOffline(
-        estacionamientoSesion,
-        acreNcorr
-      );
-    } catch (err: unknown) {
-      console.warn('No se pudo sincronizar /offline/catalogo-acceso.', err);
-    }
-  }
-
   private async sincronizarCacheOfflineEnSegundoPlano(): Promise<void> {
     if (this.sincronizandoCacheOffline) {
       return;
@@ -157,9 +174,6 @@ export class HomePage implements OnDestroy {
     this.suprimirRefreshCatalogo = true;
 
     try {
-      // Esperar la sync única; no volver a llamar /offline/catalogo-acceso.
-      await this.catalogoAccesoSync;
-
       const acreNcorr = await this.authService.resolverAcreNcorrParaOperar();
       const catalogo = await this.offlineService.getCatalogo();
 

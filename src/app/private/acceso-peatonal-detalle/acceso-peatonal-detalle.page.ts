@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 import {
   InfiniteScrollCustomEvent,
   IonInfiniteScroll,
@@ -9,6 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   PeatonalAccesoEstado,
   PeatonalAccesoView,
+  PeatonalDetalleQuery,
 } from '../../core/models/peatonal-detalle.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
@@ -17,13 +18,15 @@ import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
 
+const BUSQUEDA_DEBOUNCE_MS = 400;
+
 @Component({
   selector: 'app-acceso-peatonal-detalle',
   templateUrl: 'acceso-peatonal-detalle.page.html',
   styleUrls: ['acceso-peatonal-detalle.page.scss'],
   standalone: false,
 })
-export class AccesoPeatonalDetallePage {
+export class AccesoPeatonalDetallePage implements OnDestroy {
   @ViewChild(IonInfiniteScroll) infiniteScroll?: IonInfiniteScroll;
 
   readonly statsSkeleton = [0, 1, 2];
@@ -32,15 +35,33 @@ export class AccesoPeatonalDetallePage {
   stats: PeatonalStatCard[] = [];
   accesos: PeatonalAccesoView[] = [];
   fecha: string | null = null;
+  busqueda = '';
+  filtroEstado: PeatonalAccesoEstado | null = null;
+
+  get fechaDisplay(): string | null {
+    if (!this.fecha) {
+      return null;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(this.fecha.trim());
+    if (!match) {
+      return this.fecha;
+    }
+
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }
 
   pagina = 1;
-  readonly pageSize = 10;
+  readonly pageSize = 50;
   totalRegistros = 0;
   totalPaginas = 0;
 
   cargando = false;
   cargandoMas = false;
   error: string | null = null;
+
+  private busquedaTimer?: ReturnType<typeof setTimeout>;
+  private cargaId = 0;
 
   constructor(
     private navCtrl: NavController,
@@ -54,6 +75,13 @@ export class AccesoPeatonalDetallePage {
     void this.cargarDetalle(true);
   }
 
+  ngOnDestroy(): void {
+    if (this.busquedaTimer) {
+      clearTimeout(this.busquedaTimer);
+    }
+    this.cargaId += 1;
+  }
+
   get hayMasAccesos(): boolean {
     const pagina = Number(this.pagina) || 1;
     const totalPaginas = Number(this.totalPaginas) || 0;
@@ -63,6 +91,56 @@ export class AccesoPeatonalDetallePage {
       return pagina < totalPaginas;
     }
     return totalRegistros > 0 && this.accesos.length < totalRegistros;
+  }
+
+  get accesosFiltrados(): PeatonalAccesoView[] {
+    return this.accesos.filter(acceso => this.coincideFiltros(acceso));
+  }
+
+  get mensajeSinResultados(): string {
+    if (this.busqueda.trim() || this.filtroEstado) {
+      return 'Sin resultados para la búsqueda';
+    }
+    return 'Sin accesos registrados';
+  }
+
+  private get tieneFiltroActivo(): boolean {
+    return !!this.busqueda.trim() || !!this.filtroEstado;
+  }
+
+  onBusqueda(event: Event): void {
+    this.busqueda = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.programarBusquedaServidor();
+  }
+
+  limpiarBusqueda(): void {
+    if (this.busquedaTimer) {
+      clearTimeout(this.busquedaTimer);
+    }
+    this.busqueda = '';
+    void this.cargarDetalle(true, { silencioso: true });
+  }
+
+  estadoDeStat(stat: PeatonalStatCard): PeatonalAccesoEstado | null {
+    switch (stat.label) {
+      case 'Autorizados':
+        return 'permitido';
+      case 'Visitas':
+        return 'visita';
+      case 'Ingreso Manual':
+        return 'manual';
+      default:
+        return null;
+    }
+  }
+
+  alternarFiltro(stat: PeatonalStatCard): void {
+    const estado = this.estadoDeStat(stat);
+    if (!estado) {
+      return;
+    }
+    this.filtroEstado = this.filtroEstado === estado ? null : estado;
+    this.programarBusquedaServidor(0);
   }
 
   chipLabel(estado: PeatonalAccesoEstado): string {
@@ -117,10 +195,31 @@ export class AccesoPeatonalDetallePage {
     void this.cargarDetalle(true);
   }
 
+  private programarBusquedaServidor(delayMs = BUSQUEDA_DEBOUNCE_MS): void {
+    if (this.busquedaTimer) {
+      clearTimeout(this.busquedaTimer);
+    }
+
+    this.busquedaTimer = setTimeout(() => {
+      void this.cargarDetalle(true, { silencioso: true });
+    }, delayMs);
+  }
+
+  private queryDetalle(): PeatonalDetalleQuery {
+    return {
+      page: this.pagina,
+      pageSize: this.pageSize,
+      q: this.busqueda.trim() || undefined,
+      estado: this.filtroEstado ?? undefined,
+    };
+  }
+
   private async cargarDetalle(
     reset: boolean,
     opciones?: { silencioso?: boolean }
   ): Promise<void> {
+    const cargaId = reset ? ++this.cargaId : this.cargaId;
+
     if (reset) {
       this.pagina = 1;
       if (!opciones?.silencioso) {
@@ -146,11 +245,12 @@ export class AccesoPeatonalDetallePage {
 
     try {
       const data = await firstValueFrom(
-        this.peatonalService.obtenerDetalle({
-          page: this.pagina,
-          pageSize: this.pageSize,
-        })
+        this.peatonalService.obtenerDetalle(this.queryDetalle())
       );
+
+      if (cargaId !== this.cargaId) {
+        return;
+      }
 
       this.stats = data.stats;
       this.fecha = data.fecha ?? null;
@@ -167,7 +267,17 @@ export class AccesoPeatonalDetallePage {
       } else {
         this.accesos = [...this.accesos, ...data.accesos];
       }
+
+      if (reset && this.tieneFiltroActivo && this.hayMasAccesos) {
+        if (!opciones?.silencioso) {
+          this.cargando = false;
+        }
+        await this.cargarPaginasRestantes(cargaId);
+      }
     } catch (err: unknown) {
+      if (cargaId !== this.cargaId) {
+        return;
+      }
       if (reset && (await this.cargarDetalleDesdeCache(true))) {
         return;
       }
@@ -189,14 +299,54 @@ export class AccesoPeatonalDetallePage {
         );
       }
     } finally {
-      if (reset) {
-        if (!opciones?.silencioso) {
-          this.cargando = false;
+      if (cargaId === this.cargaId) {
+        if (reset) {
+          if (!opciones?.silencioso) {
+            this.cargando = false;
+          }
+        } else {
+          this.cargandoMas = false;
         }
-      } else {
-        this.cargandoMas = false;
+        this.activarInfiniteScrollSiCorresponde();
       }
-      this.activarInfiniteScrollSiCorresponde();
+    }
+  }
+
+  private async cargarPaginasRestantes(cargaId: number): Promise<void> {
+    this.cargandoMas = true;
+    try {
+      while (cargaId === this.cargaId && this.hayMasAccesos) {
+        this.pagina += 1;
+        const data = await firstValueFrom(
+          this.peatonalService.obtenerDetalle(this.queryDetalle())
+        );
+
+        if (cargaId !== this.cargaId) {
+          return;
+        }
+
+        const nuevos = data.accesos ?? [];
+        if (nuevos.length === 0) {
+          this.totalRegistros = this.accesos.length;
+          break;
+        }
+
+        this.accesos = [...this.accesos, ...nuevos];
+        this.totalRegistros = Number(data.paginacion?.totalRegistros) || this.totalRegistros;
+        this.totalPaginas =
+          Number(data.paginacion?.totalPaginas) ||
+          (this.totalRegistros > 0
+            ? Math.ceil(this.totalRegistros / this.pageSize)
+            : this.totalPaginas);
+        this.pagina = Number(data.paginacion?.pagina) || this.pagina;
+      }
+    } catch {
+      this.pagina = Math.max(1, this.pagina - 1);
+    } finally {
+      if (cargaId === this.cargaId) {
+        this.cargandoMas = false;
+        this.activarInfiniteScrollSiCorresponde();
+      }
     }
   }
 
@@ -207,6 +357,41 @@ export class AccesoPeatonalDetallePage {
         this.infiniteScroll.disabled = deshabilitar;
       }
     });
+  }
+
+  private coincideFiltros(acceso: PeatonalAccesoView): boolean {
+    if (this.filtroEstado && acceso.estado !== this.filtroEstado) {
+      return false;
+    }
+
+    const query = this.busqueda.trim();
+    if (!query) {
+      return true;
+    }
+
+    const queryNombre = this.normalizarTexto(query);
+    const queryRut = this.normalizarRut(query);
+    const nombre = this.normalizarTexto(acceso.nombre);
+    const rut = this.normalizarRut(acceso.rut);
+
+    return (
+      (!!queryNombre && nombre.includes(queryNombre)) ||
+      (!!queryRut && rut.includes(queryRut))
+    );
+  }
+
+  private normalizarTexto(value: string): string {
+    return String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+  }
+
+  private normalizarRut(value: string): string {
+    return String(value ?? '')
+      .replace(/[^0-9kK]/gi, '')
+      .toUpperCase();
   }
 
   private async cargarDetalleDesdeCache(reset: boolean): Promise<boolean> {
