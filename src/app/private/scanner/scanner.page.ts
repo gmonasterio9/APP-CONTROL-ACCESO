@@ -88,6 +88,8 @@ export class ScannerPage implements OnDestroy {
   private videoTrack:    MediaStreamTrack | null = null;
   private mlkitListener: PluginListenerHandle | null = null;
   private usandoMLKit  = false;
+  private deteccionQrWebId: ReturnType<typeof setTimeout> | null = null;
+  private deteccionQrWebGeneracion = 0;
   private backButtonSub?: Subscription;
   private networkSub?: Subscription;
   private modoAcompanantes = false;
@@ -243,12 +245,72 @@ export class ScannerPage implements OnDestroy {
         };
         await video.play();
         this.camaraLista = true;
+        this.iniciarDeteccionQrWeb();
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 50));
       this.cdr.detectChanges();
     }
     throw new Error('No se encontró el elemento de video.');
+  }
+
+  private iniciarDeteccionQrWeb(): void {
+    this.detenerDeteccionQrWeb();
+
+    type DetectorInstancia = {
+      detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+    };
+    const DetectorCtor = (
+      window as Window & {
+        BarcodeDetector?: new (opts?: { formats: string[] }) => DetectorInstancia;
+      }
+    ).BarcodeDetector;
+
+    if (!DetectorCtor) {
+      return;
+    }
+
+    let detector: DetectorInstancia;
+    try {
+      detector = new DetectorCtor({ formats: ['qr_code'] });
+    } catch {
+      return;
+    }
+
+    const gen = this.deteccionQrWebGeneracion;
+    const ciclo = async () => {
+      if (gen !== this.deteccionQrWebGeneracion || !this.videoStream || this.usandoMLKit) {
+        return;
+      }
+
+      const video = this.videoRef?.nativeElement;
+      if (!this.procesando && video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        try {
+          const codes = await detector.detect(video);
+          const valor = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          if (valor && gen === this.deteccionQrWebGeneracion) {
+            this.zone.run(() => this.onCodigoDetectado(valor));
+          }
+        } catch {
+          // Un frame fallido no debe cortar el loop.
+        }
+      }
+
+      if (gen !== this.deteccionQrWebGeneracion) {
+        return;
+      }
+      this.deteccionQrWebId = setTimeout(() => void ciclo(), 250);
+    };
+
+    this.deteccionQrWebId = setTimeout(() => void ciclo(), 400);
+  }
+
+  private detenerDeteccionQrWeb(): void {
+    this.deteccionQrWebGeneracion++;
+    if (this.deteccionQrWebId != null) {
+      clearTimeout(this.deteccionQrWebId);
+      this.deteccionQrWebId = null;
+    }
   }
 
   private async iniciarMLKit() {
@@ -978,6 +1040,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   private detenerVideoStream() {
+    this.detenerDeteccionQrWeb();
     this.camaraLista = false;
     void this.apagarFlash();
     this.videoStream?.getTracks().forEach(t => t.stop());

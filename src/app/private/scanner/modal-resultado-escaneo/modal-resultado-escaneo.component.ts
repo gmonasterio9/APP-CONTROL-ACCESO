@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 import { PatenteUtil } from '../../../core/utils/patente.util';
@@ -27,7 +27,7 @@ export interface DatosResultadoEscaneo {
   styleUrls: ['modal-resultado-escaneo.component.scss'],
   standalone: false,
 })
-export class ModalResultadoEscaneoComponent {
+export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() tipo: TipoEscaneo = 'credencial';
   @Input() estado: EstadoEscaneo = 'autorizado';
   @Input() nombre?: string;
@@ -49,7 +49,23 @@ export class ModalResultadoEscaneoComponent {
   @Input() acreNcorr?: number | null;
   @Input() aeseNcorr?: number | null;
 
+  private cierreTimer?: ReturnType<typeof setTimeout>;
+
   constructor(private modalCtrl: ModalController) {}
+
+  ngOnInit(): void {
+    if (this.pendienteSalida) {
+      return;
+    }
+
+    this.cierreTimer = setTimeout(() => {
+      void this.cerrar();
+    }, 2000);
+  }
+
+  ngOnDestroy(): void {
+    this.limpiarCierreTimer();
+  }
 
   get iconoEstado(): string {
     return { autorizado: 'checkmark', no_autorizado: 'close', manual: 'warning' }[this.estado];
@@ -100,7 +116,6 @@ export class ModalResultadoEscaneoComponent {
     return String(this.code ?? '').toLowerCase() === 'bloqueado';
   }
 
-  /** Autorizado, rechazado y expirado: peatonal + estacionamiento (excepto escaneo de patente). */
   get mostrarAccesoPeatonal(): boolean {
     return (
       !this.pendienteSalida &&
@@ -140,6 +155,7 @@ export class ModalResultadoEscaneoComponent {
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
+    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(
       {
         via,
@@ -163,6 +179,7 @@ export class ModalResultadoEscaneoComponent {
   }
 
   confirmarSalida() {
+    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(
       {
         via: 'salida',
@@ -179,6 +196,14 @@ export class ModalResultadoEscaneoComponent {
   }
 
   cerrar() {
+    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(null, 'cancelar');
+  }
+
+  private limpiarCierreTimer(): void {
+    if (this.cierreTimer) {
+      clearTimeout(this.cierreTimer);
+      this.cierreTimer = undefined;
+    }
   }
 }
