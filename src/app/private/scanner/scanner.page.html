@@ -71,15 +71,19 @@
           </div>
         }
 
-        <button
-          type="button"
-          class="btn-captura"
-          (click)="capturarPatente()"
-          [disabled]="procesando"
-          aria-label="Fotografiar patente">
-          <span class="btn-captura-inner"></span>
-        </button>
-        <p class="captura-label"> Escaneo de Patente Vehicular</p>
+        @if (escanearPatente) {
+          <button
+            type="button"
+            class="btn-captura"
+            (click)="capturarPatente()"
+            [disabled]="procesando"
+            aria-label="Fotografiar patente">
+            <span class="btn-captura-inner"></span>
+          </button>
+          <p class="captura-label">Escaneo de Patente Vehicular</p>
+        } @else {
+          <p class="captura-label">Apunta al código QR</p>
+        }
       </div>
 
     </div>

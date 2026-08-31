@@ -23,6 +23,30 @@ p, span {
   font-weight: var(--font-weight-regular);
 }
 
+html.tema-oscuro {
+  ion-content {
+    --background: var(--color-bg);
+  }
+
+  .modal-75 {
+    --background: var(--color-surface);
+
+    &::part(content) {
+      background: var(--color-surface);
+    }
+
+    .btn-cancelar {
+      color: var(--color-text);
+    }
+  }
+}
+
+html[class*='texto-'] {
+  ion-button {
+    --font-size: var(--font-size-body);
+  }
+}
+
 ion-input-otp {
   --border-color: var(--color-border);
   --highlight-color: var(--color-border);
@@ -95,6 +119,10 @@ ion-footer {
 
   &--salida {
     --height: min(52vh, 420px);
+  }
+
+  &--desatendido {
+    --height: min(42vh, 340px);
   }
 
   .btn-cancelar {

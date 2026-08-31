@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { EdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge-support';
 import { AuthService } from './core/services/auth.service';
+import { ConfiguracionesService } from './core/services/configuraciones.service';
 import { SedesService } from './core/services/sedes.service';
 
 @Component({
@@ -16,9 +17,11 @@ export class AppComponent {
   constructor(
     private auth: AuthService,
     private router: Router,
-    private sedes: SedesService
+    private sedes: SedesService,
+    private configuraciones: ConfiguracionesService
   ) {
     this.initEdgeToEdge();
+    void this.configuraciones.init();
     this.sedes.prefetch();
     void this.bootstrapSession();
     this.listenAppResume();

@@ -1,6 +1,11 @@
 <ion-header mode="md">
   <ion-toolbar class="home-toolbar">
     <ion-title>Sistema Unificado de Control</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="abrirConfiguraciones()" aria-label="Configuraciones">
+        <img src="assets/svg/settings.svg" class="header-svg" alt="" />
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -15,7 +20,7 @@
 
   <div class="scan-section">
     <h2 class="scan-title">Escanea para comenzar</h2>
-    <p class="scan-subtitle">Credencial INACAP, cédula de identidad o patente</p>
+    <p class="scan-subtitle">{{ scanSubtitle }}</p>
 
     <div class="tipo-row">
       @for (tipo of tiposEscaneo; track tipo.id) {

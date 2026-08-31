@@ -1,0 +1,69 @@
+<ion-header mode="md">
+  <ion-toolbar class="cfg-toolbar">
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()" aria-label="Volver">
+        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Configuraciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="cfg-content">
+  <section class="cfg-block">
+    <div class="cfg-row">
+      <div class="cfg-row-text">
+        <p class="cfg-label">Modo oscuro</p>
+      </div>
+      <ion-toggle
+        mode="ios"
+        [checked]="cfg.tema === 'oscuro'"
+        (ionChange)="onModoOscuro($event.detail.checked)">
+      </ion-toggle>
+    </div>
+
+    <div class="cfg-row">
+      <div class="cfg-row-text">
+        <p class="cfg-label">Códigos QR</p>
+        <p class="cfg-hint">Credencial INACAP y cédula</p>
+      </div>
+      <ion-toggle
+        mode="ios"
+        [checked]="cfg.escanearQr"
+        [disabled]="cfg.escanearQr && !cfg.escanearPatente"
+        (ionChange)="onEscanearQr($event.detail.checked)">
+      </ion-toggle>
+    </div>
+
+    <div class="cfg-row">
+      <div class="cfg-row-text">
+        <p class="cfg-label">Patentes</p>
+        <p class="cfg-hint">Fotografía de patente vehicular</p>
+      </div>
+      <ion-toggle
+        mode="ios"
+        [checked]="cfg.escanearPatente"
+        [disabled]="cfg.escanearPatente && !cfg.escanearQr"
+        (ionChange)="onEscanearPatente($event.detail.checked)">
+      </ion-toggle>
+    </div>
+
+    <div class="cfg-row cfg-row--col">
+      <p class="cfg-label">Tamaño de letra</p>
+      <div class="cfg-range">
+        <span class="cfg-a cfg-a--sm" aria-hidden="true">A−</span>
+        <ion-range
+          mode="ios"
+          [min]="tamanoMin"
+          [max]="tamanoMax"
+          [step]="1"
+          [snaps]="true"
+          [ticks]="true"
+          [value]="tamanoValor"
+          (ionChange)="onTamano($event.detail.value)">
+        </ion-range>
+        <span class="cfg-a cfg-a--lg" aria-hidden="true">A+</span>
+      </div>
+    </div>
+  </section>
+</ion-content>

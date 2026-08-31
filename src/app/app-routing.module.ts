@@ -46,6 +46,14 @@ const routes: Routes = [
     loadChildren: () => import('./private/scanner/scanner.module').then(m => m.ScannerModule)
   },
   {
+    path: 'configuraciones',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('./private/configuraciones/configuraciones.module').then(
+        m => m.ConfiguracionesModule
+      )
+  },
+  {
     path: 'acceso-peatonal-detalle',
     canActivate: [AuthGuard],
     loadChildren: () => import('./private/acceso-peatonal-detalle/acceso-peatonal-detalle.module').then(m => m.AccesoPeatonalDetalleModule)

@@ -1,6 +1,5 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
-import { AuthService } from '../../../core/services/auth.service';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 import { PatenteUtil } from '../../../core/utils/patente.util';
 
@@ -21,9 +20,6 @@ export interface DatosResultadoEscaneo {
   plateResult?: PlateResult;
   fotoPreview?: string;
 }
-
-const SEDES_CIERRE_RAPIDO_IDS = new Set([11, 19]);
-const SEDES_CIERRE_RAPIDO_NOMBRES = ['la serena', 'copiapo'];
 
 @Component({
   selector: 'app-modal-resultado-escaneo',
@@ -52,30 +48,17 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() pendienteSalida = false;
   @Input() acreNcorr?: number | null;
   @Input() aeseNcorr?: number | null;
+  @Input() vistaDesatendida = false;
 
+  ocultarAccionesValidar = false;
   private cierreTimer?: ReturnType<typeof setTimeout>;
   private destruido = false;
 
-  constructor(
-    private modalCtrl: ModalController,
-    private authService: AuthService
-  ) {}
+  constructor(private modalCtrl: ModalController) {}
 
   ngOnInit(): void {
-    if (this.pendienteSalida) {
-      return;
-    }
-
-    void this.programarCierreRapidoSiAplica();
-  }
-
-  ngOnDestroy(): void {
-    this.destruido = true;
-    this.limpiarCierreTimer();
-  }
-
-  private async programarCierreRapidoSiAplica(): Promise<void> {
-    if (!(await this.esSedeCierreRapido()) || this.destruido) {
+    this.ocultarAccionesValidar = this.vistaDesatendida && !this.pendienteSalida;
+    if (this.pendienteSalida || !this.ocultarAccionesValidar || this.tipo !== 'credencial') {
       return;
     }
 
@@ -84,28 +67,9 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
     }, 2000);
   }
 
-  private async esSedeCierreRapido(): Promise<boolean> {
-    const sede = await this.authService.getSede();
-    if (!sede) {
-      return false;
-    }
-
-    if (SEDES_CIERRE_RAPIDO_IDS.has(sede.id)) {
-      return true;
-    }
-
-    const nombre = this.normalizarNombreSede(sede.nombre);
-    return SEDES_CIERRE_RAPIDO_NOMBRES.some(
-      clave => nombre === clave || nombre.includes(clave)
-    );
-  }
-
-  private normalizarNombreSede(value: string): string {
-    return String(value ?? '')
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\p{M}/gu, '');
+  ngOnDestroy(): void {
+    this.destruido = true;
+    this.limpiarCierreTimer();
   }
 
   get iconoEstado(): string {
@@ -159,6 +123,7 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
 
   get mostrarAccesoPeatonal(): boolean {
     return (
+      !this.ocultarAccionesValidar &&
       !this.pendienteSalida &&
       !this.esAccesoBloqueado &&
       this.tipo !== 'patente'
@@ -166,11 +131,25 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   }
 
   get mostrarAccesoEstacionamiento(): boolean {
-    return !this.pendienteSalida && !this.esAccesoBloqueado;
+    return (
+      !this.ocultarAccionesValidar &&
+      !this.pendienteSalida &&
+      !this.esAccesoBloqueado
+    );
   }
 
   get mostrarOpcionesAcceso(): boolean {
     return this.mostrarAccesoPeatonal || this.mostrarAccesoEstacionamiento;
+  }
+
+  get mostrarCancelar(): boolean {
+    if (this.pendienteSalida) {
+      return false;
+    }
+    if (!this.ocultarAccionesValidar) {
+      return true;
+    }
+    return this.tipo !== 'credencial';
   }
 
   get preguntaAcceso(): string {

@@ -28,7 +28,9 @@ import {
 } from '../../core/models/peatonal-control-ingreso.model';
 import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
+import { esSedeDesatendida } from '../../core/utils/sede-desatendida.util';
 import { AuthService } from '../../core/services/auth.service';
+import { ConfiguracionesService } from '../../core/services/configuraciones.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
@@ -80,6 +82,8 @@ export class ScannerPage implements OnDestroy {
   zoomMax         = 3;
   zoomStep        = 0.1;
   toqueEnfoque: ToqueEnfoque | null = null;
+  escanearQr = true;
+  escanearPatente = true;
 
   private readonly zoomDigitalMax = 3;
   private readonly zoomNiveles = [0.5, 1, 2, 3];
@@ -107,6 +111,7 @@ export class ScannerPage implements OnDestroy {
     private validarPatenteService: ValidarPatenteService,
     private peatonalService: PeatonalService,
     private authService: AuthService,
+    private configuraciones: ConfiguracionesService,
     private network: NetworkService,
     private offlineService: OfflineService,
     private estacionamientoService: EstacionamientoService,
@@ -117,6 +122,11 @@ export class ScannerPage implements OnDestroy {
   ) {}
 
   async ionViewWillEnter() {
+    await this.configuraciones.init();
+    const cfg = this.configuraciones.actual;
+    this.escanearQr = cfg.escanearQr;
+    this.escanearPatente = cfg.escanearPatente;
+
     const qp = this.route.snapshot.queryParamMap;
     this.modoAcompanantes = qp.get('modo') === 'acompanantes';
     if (this.modoAcompanantes) {
@@ -245,7 +255,9 @@ export class ScannerPage implements OnDestroy {
         };
         await video.play();
         this.camaraLista = true;
-        this.iniciarDeteccionQrWeb();
+        if (this.escanearQr) {
+          this.iniciarDeteccionQrWeb();
+        }
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -329,7 +341,7 @@ export class ScannerPage implements OnDestroy {
       document.body.classList.add('barcode-scanning-active');
 
       this.mlkitListener = await BarcodeScanner.addListener('barcodesScanned', (event) => {
-        if (this.procesando || !event.barcodes?.length) {
+        if (this.procesando || !this.escanearQr || !event.barcodes?.length) {
           return;
         }
 
@@ -365,7 +377,16 @@ export class ScannerPage implements OnDestroy {
 
     try {
       if (this.esPatente(codigo)) {
+        if (!this.escanearPatente) {
+          this.procesando = false;
+          return;
+        }
         await this.validarPatenteEscaneada(codigo);
+        return;
+      }
+
+      if (!this.escanearQr) {
+        this.procesando = false;
         return;
       }
 
@@ -381,7 +402,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   async capturarPatente() {
-    if (this.procesando) { return; }
+    if (this.procesando || !this.escanearPatente) { return; }
     this.procesando = true;
     const eraMLKit = this.usandoMLKit;
     await this.detenerDeteccion();
@@ -667,11 +688,16 @@ export class ScannerPage implements OnDestroy {
     aeseNcorr?: number | null;
   }) {
     const esBloqueado = String(data.code ?? '').toLowerCase() === 'bloqueado';
+    const vistaDesatendida =
+      !data.pendienteSalida &&
+      esSedeDesatendida(await this.authService.getSede());
     const cssClass = data.pendienteSalida
       ? 'modal-75 modal-75--salida'
-      : esBloqueado
-        ? 'modal-75 modal-75--bloqueado'
-        : 'modal-75';
+      : vistaDesatendida
+        ? 'modal-75 modal-75--desatendido'
+        : esBloqueado
+          ? 'modal-75 modal-75--bloqueado'
+          : 'modal-75';
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
       cssClass,
@@ -696,6 +722,7 @@ export class ScannerPage implements OnDestroy {
         pendienteSalida: data.pendienteSalida ?? false,
         acreNcorr: data.acreNcorr,
         aeseNcorr: data.aeseNcorr,
+        vistaDesatendida,
       },
     });
 

@@ -6,7 +6,7 @@
 }
 
 .im-content {
-  --background: #F5F5F5;
+  --background: var(--color-bg);
 }
 
 .im-body {
@@ -17,12 +17,12 @@
 }
 
 .im-header-block {
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 20px 16px 16px;
 }
 
 .im-titulo {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 24px;
   font-weight: 700;
@@ -50,7 +50,7 @@
 }
 
 .im-label {
-  color: #040B15;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 12px;
   font-style: normal;

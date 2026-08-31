@@ -6,12 +6,12 @@
 }
 
 .det-content {
-  --background: #F5F5F5;
+  --background: var(--color-bg);
   --padding-bottom: 24px;
 }
 
 .det-header {
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 20px 16px 16px;
   margin-bottom: 12px;
 }

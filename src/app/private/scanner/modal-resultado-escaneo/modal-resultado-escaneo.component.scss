@@ -11,6 +11,11 @@
   padding: var(--spacing-xl) var(--spacing-md) 8px;
   gap: 0;
   box-sizing: border-box;
+
+  &--desatendido {
+    justify-content: center;
+    padding: 28px 20px 32px;
+  }
 }
 
 .estado-circle {
@@ -233,6 +238,10 @@
 @media (max-height: 740px) {
   .modal-body {
     padding: 20px 16px 8px;
+  }
+
+  .modal-body--desatendido {
+    padding: 20px 16px 24px;
   }
 
   .estado-circle {

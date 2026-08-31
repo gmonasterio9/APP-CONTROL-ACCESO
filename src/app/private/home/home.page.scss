@@ -13,6 +13,10 @@
   ion-title {
     color: #fff;
   }
+
+  ion-button {
+    --color: #fff;
+  }
 }
 
 .header-svg {
@@ -37,12 +41,12 @@
   margin-bottom: var(--spacing-sm);
 
   .scan-title {
-    color: #040B15;
+    color: var(--color-text);
     font-family: Roboto, sans-serif;
-    font-size: 20px;
+    font-size: var(--font-size-title);
     font-style: normal;
     font-weight: 700;
-    line-height: 28px;
+    line-height: 1.35;
     letter-spacing: -0.449px;
     text-align: center;
     margin: 0 0 var(--spacing-xs);
@@ -92,10 +96,9 @@
 }
 
 .btn-svg {
-  width: 20px;
-  height: 20px;
-  margin-right: 6px;
-
+  width: 26px;
+  height: 26px;
+  margin-right: 10px;
 }
 
 .btn-escanear {
@@ -103,18 +106,22 @@
   --background-activated: var(--color-accent-dark);
   --border-radius: var(--radius-pill);
   --color: #FEFFFE;
+  --padding-top: 18px;
+  --padding-bottom: 18px;
+  height: 68px;
   margin-bottom: var(--spacing-sm);
   font-family: Roboto, sans-serif;
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-style: normal;
-  font-weight: 500;
-  line-height: 20px;
+  font-weight: 600;
+  line-height: 26px;
   letter-spacing: -0.15px;
   text-align: center;
   text-transform: none;
 
   &::part(native) {
     text-transform: none;
+    min-height: 68px;
   }
 }
 
@@ -126,11 +133,14 @@
   --background: transparent;
   --background-activated: rgba(29, 120, 191, 0.08);
   --ripple-color: #1D78BF;
+  --padding-top: 18px;
+  --padding-bottom: 18px;
+  height: 68px;
   font-family: Roboto, sans-serif;
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-style: normal;
-  font-weight: 500;
-  line-height: 20px;
+  font-weight: 600;
+  line-height: 26px;
   letter-spacing: -0.15px;
   text-align: center;
   text-transform: none;
@@ -139,13 +149,14 @@
     text-transform: none;
     border-color: #1D78BF;
     color: #1D78BF;
+    min-height: 68px;
   }
 }
 
 .home-segment {
-  --background: #fff;
+  --background: var(--color-surface);
   --border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 8px;
   margin: 0 var(--spacing-md) var(--spacing-sm);
   padding: 4px;
@@ -156,7 +167,7 @@
   box-shadow: 0 4px 8px 0 rgba(194, 201, 252, 0.15);
 
   ion-segment-button {
-    --color: #040B15;
+    --color: var(--color-text);
     --color-checked: #fff;
     --background: transparent;
     --background-checked: transparent;
@@ -165,7 +176,7 @@
     --padding-start: var(--spacing-md);
     --padding-end: var(--spacing-md);
     font-family: Roboto, sans-serif;
-    font-size: 14px;
+    font-size: var(--font-size-sm);
     font-style: normal;
     font-weight: 600;
     line-height: 20px;
@@ -206,8 +217,8 @@
 
 .lista-titulo {
   margin:      0;
-  color:       #040B15;
-  font-size:   14px;
+  color:       var(--color-text);
+  font-size:   var(--font-size-sm);
   font-weight: 600;
   font-family: Roboto, sans-serif;
 }
@@ -217,7 +228,7 @@
   height:          36px;
   border:          none;
   border-radius:   50%;
-  background:      #fff;
+  background:      var(--color-surface);
   box-shadow:      0 2px 8px rgba(0, 0, 0, 0.08);
   display:         flex;
   align-items:     center;
@@ -253,7 +264,7 @@
   text-align: center;
 
   &--error {
-    color: #040b15;
+    color: var(--color-text);
   }
 }
 
