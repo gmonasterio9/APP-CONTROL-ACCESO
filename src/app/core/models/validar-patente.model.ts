@@ -1,6 +1,18 @@
 export interface ValidarPatenteRequest {
   patente: string;
   acreNcorr?: number;
+  confirmarIngreso?: boolean;
+}
+
+export interface BarreraOpcion {
+  aecaNcorr: number;
+  nombre: string;
+}
+
+export interface BarreraIngreso {
+  abierta?: boolean;
+  requiereSeleccion?: boolean;
+  opciones?: BarreraOpcion[];
 }
 
 export interface ValidarPatenteResponse {
@@ -21,4 +33,6 @@ export interface ValidarPatenteResponse {
   salidaPendiente?: boolean;
   acreNcorr?: number;
   aeseNcorr?: number;
+  registrado?: boolean;
+  barrera?: BarreraIngreso;
 }

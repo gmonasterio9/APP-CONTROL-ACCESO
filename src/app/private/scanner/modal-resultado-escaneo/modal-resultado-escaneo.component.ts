@@ -1,5 +1,6 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
+import { AuthService } from '../../../core/services/auth.service';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 import { PatenteUtil } from '../../../core/utils/patente.util';
 
@@ -20,6 +21,9 @@ export interface DatosResultadoEscaneo {
   plateResult?: PlateResult;
   fotoPreview?: string;
 }
+
+const SEDES_CIERRE_RAPIDO_IDS = new Set([11, 19]);
+const SEDES_CIERRE_RAPIDO_NOMBRES = ['la serena', 'copiapo'];
 
 @Component({
   selector: 'app-modal-resultado-escaneo',
@@ -50,11 +54,28 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() aeseNcorr?: number | null;
 
   private cierreTimer?: ReturnType<typeof setTimeout>;
+  private destruido = false;
 
-  constructor(private modalCtrl: ModalController) {}
+  constructor(
+    private modalCtrl: ModalController,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
     if (this.pendienteSalida) {
+      return;
+    }
+
+    void this.programarCierreRapidoSiAplica();
+  }
+
+  ngOnDestroy(): void {
+    this.destruido = true;
+    this.limpiarCierreTimer();
+  }
+
+  private async programarCierreRapidoSiAplica(): Promise<void> {
+    if (!(await this.esSedeCierreRapido()) || this.destruido) {
       return;
     }
 
@@ -63,8 +84,28 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
     }, 2000);
   }
 
-  ngOnDestroy(): void {
-    this.limpiarCierreTimer();
+  private async esSedeCierreRapido(): Promise<boolean> {
+    const sede = await this.authService.getSede();
+    if (!sede) {
+      return false;
+    }
+
+    if (SEDES_CIERRE_RAPIDO_IDS.has(sede.id)) {
+      return true;
+    }
+
+    const nombre = this.normalizarNombreSede(sede.nombre);
+    return SEDES_CIERRE_RAPIDO_NOMBRES.some(
+      clave => nombre === clave || nombre.includes(clave)
+    );
+  }
+
+  private normalizarNombreSede(value: string): string {
+    return String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
   }
 
   get iconoEstado(): string {

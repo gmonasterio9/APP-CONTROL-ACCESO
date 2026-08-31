@@ -1,5 +1,5 @@
-<ion-header class="sedes-modal-header">
-  <ion-toolbar>
+<ion-header mode="ios" class="sedes-modal-header">
+  <ion-toolbar mode="ios">
     <ion-title>Seleccionar sede</ion-title>
     <ion-buttons slot="end">
       <ion-button
@@ -13,10 +13,12 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="sedes-modal-content">
+<ion-content mode="ios" class="sedes-modal-content">
   <ion-searchbar
+    mode="ios"
     class="sedes-searchbar"
     placeholder="Buscar sede"
+    [showCancelButton]="'never'"
     [value]="searchQuery"
     (ionInput)="searchbarInput($event)">
   </ion-searchbar>
@@ -30,15 +32,17 @@
   @if (filteredSedes.length === 0 && searchQuery.trim()) {
     <p class="sedes-empty">No hay ninguna sede con ese nombre.</p>
   } @else {
-    <ion-list class="sedes-modal-list" lines="none">
+    <ion-list mode="ios" class="sedes-modal-list" lines="none">
       @for (sede of filteredSedes; track trackSede($index, sede)) {
         <ion-item
+          mode="ios"
           class="sede-option"
           button
           detail="false"
           [class.sede-option--selected]="isChecked(sede.id)"
           (click)="selectSede(sede)">
           <ion-checkbox
+            mode="ios"
             slot="start"
             aria-hidden="true"
             [checked]="isChecked(sede.id)">
@@ -50,8 +54,8 @@
   }
 </ion-content>
 
-<ion-footer class="sedes-modal-footer">
-  <ion-toolbar>
+<ion-footer mode="ios" class="sedes-modal-footer">
+  <ion-toolbar mode="ios">
     <div class="btn-wrapper">
       <ion-button
         class="login-btn"

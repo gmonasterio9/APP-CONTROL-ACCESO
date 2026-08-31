@@ -11,6 +11,11 @@ import {
   mapEstacionamientoCard,
 } from '../models/estacionamiento.model';
 import {
+  assertAbrirBarreraOk,
+  EstacionamientoAbrirBarreraRequest,
+  EstacionamientoAbrirBarreraResponse,
+} from '../models/estacionamiento-barrera.model';
+import {
   assertEstacionamientoIngresoOk,
   EstacionamientoIngresoRequest,
   EstacionamientoIngresoResponse,
@@ -96,6 +101,21 @@ export class EstacionamientoService {
     return this.api
       .post<EstacionamientoIngresoResponse>('/estacionamiento/ingreso', body)
       .pipe(map(assertEstacionamientoIngresoOk));
+  }
+
+  abrirBarrera(
+    body: EstacionamientoAbrirBarreraRequest
+  ): Observable<EstacionamientoAbrirBarreraResponse> {
+    return this.api
+      .post<EstacionamientoAbrirBarreraResponse>(
+        '/estacionamiento/abrir-barrera',
+        {
+          patente: body.patente.trim().toUpperCase(),
+          aecaNcorr: body.aecaNcorr,
+        },
+        { skipOfflineQueue: true }
+      )
+      .pipe(map(assertAbrirBarreraOk));
   }
 
   registrarSalida(

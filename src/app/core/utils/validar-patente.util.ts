@@ -1,4 +1,7 @@
-import { ValidarPatenteResponse } from '../models/validar-patente.model';
+import {
+  BarreraOpcion,
+  ValidarPatenteResponse,
+} from '../models/validar-patente.model';
 import { ApiHttpError } from '../services/api-http.service';
 import { ValidarPerfilUtil } from './validar-perfil.util';
 
@@ -41,6 +44,38 @@ export class ValidarPatenteUtil {
     return /marcar la salida|ya se encuentra|ya ingres[oó]|ya est[aá]|ingreso activo|dentro del estacionamiento/.test(
       texto
     );
+  }
+
+  static esIngresoConfirmado(res: ValidarPatenteResponse): boolean {
+    if (res.registrado === true) {
+      return true;
+    }
+    if (res.success === false) {
+      return false;
+    }
+    return ValidarPatenteUtil.esAutorizada(res);
+  }
+
+  static opcionesBarreraAElegir(
+    res: ValidarPatenteResponse
+  ): BarreraOpcion[] {
+    const barrera = res.barrera;
+    if (!barrera || barrera.abierta === true) {
+      return [];
+    }
+
+    const opciones = (barrera.opciones ?? []).filter(
+      opcion =>
+        typeof opcion.aecaNcorr === 'number' &&
+        opcion.aecaNcorr > 0 &&
+        String(opcion.nombre ?? '').trim().length > 0
+    );
+
+    if (barrera.requiereSeleccion === true && opciones.length > 0) {
+      return opciones;
+    }
+
+    return opciones.length > 1 ? opciones : [];
   }
 
   static extraerTituloYMensaje(

@@ -1,7 +1,8 @@
 import { Component, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { NavController } from '@ionic/angular';
+import { ActionSheetController, NavController } from '@ionic/angular';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { BarreraOpcion } from '../../core/models/validar-patente.model';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { EstacionamientoIngresoRequest } from '../../core/models/estacionamiento-ingreso.model';
 import {
@@ -20,7 +21,9 @@ import { IngresoManualService } from '../../core/services/ingreso-manual.service
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { UiService } from '../../core/services/ui.service';
+import { ValidarPatenteService } from '../../core/services/validar-patente.service';
 import { PatenteUtil } from '../../core/utils/patente.util';
+import { ValidarPatenteUtil } from '../../core/utils/validar-patente.util';
 
 @Component({
   selector: 'app-estacionamiento',
@@ -52,12 +55,14 @@ export class EstacionamientoPage implements OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private navCtrl: NavController,
+    private actionSheetCtrl: ActionSheetController,
     private ui: UiService,
     private authService: AuthService,
     private network: NetworkService,
     private offlineService: OfflineService,
     private estacionamientoService: EstacionamientoService,
-    private ingresoManualService: IngresoManualService
+    private ingresoManualService: IngresoManualService,
+    private validarPatenteService: ValidarPatenteService
   ) {
     this.nombre = this.route.snapshot.queryParamMap.get('nombre');
     this.credencial = this.route.snapshot.queryParamMap.get('credencial');
@@ -269,6 +274,63 @@ export class EstacionamientoPage implements OnDestroy {
       return;
     }
 
+    if ('patente' in body && (await this.network.aptaParaOperacionTiempoReal())) {
+      await this.confirmarIngresoConBarrera(e, body.patente, body.acreNcorr, nombre, perfil);
+      return;
+    }
+
+    await this.confirmarIngresoSinBarrera(e, body, nombre, perfil);
+  }
+
+  private async confirmarIngresoConBarrera(
+    e: EstacionamientoCard,
+    patente: string,
+    acreNcorr: number | undefined,
+    nombre: string,
+    perfil: string | undefined
+  ): Promise<void> {
+    const loading = await this.ui.presentLoading('Confirmando ingreso...');
+
+    try {
+      const res = await firstValueFrom(
+        this.validarPatenteService.validar(patente, acreNcorr, {
+          confirmarIngreso: true,
+        })
+      );
+      await this.ui.dismissLoading(loading);
+
+      if (!ValidarPatenteUtil.esIngresoConfirmado(res)) {
+        await this.ui.presentToast(
+          res.message || 'No se pudo confirmar el ingreso.',
+          { color: 'warning' }
+        );
+        return;
+      }
+
+      const opciones = ValidarPatenteUtil.opcionesBarreraAElegir(res);
+      if (opciones.length > 0) {
+        const elegida = await this.preguntarBarrera(opciones);
+        if (elegida) {
+          await this.abrirBarreraElegida(patente, elegida);
+        }
+      }
+
+      await this.irAConfirmacion(e, nombre, perfil);
+    } catch (err: unknown) {
+      await this.ui.dismissLoading(loading);
+      await this.ui.presentToast(
+        mensajeErrorUsuario(err, 'Error al confirmar el ingreso.'),
+        { color: 'danger' }
+      );
+    }
+  }
+
+  private async confirmarIngresoSinBarrera(
+    e: EstacionamientoCard,
+    body: EstacionamientoIngresoRequest,
+    nombre: string,
+    perfil: string | undefined
+  ): Promise<void> {
     const loading = await this.ui.presentLoading('Confirmando ingreso...');
 
     try {
@@ -285,16 +347,7 @@ export class EstacionamientoPage implements OnDestroy {
         return;
       }
 
-      const sede = await this.authService.getSede();
-
-      await this.navCtrl.navigateForward('/confirmacion', {
-        queryParams: {
-          nombre,
-          sede: sede?.nombre ?? e.ubicacion,
-          perfil,
-          patente: this.patente,
-        },
-      });
+      await this.irAConfirmacion(e, nombre, perfil);
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
       await this.ui.presentToast(
@@ -302,6 +355,71 @@ export class EstacionamientoPage implements OnDestroy {
         { color: 'danger' }
       );
     }
+  }
+
+  private async preguntarBarrera(
+    opciones: BarreraOpcion[]
+  ): Promise<BarreraOpcion | null> {
+    const sheet = await this.actionSheetCtrl.create({
+      header: '¿Cuál barrera levantamos?',
+      subHeader: 'El vehículo ya quedó ingresado',
+      buttons: [
+        ...opciones.map(opcion => ({
+          text: opcion.nombre,
+          data: opcion,
+        })),
+        {
+          text: 'Ahora no',
+          role: 'cancel',
+          cssClass: 'action-sheet-cancel',
+        },
+      ],
+    });
+
+    await sheet.present();
+    const { data, role } = await sheet.onDidDismiss<BarreraOpcion>();
+    if (role === 'cancel' || !data?.aecaNcorr) {
+      return null;
+    }
+    return data;
+  }
+
+  private async abrirBarreraElegida(
+    patente: string,
+    opcion: BarreraOpcion
+  ): Promise<void> {
+    const loading = await this.ui.presentLoading('Abriendo barrera...');
+    try {
+      await firstValueFrom(
+        this.estacionamientoService.abrirBarrera({
+          patente,
+          aecaNcorr: opcion.aecaNcorr,
+        })
+      );
+    } catch (err: unknown) {
+      await this.ui.presentToast(
+        mensajeErrorUsuario(err, 'El ingreso quedó registrado, pero no se pudo abrir la barrera.'),
+        { color: 'warning' }
+      );
+    } finally {
+      await this.ui.dismissLoading(loading);
+    }
+  }
+
+  private async irAConfirmacion(
+    e: EstacionamientoCard,
+    nombre: string,
+    perfil: string | undefined
+  ): Promise<void> {
+    const sede = await this.authService.getSede();
+    await this.navCtrl.navigateForward('/confirmacion', {
+      queryParams: {
+        nombre,
+        sede: sede?.nombre ?? e.ubicacion,
+        perfil,
+        patente: this.patente,
+      },
+    });
   }
 
   private async buildIngresoBody(
