@@ -19,13 +19,13 @@
 }
 
 .est-header {
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 16px;
   margin: -20px -16px 4px -16px;
 }
 
 .est-titulo {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 28px;
   font-weight: 700;
@@ -34,7 +34,7 @@
 }
 
 .est-subtitulo {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 14px;
   font-weight: 400;
@@ -55,12 +55,12 @@
   margin: 12px 0;
 
   &--error {
-    color: #040b15;
+    color: var(--color-text);
   }
 }
 
 .est-card {
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -83,7 +83,7 @@
 .est-icon-wrap {
   width: 44px;
   height: 44px;
-  background: #E8F5E9;
+  background: var(--color-success-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -108,7 +108,7 @@
 }
 
 .est-nombre {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 16px;
   font-weight: 700;
@@ -117,7 +117,7 @@
 }
 
 .est-ubicacion {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -135,7 +135,7 @@
 }
 
 .est-cupos {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -150,7 +150,7 @@
 .barra-fondo {
   height: 6px;
   border-radius: 3px;
-  background: #efefef;
+  background: var(--color-bar-track);
   overflow: hidden;
 }
 
@@ -185,11 +185,11 @@
   margin: 4px 0 0;
 
   &--disabled {
-    --background: #E5E7EB;
-    --background-activated: #E5E7EB;
-    --background-hover: #E5E7EB;
-    --border-color: #D1D5DB;
-    --color: #6A7282;
+    --background: var(--color-divider);
+    --background-activated: var(--color-divider);
+    --background-hover: var(--color-divider);
+    --border-color: var(--color-card-border);
+    --color: var(--color-muted);
     opacity: 1;
     pointer-events: none;
   }
@@ -200,7 +200,7 @@
 }
 
 .otros-titulo {
-  color: #040B15;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 13px;
   font-style: normal;
@@ -246,7 +246,7 @@
 }
 
 .otros-nombre {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -255,7 +255,7 @@
 }
 
 .otros-desc {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 12px;
   font-weight: 400;

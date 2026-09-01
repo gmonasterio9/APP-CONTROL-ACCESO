@@ -1,7 +1,8 @@
 import { Sede } from '../models/sede.model';
 
-const SEDES_DESATENDIDAS_IDS = new Set([19]);
-const SEDES_DESATENDIDAS_NOMBRES = ['copiapo'];
+/** Solo Copiapó: modal compacto, sin peatonal/estacionamiento y cierre automático de QR. */
+const COPIAPO_ID = 19;
+const COPIAPO_NOMBRE = 'copiapo';
 
 export function normalizarNombreSede(value: string | null | undefined): string {
   return String(value ?? '')
@@ -16,12 +17,10 @@ export function esSedeDesatendida(sede: Sede | null | undefined): sede is Sede {
     return false;
   }
 
-  if (SEDES_DESATENDIDAS_IDS.has(sede.id)) {
+  if (Number(sede.id) === COPIAPO_ID) {
     return true;
   }
 
   const nombre = normalizarNombreSede(sede.nombre);
-  return SEDES_DESATENDIDAS_NOMBRES.some(
-    clave => nombre === clave || nombre.includes(clave)
-  );
+  return nombre === COPIAPO_NOMBRE || nombre.includes(COPIAPO_NOMBRE);
 }

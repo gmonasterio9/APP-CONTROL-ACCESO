@@ -33,10 +33,10 @@
 
 .im-agenda-chip {
   display: inline-block;
-  border: 1px solid #D0D5DD;
+  border: 1px solid var(--color-border-light);
   border-radius: 6px;
   padding: 4px 12px;
-  color: #040B15;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 14px;
   font-style: normal;
@@ -58,7 +58,7 @@
   line-height: normal;
   margin: 0 0 10px;
 
-  .req { color: #040B15; }
+  .req { color: var(--color-text); }
 }
 
 .im-chip-group {
@@ -105,7 +105,7 @@
 
 .im-divider {
   height: 1px;
-  background: #EAECF0;
+  background: var(--color-divider);
   margin-top: 12px;
 }
 
@@ -114,14 +114,14 @@
   border: none;
   outline: none;
   background: transparent;
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 15px;
   font-weight: 400;
   line-height: 22px;
   padding: 0;
 
-  &::placeholder { color: #B0B8C1; }
+  &::placeholder { color: var(--color-placeholder); }
 
   &--patente {
     text-transform: uppercase;
@@ -133,7 +133,7 @@
   margin: 6px 0 0;
   font-family: Roboto, sans-serif;
   font-size: 12px;
-  color: #6A7282;
+  color: var(--color-muted);
 
   &--error { color: #CC0000; }
 }
@@ -148,7 +148,7 @@
 }
 
 .im-obs-counter {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 12px;
 }
@@ -159,7 +159,7 @@
   outline: none;
   resize: none;
   background: transparent;
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 15px;
   font-weight: 400;
@@ -167,7 +167,7 @@
   padding: 0;
   box-sizing: border-box;
 
-  &::placeholder { color: #B0B8C1; }
+  &::placeholder { color: var(--color-placeholder); }
 }
 
 .btn-aprobar-wrap {

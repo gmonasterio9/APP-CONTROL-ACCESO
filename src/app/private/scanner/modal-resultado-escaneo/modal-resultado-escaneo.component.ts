@@ -50,21 +50,22 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() aeseNcorr?: number | null;
   @Input() vistaDesatendida = false;
 
-  ocultarAccionesValidar = false;
   private cierreTimer?: ReturnType<typeof setTimeout>;
   private destruido = false;
+  private readonly CIERRE_MS = 2000;
 
   constructor(private modalCtrl: ModalController) {}
 
-  ngOnInit(): void {
-    this.ocultarAccionesValidar = this.vistaDesatendida && !this.pendienteSalida;
-    if (this.pendienteSalida || !this.ocultarAccionesValidar || this.tipo !== 'credencial') {
-      return;
-    }
+  get ocultarAccionesValidar(): boolean {
+    return this.vistaDesatendida && !this.pendienteSalida;
+  }
 
-    this.cierreTimer = setTimeout(() => {
-      void this.cerrar();
-    }, 2000);
+  ngOnInit(): void {
+    queueMicrotask(() => this.programarCierreAutomatico());
+  }
+
+  ionViewDidEnter(): void {
+    this.programarCierreAutomatico();
   }
 
   ngOnDestroy(): void {
@@ -149,7 +150,7 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
     if (!this.ocultarAccionesValidar) {
       return true;
     }
-    return this.tipo !== 'credencial';
+    return this.tipo === 'patente';
   }
 
   get preguntaAcceso(): string {
@@ -218,6 +219,20 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   cerrar() {
     this.limpiarCierreTimer();
     this.modalCtrl.dismiss(null, 'cancelar');
+  }
+
+  private programarCierreAutomatico(): void {
+    this.limpiarCierreTimer();
+    if (this.pendienteSalida || !this.vistaDesatendida || this.tipo === 'patente') {
+      return;
+    }
+
+    this.cierreTimer = setTimeout(() => {
+      if (this.destruido) {
+        return;
+      }
+      void this.cerrar();
+    }, this.CIERRE_MS);
   }
 
   private limpiarCierreTimer(): void {

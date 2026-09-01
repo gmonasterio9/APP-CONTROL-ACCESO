@@ -24,12 +24,81 @@ p, span {
 }
 
 html.tema-oscuro {
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  body,
+  ion-app {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
   ion-content {
     --background: var(--color-bg);
+    --color: var(--color-text);
+  }
+
+  ion-item {
+    --background: var(--color-surface);
+    --color: var(--color-text);
+    --border-color: var(--color-border-light);
+    --detail-icon-color: var(--color-muted);
+  }
+
+  ion-list {
+    --ion-item-background: var(--color-surface);
+    background: transparent;
+  }
+
+  ion-card {
+    --background: var(--color-surface);
+    --color: var(--color-text);
+  }
+
+  ion-input,
+  ion-textarea,
+  ion-searchbar,
+  ion-input-otp {
+    --background: var(--color-surface);
+    --color: var(--color-text);
+    --placeholder-color: var(--color-placeholder);
+  }
+
+  ion-skeleton-text {
+    --background: var(--color-border-light);
+  }
+
+  ion-action-sheet {
+    --background: var(--color-surface);
+    --button-background: var(--color-surface);
+    --button-background-selected: var(--color-bg);
+    --button-color: var(--color-text);
+    --color: var(--color-text);
+  }
+
+  ion-alert {
+    --background: var(--color-surface);
+  }
+
+  .alert-salida {
+    .alert-wrapper {
+      background: rgba(26, 28, 40, 0.92) !important;
+    }
+
+    .alert-title,
+    .alert-message {
+      color: var(--color-text) !important;
+    }
+
+    .alert-button-group,
+    .alert-btn-cancelar {
+      border-color: var(--color-border-light) !important;
+    }
   }
 
   .modal-75 {
     --background: var(--color-surface);
+    --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
     &::part(content) {
       background: var(--color-surface);
@@ -38,6 +107,20 @@ html.tema-oscuro {
     .btn-cancelar {
       color: var(--color-text);
     }
+  }
+
+  .acceso-arrow {
+    filter: brightness(0) invert(1);
+  }
+
+  .lock-icon,
+  img[src*='location.svg'] {
+    filter: brightness(0) invert(0.85);
+  }
+
+  .est-ubicacion .location-svg,
+  .item-ubicacion .location-svg {
+    filter: brightness(0) invert(0.7);
   }
 }
 
@@ -104,13 +187,13 @@ ion-footer {
   --width: min(420px, calc(100% - 24px));
   --border-radius: 16px;
   --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  --background: #fff;
+  --background: var(--color-surface);
   align-items: center;
 
   &::part(content) {
     max-height: var(--max-height);
     overflow: hidden;
-    background: #fff;
+    background: var(--color-surface);
   }
 
   &--bloqueado {
@@ -128,7 +211,7 @@ ion-footer {
   .btn-cancelar {
     background: none;
     border: none;
-    color: #0a0a0a;
+    color: var(--color-text);
     text-align: center;
     font-family: Roboto, sans-serif;
     font-size: 14px;
@@ -273,8 +356,8 @@ body.barcode-scanning-active app-scanner ion-content {
 body.barcode-scanning-active ion-modal,
 body.barcode-scanning-active ion-modal ion-content,
 body.barcode-scanning-active ion-modal ion-footer {
-  background: #fff !important;
-  --background: #fff !important;
+  background: var(--color-surface) !important;
+  --background: var(--color-surface) !important;
 }
 
 body.barcode-scanning-active app-scanner {

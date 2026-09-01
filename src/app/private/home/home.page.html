@@ -1,15 +1,17 @@
 <ion-header mode="md">
   <ion-toolbar class="home-toolbar">
     <ion-title>Sistema Unificado de Control</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="abrirConfiguraciones()" aria-label="Configuraciones">
-        <img src="assets/svg/settings.svg" class="header-svg" alt="" />
-      </ion-button>
-    </ion-buttons>
+    @if (esCopiapo) {
+      <ion-buttons slot="end">
+        <ion-button (click)="abrirConfiguraciones()" aria-label="Configuraciones">
+          <img src="assets/svg/settings.svg" class="header-svg" alt="" />
+        </ion-button>
+      </ion-buttons>
+    }
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="home-content">
+<ion-content class="home-content" [class.home--copiapo]="esCopiapo">
   <ion-refresher
     slot="fixed"
     mode="md"

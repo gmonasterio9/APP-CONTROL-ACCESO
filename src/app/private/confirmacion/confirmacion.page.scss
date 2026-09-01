@@ -1,13 +1,13 @@
 
 .conf-content {
-  --background: #E8F5E9;
+  --background: var(--color-success-bg);
 }
 
 .conf-badge {
   position: absolute;
   top: 16px;
   left: 16px;
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 13px;
   font-weight: 400;
@@ -43,7 +43,7 @@
 }
 
 .conf-titulo {
-  color: #101828;
+  color: var(--color-text);
   text-align: center;
   font-family: Roboto, sans-serif;
   font-size: 24px;
@@ -55,7 +55,7 @@
 }
 
 .conf-nombre {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 16px;
   font-weight: 500;
@@ -85,7 +85,7 @@
 }
 
 .conf-detalle {
-  color: #6A7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 14px;
   font-weight: 400;

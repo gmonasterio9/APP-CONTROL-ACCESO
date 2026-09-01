@@ -19,7 +19,7 @@
 }
 
 .apr-header-block {
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 20px 16px 16px;
   margin-bottom: 8px;
 }
@@ -36,7 +36,7 @@
 }
 
 .apr-titulo {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 24px;
   font-weight: 700;
@@ -45,7 +45,7 @@
 }
 
 .apr-subtitulo {
-  color: #6a7282;
+  color: var(--color-muted);
   font-family: Roboto, sans-serif;
   font-size: 14px;
   font-weight: 400;
@@ -104,7 +104,7 @@
 }
 
 .apr-label {
-  color: #040b15;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 12px;
   font-weight: 400;
@@ -112,7 +112,7 @@
 }
 
 .apr-value {
-  color: #101828;
+  color: var(--color-text);
   font-family: Roboto, sans-serif;
   font-size: 16px;
   font-weight: 400;
@@ -128,7 +128,7 @@
 
     ion-icon {
       font-size: 18px;
-      color: #6a7282;
+      color: var(--color-muted);
     }
   }
 
@@ -140,6 +140,6 @@
 
 .apr-divider {
   height: 1px;
-  background: #e4e7ec;
+  background: var(--color-divider);
   margin-top: 12px;
 }

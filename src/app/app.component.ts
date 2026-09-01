@@ -6,6 +6,7 @@ import { EdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge-support';
 import { AuthService } from './core/services/auth.service';
 import { ConfiguracionesService } from './core/services/configuraciones.service';
 import { SedesService } from './core/services/sedes.service';
+import { esSedeDesatendida } from './core/utils/sede-desatendida.util';
 
 @Component({
   selector: 'app-root',
@@ -21,10 +22,15 @@ export class AppComponent {
     private configuraciones: ConfiguracionesService
   ) {
     this.initEdgeToEdge();
-    void this.configuraciones.init();
+    void this.bootstrapPreferencias();
     this.sedes.prefetch();
     void this.bootstrapSession();
     this.listenAppResume();
+  }
+
+  private async bootstrapPreferencias(): Promise<void> {
+    const sede = await this.auth.getSede();
+    await this.configuraciones.aplicarSegunSede(esSedeDesatendida(sede));
   }
 
   private async bootstrapSession(): Promise<void> {
@@ -47,8 +53,14 @@ export class AppComponent {
       if (isActive) {
         void this.auth.restoreSession();
         this.sedes.prefetch();
+        void this.reaplicarPreferenciasSede();
       }
     });
+  }
+
+  private async reaplicarPreferenciasSede(): Promise<void> {
+    const sede = await this.auth.getSede();
+    await this.configuraciones.aplicarSegunSede(esSedeDesatendida(sede));
   }
 
   private async initEdgeToEdge(): Promise<void> {

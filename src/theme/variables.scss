@@ -9,13 +9,20 @@
   --color-title:          #383B53;
   --color-text:           #040B15;
   --color-subtitle:       #828599;
+  --color-muted:          #6A7282;
+  --color-placeholder:    #B0B8C1;
   --color-white:          #FEFFFE;
 
   --color-bg:             #F4F6FC;
   --color-surface:        #FFFFFF;
+  --color-surface-hover:  #F8F8F8;
+  --color-success-bg:     #E8F5E9;
 
   --color-border:         #383B53;
   --color-border-light:   #D0D3E0;
+  --color-divider:        #EAECF0;
+  --color-card-border:    #E5E7EB;
+  --color-bar-track:      #E0E0E0;
 
   --font-family:          Roboto, sans-serif;
 
@@ -62,15 +69,29 @@ html.tema-oscuro {
   --color-title:          #F4F6FC;
   --color-text:           #F4F6FC;
   --color-subtitle:       #A8ADC0;
+  --color-muted:          #A8ADC0;
+  --color-placeholder:    #7A8094;
   --color-bg:             #0E1018;
   --color-surface:        #1A1C28;
+  --color-surface-hover:  #242736;
+  --color-success-bg:     #14261A;
   --color-border:         #D0D3E0;
   --color-border-light:   #2E3144;
+  --color-divider:        #2E3144;
+  --color-card-border:    #2E3144;
+  --color-bar-track:      #2E3144;
   --shadow-card:          0 2px 12px rgba(0, 0, 0, 0.35);
-  --ion-background-color: #0E1018;
-  --ion-text-color:       #F4F6FC;
-  --ion-item-background:  #1A1C28;
-  --ion-card-background:  #1A1C28;
+
+  --ion-background-color:           #0E1018;
+  --ion-background-color-rgb:       14, 16, 24;
+  --ion-text-color:                 #F4F6FC;
+  --ion-text-color-rgb:             244, 246, 252;
+  --ion-border-color:               #2E3144;
+  --ion-item-background:            #1A1C28;
+  --ion-card-background:            #1A1C28;
+  --ion-toolbar-background:         #050508;
+  --ion-toolbar-color:              #ffffff;
+  --ion-overlay-background-color:   #1A1C28;
 }
 
 html.texto-1 {

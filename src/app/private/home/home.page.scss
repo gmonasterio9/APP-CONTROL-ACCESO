@@ -106,22 +106,22 @@
   --background-activated: var(--color-accent-dark);
   --border-radius: var(--radius-pill);
   --color: #FEFFFE;
-  --padding-top: 18px;
-  --padding-bottom: 18px;
-  height: 68px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  height: 48px;
   margin-bottom: var(--spacing-sm);
   font-family: Roboto, sans-serif;
-  font-size: var(--font-size-title);
+  font-size: var(--font-size-body);
   font-style: normal;
   font-weight: 600;
-  line-height: 26px;
+  line-height: 22px;
   letter-spacing: -0.15px;
   text-align: center;
   text-transform: none;
 
   &::part(native) {
     text-transform: none;
-    min-height: 68px;
+    min-height: 48px;
   }
 }
 
@@ -133,14 +133,14 @@
   --background: transparent;
   --background-activated: rgba(29, 120, 191, 0.08);
   --ripple-color: #1D78BF;
-  --padding-top: 18px;
-  --padding-bottom: 18px;
-  height: 68px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  height: 48px;
   font-family: Roboto, sans-serif;
-  font-size: var(--font-size-title);
+  font-size: var(--font-size-body);
   font-style: normal;
   font-weight: 600;
-  line-height: 26px;
+  line-height: 22px;
   letter-spacing: -0.15px;
   text-align: center;
   text-transform: none;
@@ -149,7 +149,33 @@
     text-transform: none;
     border-color: #1D78BF;
     color: #1D78BF;
-    min-height: 68px;
+    min-height: 48px;
+  }
+}
+
+.home--copiapo {
+  .btn-escanear {
+    --padding-top: 18px;
+    --padding-bottom: 18px;
+    height: 68px;
+    font-size: var(--font-size-title);
+    line-height: 26px;
+
+    &::part(native) {
+      min-height: 68px;
+    }
+  }
+
+  .btn-manual {
+    --padding-top: 18px;
+    --padding-bottom: 18px;
+    height: 68px;
+    font-size: var(--font-size-title);
+    line-height: 26px;
+
+    &::part(native) {
+      min-height: 68px;
+    }
   }
 }
 
@@ -259,7 +285,7 @@
   width: 100%;
   padding: 0 16px 12px;
   margin: 12px 0 0;
-  color: #6a7282;
+  color: var(--color-muted);
   font-size: 14px;
   text-align: center;
 
@@ -482,7 +508,7 @@
 
 .barra-fondo {
   height: 6px;
-  background: #e0e0e0;
+  background: var(--color-bar-track);
   border-radius: 3px;
   overflow: hidden;
 
@@ -621,8 +647,8 @@
 }
 
 .btn-logout {
-  --background: #FEFFFE;
-  --background-activated: #f5f5f5;
+  --background: var(--color-surface);
+  --background-activated: var(--color-surface-hover);
   --color: var(--color-primary);
   --border-width: 0;
   --border-radius: 10px;

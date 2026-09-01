@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth.guard';
+import { CopiapoGuard } from './core/guards/copiapo.guard';
 
 const routes: Routes = [
   {
@@ -47,7 +48,7 @@ const routes: Routes = [
   },
   {
     path: 'configuraciones',
-    canActivate: [AuthGuard],
+    canActivate: [AuthGuard, CopiapoGuard],
     loadChildren: () =>
       import('./private/configuraciones/configuraciones.module').then(
         m => m.ConfiguracionesModule

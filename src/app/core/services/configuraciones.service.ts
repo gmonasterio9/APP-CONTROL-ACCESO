@@ -89,6 +89,11 @@ export class ConfiguracionesService {
     return siguiente;
   }
 
+  async aplicarSegunSede(esCopiapo: boolean): Promise<void> {
+    await this.init();
+    this.aplicarDom(esCopiapo ? this.state.value : DEFAULTS);
+  }
+
   private async cargar(): Promise<void> {
     const guardado = await this.storage.get<Partial<AppConfiguracion>>(STORAGE_KEY);
     const cfg: AppConfiguracion = {
@@ -104,7 +109,6 @@ export class ConfiguracionesService {
     }
     cfg.tamanoLetra = normalizarTamanoLetra(cfg.tamanoLetra);
     this.state.next(cfg);
-    this.aplicarDom(cfg);
   }
 
   private aplicarDom(cfg: AppConfiguracion): void {

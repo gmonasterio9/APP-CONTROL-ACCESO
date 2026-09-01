@@ -123,9 +123,16 @@ export class ScannerPage implements OnDestroy {
 
   async ionViewWillEnter() {
     await this.configuraciones.init();
-    const cfg = this.configuraciones.actual;
-    this.escanearQr = cfg.escanearQr;
-    this.escanearPatente = cfg.escanearPatente;
+    const sede = await this.authService.getSede();
+    const esCopiapo = esSedeDesatendida(sede);
+    if (esCopiapo) {
+      const cfg = this.configuraciones.actual;
+      this.escanearQr = cfg.escanearQr;
+      this.escanearPatente = cfg.escanearPatente;
+    } else {
+      this.escanearQr = true;
+      this.escanearPatente = true;
+    }
 
     const qp = this.route.snapshot.queryParamMap;
     this.modoAcompanantes = qp.get('modo') === 'acompanantes';
