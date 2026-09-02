@@ -153,32 +153,6 @@
   }
 }
 
-.home--copiapo {
-  .btn-escanear {
-    --padding-top: 18px;
-    --padding-bottom: 18px;
-    height: 68px;
-    font-size: var(--font-size-title);
-    line-height: 26px;
-
-    &::part(native) {
-      min-height: 68px;
-    }
-  }
-
-  .btn-manual {
-    --padding-top: 18px;
-    --padding-bottom: 18px;
-    height: 68px;
-    font-size: var(--font-size-title);
-    line-height: 26px;
-
-    &::part(native) {
-      min-height: 68px;
-    }
-  }
-}
-
 .home-segment {
   --background: var(--color-surface);
   --border-radius: 8px;

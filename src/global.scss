@@ -204,8 +204,9 @@ ion-footer {
     --height: min(52vh, 420px);
   }
 
-  &--desatendido {
-    --height: min(42vh, 340px);
+  &--sin-conexion {
+    --height: min(36vh, 280px);
+    --max-height: min(42vh, 300px);
   }
 
   .btn-cancelar {
@@ -338,6 +339,29 @@ ion-toast::part(header) {
       }
     }
   }
+
+  &--sin-conexion {
+    .alert-head {
+      display:        flex;
+      flex-direction: column;
+      align-items:    center;
+      padding-top:    16px;
+
+      &::before {
+        content:             '';
+        display:             block;
+        width:               56px;
+        height:              56px;
+        border-radius:       50%;
+        background-color:    #FFA000;
+        margin-bottom:       12px;
+        background-image:    url('assets/svg/cloud-offline-alert.svg');
+        background-repeat:   no-repeat;
+        background-position: center;
+        background-size:     36px auto;
+      }
+    }
+  }
 }
 
 body.barcode-scanning-active {
@@ -358,6 +382,53 @@ body.barcode-scanning-active ion-modal ion-content,
 body.barcode-scanning-active ion-modal ion-footer {
   background: var(--color-surface) !important;
   --background: var(--color-surface) !important;
+}
+
+body.barcode-scanning-active ion-alert {
+  --background:          transparent;
+  --backdrop-opacity:    0;
+  --ion-background-color: transparent;
+  background:            transparent !important;
+}
+
+body.barcode-scanning-active ion-alert .alert-wrapper {
+  background:            rgba(242, 242, 242, 0.92) !important;
+  backdrop-filter:       blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  box-shadow:            0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+body.barcode-scanning-active ion-backdrop {
+  background: transparent !important;
+  opacity:    0 !important;
+}
+
+body.barcode-scanning-active ion-loading {
+  --background:       transparent;
+  --backdrop-opacity: 0;
+  --spinner-color:    #ffffff;
+}
+
+body.barcode-scanning-active ion-loading .loading-wrapper {
+  background:    rgba(0, 0, 0, 0.55) !important;
+  color:         #ffffff !important;
+  border-radius: 12px;
+  box-shadow:    0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+html.tema-oscuro body.barcode-scanning-active ion-alert .alert-wrapper {
+  background: rgba(26, 28, 40, 0.92) !important;
+}
+
+body.scanner-alert-activo ion-alert,
+body.scanner-alert-activo .ion-overlay-wrapper {
+  --background: transparent;
+  background:   transparent !important;
+}
+
+body.scanner-alert-activo ion-backdrop {
+  background: transparent !important;
+  opacity:    0 !important;
 }
 
 body.barcode-scanning-active app-scanner {

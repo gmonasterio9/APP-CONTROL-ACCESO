@@ -1,6 +1,12 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
+import {
+  CODE_SIN_CONEXION,
+  DETALLE_SIN_CONEXION_USUARIO,
+  obtenerMensajeSinConexion,
+  TITULO_SIN_CONEXION_USUARIO,
+} from '../../../core/utils/api-response.util';
 import { PatenteUtil } from '../../../core/utils/patente.util';
 
 export type TipoEscaneo = 'credencial' | 'cedula' | 'patente';
@@ -27,7 +33,7 @@ export interface DatosResultadoEscaneo {
   styleUrls: ['modal-resultado-escaneo.component.scss'],
   standalone: false,
 })
-export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
+export class ModalResultadoEscaneoComponent {
   @Input() tipo: TipoEscaneo = 'credencial';
   @Input() estado: EstadoEscaneo = 'autorizado';
   @Input() nombre?: string;
@@ -48,40 +54,35 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() pendienteSalida = false;
   @Input() acreNcorr?: number | null;
   @Input() aeseNcorr?: number | null;
-  @Input() vistaDesatendida = false;
-
-  private cierreTimer?: ReturnType<typeof setTimeout>;
-  private destruido = false;
-  private readonly CIERRE_MS = 2000;
 
   constructor(private modalCtrl: ModalController) {}
 
-  get ocultarAccionesValidar(): boolean {
-    return this.vistaDesatendida && !this.pendienteSalida;
-  }
-
-  ngOnInit(): void {
-    queueMicrotask(() => this.programarCierreAutomatico());
-  }
-
-  ionViewDidEnter(): void {
-    this.programarCierreAutomatico();
-  }
-
-  ngOnDestroy(): void {
-    this.destruido = true;
-    this.limpiarCierreTimer();
+  get esSinConexion(): boolean {
+    if (String(this.code ?? '').toLowerCase() === CODE_SIN_CONEXION) {
+      return true;
+    }
+    return !!obtenerMensajeSinConexion(this.mensaje, this.titulo);
   }
 
   get iconoEstado(): string {
+    if (this.esSinConexion) {
+      return 'cloud-offline';
+    }
     return { autorizado: 'checkmark', no_autorizado: 'close', manual: 'warning' }[this.estado];
   }
 
   get colorEstado(): string {
+    if (this.esSinConexion) {
+      return '#64748B';
+    }
     return { autorizado: '#4CAF50', no_autorizado: '#CC0000', manual: '#FFA000' }[this.estado];
   }
 
   get tituloModal(): string {
+    if (this.esSinConexion) {
+      return TITULO_SIN_CONEXION_USUARIO;
+    }
+
     if (this.pendienteSalida) {
       return 'Acceso Autorizado';
     }
@@ -107,6 +108,10 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
       return '';
     }
 
+    if (this.esSinConexion) {
+      return DETALLE_SIN_CONEXION_USUARIO;
+    }
+
     if (this.mensaje && this.mensaje !== this.titulo) {
       return this.mensaje;
     }
@@ -124,7 +129,7 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
 
   get mostrarAccesoPeatonal(): boolean {
     return (
-      !this.ocultarAccionesValidar &&
+      !this.esSinConexion &&
       !this.pendienteSalida &&
       !this.esAccesoBloqueado &&
       this.tipo !== 'patente'
@@ -133,7 +138,7 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
 
   get mostrarAccesoEstacionamiento(): boolean {
     return (
-      !this.ocultarAccionesValidar &&
+      !this.esSinConexion &&
       !this.pendienteSalida &&
       !this.esAccesoBloqueado
     );
@@ -141,16 +146,6 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
 
   get mostrarOpcionesAcceso(): boolean {
     return this.mostrarAccesoPeatonal || this.mostrarAccesoEstacionamiento;
-  }
-
-  get mostrarCancelar(): boolean {
-    if (this.pendienteSalida) {
-      return false;
-    }
-    if (!this.ocultarAccionesValidar) {
-      return true;
-    }
-    return this.tipo === 'patente';
   }
 
   get preguntaAcceso(): string {
@@ -176,7 +171,6 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   }
 
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
-    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(
       {
         via,
@@ -200,7 +194,6 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   }
 
   confirmarSalida() {
-    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(
       {
         via: 'salida',
@@ -217,28 +210,6 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   }
 
   cerrar() {
-    this.limpiarCierreTimer();
     this.modalCtrl.dismiss(null, 'cancelar');
-  }
-
-  private programarCierreAutomatico(): void {
-    this.limpiarCierreTimer();
-    if (this.pendienteSalida || !this.vistaDesatendida || this.tipo === 'patente') {
-      return;
-    }
-
-    this.cierreTimer = setTimeout(() => {
-      if (this.destruido) {
-        return;
-      }
-      void this.cerrar();
-    }, this.CIERRE_MS);
-  }
-
-  private limpiarCierreTimer(): void {
-    if (this.cierreTimer) {
-      clearTimeout(this.cierreTimer);
-      this.cierreTimer = undefined;
-    }
   }
 }

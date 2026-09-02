@@ -18,6 +18,7 @@ export const POST_SIN_COLA_OFFLINE = new Set([
   '/validar-patente',
   '/validar-perfil',
   '/estacionamiento/abrir-barrera',
+  '/acceso/vista',
   '/offline/sincronizar-ingresos-vehiculos',
 ]);
 

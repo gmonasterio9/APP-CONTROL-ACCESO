@@ -1,5 +1,5 @@
-<ion-content class="modal-content" [attr.data-estado]="estado">
-  <div class="modal-body" [class.modal-body--desatendido]="ocultarAccionesValidar && !pendienteSalida">
+<ion-content class="modal-content" [class.modal-content--sin-conexion]="esSinConexion" [attr.data-estado]="estado">
+  <div class="modal-body" [class.modal-body--sin-conexion]="esSinConexion">
     <div class="estado-circle" [style.background]="colorEstado">
       <ion-icon [name]="iconoEstado + '-outline'"></ion-icon>
     </div>
@@ -29,7 +29,7 @@
       <p class="modal-pregunta">{{ preguntaAcceso }}</p>
     }
 
-    @if (!pendienteSalida && !ocultarAccionesValidar) {
+    @if (!pendienteSalida && mostrarOpcionesAcceso) {
     <div class="acceso-lista">
 
       @if (mostrarAccesoPeatonal) {
@@ -70,7 +70,7 @@
         <button type="button" class="salida-btn" (click)="cerrar()">No, cancelar</button>
         <button type="button" class="salida-btn" (click)="confirmarSalida()">Sí</button>
       </div>
-    } @else if (mostrarCancelar) {
+    } @else {
       <button type="button" class="btn-cancelar" (click)="cerrar()">Cancelar</button>
     }
   </div>

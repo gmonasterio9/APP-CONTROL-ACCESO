@@ -1,6 +1,14 @@
 .modal-content {
   --background: var(--color-surface);
   background: var(--color-surface);
+
+  &--sin-conexion {
+    --overflow: hidden;
+
+    &::part(scroll) {
+      min-height: auto;
+    }
+  }
 }
 
 .modal-body {
@@ -12,9 +20,10 @@
   gap: 0;
   box-sizing: border-box;
 
-  &--desatendido {
-    justify-content: center;
-    padding: 28px 20px 32px;
+  &--sin-conexion {
+    justify-content: flex-start;
+    min-height: 0;
+    padding: 24px 20px 12px;
   }
 }
 
@@ -235,12 +244,28 @@
   appearance: none;
 }
 
+.modal-body--sin-conexion .btn-cancelar {
+  margin-top: 20px;
+  padding: 12px 0 4px;
+}
+
+.modal-body--sin-conexion .modal-titulo {
+  font-size: 22px;
+  line-height: 28px;
+  margin-bottom: 10px;
+}
+
+.modal-body--sin-conexion .modal-subtitulo {
+  margin-bottom: 0;
+  max-width: 280px;
+}
+
 @media (max-height: 740px) {
   .modal-body {
     padding: 20px 16px 8px;
   }
 
-  .modal-body--desatendido {
+  .modal-body--sin-conexion {
     padding: 20px 16px 24px;
   }
 

@@ -163,19 +163,20 @@
   margin-bottom: var(--spacing-xl);
   width: 100%;
   min-width: 0;
-  container-type: inline-size;
 
   .lock-icon {
     width: 20px;
     height: 20px;
-    flex-shrink: 0;
+    flex: 0 0 20px;
+    align-self: center;
+    object-fit: contain;
   }
 
   .otp-input {
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: 100%;
+    flex: 1 1 0;
+    width: 0;
     min-width: 0;
+    max-width: 100%;
     --background: var(--color-surface);
     --color: var(--color-text);
     --border-color: var(--color-border);
@@ -184,10 +185,10 @@
     --highlight-color-focused: var(--color-border);
     --highlight-color-valid: var(--color-border);
     --highlight-color-invalid: var(--color-border);
-    --min-width: 22px;
-    --width: clamp(22px, calc((100cqi - 36px) / 6), 44px);
+    --min-width: 20px;
+    --width: clamp(20px, 11vw, 44px);
     --height: 48px;
-    --gap: clamp(2px, 1.2cqi, 8px);
+    --gap: clamp(2px, 1vw, 8px);
     font-size: 16px;
   }
 }
@@ -277,23 +278,22 @@
   }
 
   .otp-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 12px;
   }
 
   .otp-row .lock-icon {
-    display: block;
     width: 18px;
     height: 18px;
+    flex-basis: 18px;
   }
 
-  .otp-input {
-    --min-width: 22px;
-    --width: clamp(22px, calc((100cqi - 20px) / 6), 40px);
+  .otp-row .otp-input {
+    --min-width: 18px;
+    --width: clamp(18px, 10vw, 40px);
     --height: 40px;
-    --gap: 4px;
+    --gap: 3px;
+    font-size: 15px;
   }
 
   .login-btn {

@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, ElementRef, NgZone, OnDestroy, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { NavController, ModalController, Platform } from '@ionic/angular';
+import { NavController, ModalController, Platform, AlertOptions } from '@ionic/angular';
 import { Capacitor, PluginListenerHandle } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
@@ -26,11 +26,17 @@ import {
   PeatonalControlIngresoRequest,
   ResultadoControlPeatonal,
 } from '../../core/models/peatonal-control-ingreso.model';
-import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
+import {
+  CODE_SIN_CONEXION,
+  DETALLE_SIN_CONEXION_USUARIO,
+  esMensajeSinConexion,
+  MENSAJE_ERROR_SIN_CONEXION,
+  mensajeErrorUsuario,
+  respuestaIndicaSinConexion,
+  TITULO_SIN_CONEXION_USUARIO,
+} from '../../core/utils/api-response.util';
 import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
-import { esSedeDesatendida } from '../../core/utils/sede-desatendida.util';
 import { AuthService } from '../../core/services/auth.service';
-import { ConfiguracionesService } from '../../core/services/configuraciones.service';
 import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { EstacionamientoService } from '../../core/services/estacionamiento.service';
@@ -111,7 +117,6 @@ export class ScannerPage implements OnDestroy {
     private validarPatenteService: ValidarPatenteService,
     private peatonalService: PeatonalService,
     private authService: AuthService,
-    private configuraciones: ConfiguracionesService,
     private network: NetworkService,
     private offlineService: OfflineService,
     private estacionamientoService: EstacionamientoService,
@@ -122,18 +127,6 @@ export class ScannerPage implements OnDestroy {
   ) {}
 
   async ionViewWillEnter() {
-    await this.configuraciones.init();
-    const sede = await this.authService.getSede();
-    const esCopiapo = esSedeDesatendida(sede);
-    if (esCopiapo) {
-      const cfg = this.configuraciones.actual;
-      this.escanearQr = cfg.escanearQr;
-      this.escanearPatente = cfg.escanearPatente;
-    } else {
-      this.escanearQr = true;
-      this.escanearPatente = true;
-    }
-
     const qp = this.route.snapshot.queryParamMap;
     this.modoAcompanantes = qp.get('modo') === 'acompanantes';
     if (this.modoAcompanantes) {
@@ -159,6 +152,7 @@ export class ScannerPage implements OnDestroy {
       });
     });
     await this.prepararEscaneo();
+    void this.previewModalSinConexionSiAplica();
   }
 
   ionViewWillLeave() {
@@ -405,6 +399,9 @@ export class ScannerPage implements OnDestroy {
       await this.flujoEscaneoQr(codigo);
     } catch {
       this.procesando = false;
+      if (!this.scannerEnMarcha()) {
+        await this.prepararEscaneo();
+      }
     }
   }
 
@@ -633,7 +630,10 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async flujoEscaneoQr(codigo: string): Promise<void> {
-    const loading = await this.ui.presentLoading('Validando perfil...');
+    let loading: HTMLIonLoadingElement | null = await this.ui.presentLoading(
+      'Validando perfil...',
+      { cssClass: 'loading-sobre-scanner' }
+    );
     const contextoEscaneo = {
       codigoEscaneado: codigo,
       rut: ScanPerfilUtil.extractRutCompletoFromEscaneo(codigo),
@@ -647,29 +647,54 @@ export class ScannerPage implements OnDestroy {
         ? await this.validarPerfilOffline(contextoEscaneo)
         : await firstValueFrom(this.validarPerfilService.validarEscaneo(codigo));
       await this.ui.dismissLoading(loading);
-      const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
-      const controlPeatonal = await this.registrarEscaneoPeatonalInmediato(modalData);
-      await this.mostrarResultadoModal(
-        this.enriquecerModalConControlPeatonal(modalData, controlPeatonal)
-      );
+      loading = null;
+      await this.presentarModalTrasValidarPerfil(res, contextoEscaneo);
     } catch (err: unknown) {
       await this.ui.dismissLoading(loading);
+      loading = null;
       const res = ValidarPerfilUtil.extraerResponse(err);
       if (res) {
-        const modalData = this.mapValidarPerfilToModal(res, contextoEscaneo);
-        const controlPeatonal = await this.registrarEscaneoPeatonalInmediato(modalData);
-        await this.mostrarResultadoModal(
-          this.enriquecerModalConControlPeatonal(modalData, controlPeatonal)
-        );
-      } else {
-        const mensaje = mensajeErrorUsuario(err, 'No se pudo validar el código.');
-        await this.mostrarResultadoModal({
-          tipo: contextoEscaneo.tipo,
-          estado: 'no_autorizado',
-          mensaje,
-        });
+        await this.presentarModalTrasValidarPerfil(res, contextoEscaneo);
+        return;
       }
+
+      const mensaje = mensajeErrorUsuario(err, 'No se pudo validar el código.');
+      if (esMensajeSinConexion(mensaje)) {
+        await this.mostrarResultadoModal(
+          this.mapSinConexionModal(contextoEscaneo.tipo, mensaje)
+        );
+        return;
+      }
+
+      await this.mostrarResultadoModal({
+        tipo: contextoEscaneo.tipo,
+        estado: 'no_autorizado',
+        mensaje,
+      });
     }
+  }
+
+  private async presentarModalTrasValidarPerfil(
+    res: ValidarPerfilResponse,
+    contexto: {
+      codigoEscaneado?: string;
+      rut?: string | null;
+      email?: string | null;
+      tipo?: TipoEscaneo;
+      escaneoPorEmail?: boolean;
+    }
+  ): Promise<void> {
+    const modalData = this.mapValidarPerfilToModal(res, contexto);
+    const controlPeatonal = this.esModalSinConexion(modalData)
+      ? { exito: false, registrado: false }
+      : await this.registrarEscaneoPeatonalInmediato(modalData);
+    await this.mostrarResultadoModal(
+      this.enriquecerModalConControlPeatonal(modalData, controlPeatonal)
+    );
+  }
+
+  private esModalSinConexion(data: { code?: string }): boolean {
+    return String(data.code ?? '').toLowerCase() === CODE_SIN_CONEXION;
   }
 
   async mostrarResultadoModal(data: {
@@ -694,17 +719,18 @@ export class ScannerPage implements OnDestroy {
     acreNcorr?: number | null;
     aeseNcorr?: number | null;
   }) {
+    const esSinConexion = String(data.code ?? '').toLowerCase() === CODE_SIN_CONEXION;
+    if (esSinConexion) {
+      await this.mostrarAlertSinConexion();
+      return;
+    }
+
     const esBloqueado = String(data.code ?? '').toLowerCase() === 'bloqueado';
-    const vistaDesatendida =
-      !data.pendienteSalida &&
-      esSedeDesatendida(await this.authService.getSede());
     const cssClass = data.pendienteSalida
       ? 'modal-75 modal-75--salida'
-      : vistaDesatendida
-        ? 'modal-75 modal-75--desatendido'
-        : esBloqueado
-          ? 'modal-75 modal-75--bloqueado'
-          : 'modal-75';
+      : esBloqueado
+        ? 'modal-75 modal-75--bloqueado'
+        : 'modal-75';
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
       cssClass,
@@ -729,7 +755,6 @@ export class ScannerPage implements OnDestroy {
         pendienteSalida: data.pendienteSalida ?? false,
         acreNcorr: data.acreNcorr,
         aeseNcorr: data.aeseNcorr,
-        vistaDesatendida,
       },
     });
 
@@ -1230,6 +1255,13 @@ export class ScannerPage implements OnDestroy {
         );
       } else {
         const mensaje = mensajeErrorUsuario(err, 'No se pudo validar la patente.');
+        if (esMensajeSinConexion(mensaje)) {
+          await this.mostrarResultadoModal({
+            ...this.mapSinConexionModal('patente', mensaje),
+            plateResult: this.toPlateResult(patente),
+          });
+          return;
+        }
         await this.mostrarResultadoModal({
           tipo: 'patente',
           estado: 'no_autorizado',
@@ -1334,6 +1366,15 @@ export class ScannerPage implements OnDestroy {
     const patente = (res.patente ?? patenteFallback).toUpperCase();
     const plateResult = this.toPlateResult(patente);
     const textos = ValidarPatenteUtil.extraerTituloYMensaje(res);
+
+    const sinConexion = respuestaIndicaSinConexion(res, textos);
+    if (sinConexion) {
+      return {
+        ...this.mapSinConexionModal('patente', sinConexion),
+        plateResult,
+      };
+    }
+
     const persona = {
       nombre: res.nombreCompleto ?? undefined,
       perfil: res.perfil != null ? String(res.perfil) : undefined,
@@ -1690,6 +1731,14 @@ export class ScannerPage implements OnDestroy {
       escaneoPorEmail: contexto?.escaneoPorEmail === true,
     };
 
+    const sinConexion = respuestaIndicaSinConexion(res, textos);
+    if (sinConexion) {
+      return {
+        ...base,
+        ...this.mapSinConexionModal(base.tipo, sinConexion),
+      };
+    }
+
     if (ValidarPerfilUtil.esCredencialExpirada(res)) {
       return {
         ...base,
@@ -1811,6 +1860,34 @@ export class ScannerPage implements OnDestroy {
     };
   }
 
+  private mapSinConexionModal(
+    tipo: TipoEscaneo,
+    _mensaje?: string
+  ): {
+    tipo: TipoEscaneo;
+    estado: EstadoEscaneo;
+    code: string;
+    titulo: string;
+    mensaje: string;
+  } {
+    return {
+      tipo,
+      estado: 'no_autorizado',
+      code: CODE_SIN_CONEXION,
+      titulo: TITULO_SIN_CONEXION_USUARIO,
+      mensaje: DETALLE_SIN_CONEXION_USUARIO,
+    };
+  }
+
+  private async previewModalSinConexionSiAplica(): Promise<void> {
+    const preview = this.route.snapshot.queryParamMap.get('previewModal');
+    if (preview !== 'sin_conexion') {
+      return;
+    }
+
+    await this.mostrarAlertSinConexion();
+  }
+
   private async validarPerfilOffline(contexto: {
     codigoEscaneado?: string;
     rut?: string | null;
@@ -1896,7 +1973,7 @@ export class ScannerPage implements OnDestroy {
   }
 
   private async mostrarAlertQrFormatoInvalido(): Promise<void> {
-    const alert = await this.ui.presentAlert({
+    await this.presentarAlertSobreScanner({
       cssClass: 'alert-salida alert-salida--rechazo',
       header: 'Código no válido',
       message:
@@ -1910,9 +1987,37 @@ export class ScannerPage implements OnDestroy {
         },
       ],
     });
-    await alert.onDidDismiss();
     this.procesando = false;
     await this.reanudarEscaneoTrasModal();
+  }
+
+  private async mostrarAlertSinConexion(): Promise<void> {
+    await this.presentarAlertSobreScanner({
+      cssClass: 'alert-salida alert-salida--sin-conexion',
+      header: TITULO_SIN_CONEXION_USUARIO,
+      message: DETALLE_SIN_CONEXION_USUARIO,
+      buttons: [
+        {
+          text: 'Aceptar',
+          cssClass: 'alert-btn-aceptar',
+          role: 'cancel',
+        },
+      ],
+    });
+    await this.reanudarEscaneoTrasModal();
+  }
+
+  private async presentarAlertSobreScanner(options: AlertOptions): Promise<void> {
+    document.body.classList.add('scanner-alert-activo');
+    try {
+      const alert = await this.ui.presentAlert({
+        ...options,
+        cssClass: [options.cssClass, 'alert-sobre-scanner'].filter(Boolean).join(' '),
+      });
+      await alert.onDidDismiss();
+    } finally {
+      document.body.classList.remove('scanner-alert-activo');
+    }
   }
 
   private async mostrarAlertPermisoCamara(): Promise<void> {

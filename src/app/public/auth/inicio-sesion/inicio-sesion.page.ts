@@ -4,8 +4,6 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { SedesService } from '../../../core/services/sedes.service';
 import { UiService } from '../../../core/services/ui.service';
-import { ConfiguracionesService } from '../../../core/services/configuraciones.service';
-import { esSedeDesatendida } from '../../../core/utils/sede-desatendida.util';
 import { Sede } from '../../../core/models/sede.model';
 
 type InicioSesionStep = 'sede' | 'pin';
@@ -29,8 +27,7 @@ export class InicioSesionPage implements OnInit {
     private authService: AuthService,
     private sedesService: SedesService,
     private router: Router,
-    private ui: UiService,
-    private configuraciones: ConfiguracionesService
+    private ui: UiService
   ) {
     this.form = this.fb.group({
       sedeId: [null as number | null, Validators.required],
@@ -144,9 +141,6 @@ export class InicioSesionPage implements OnInit {
     this.authService.loginWithPin(this.pin.value, this.selectedSede.id).subscribe({
       next: async () => {
         await this.ui.dismissLoading(loading);
-        await this.configuraciones.aplicarSegunSede(
-          esSedeDesatendida(this.selectedSede)
-        );
         await this.router.navigate(['/home'], { replaceUrl: true });
       },
       error: async (err) => {

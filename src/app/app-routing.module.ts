@@ -1,7 +1,6 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth.guard';
-import { CopiapoGuard } from './core/guards/copiapo.guard';
 
 const routes: Routes = [
   {
@@ -45,14 +44,6 @@ const routes: Routes = [
     path: 'scanner',
     canActivate: [AuthGuard],
     loadChildren: () => import('./private/scanner/scanner.module').then(m => m.ScannerModule)
-  },
-  {
-    path: 'configuraciones',
-    canActivate: [AuthGuard, CopiapoGuard],
-    loadChildren: () =>
-      import('./private/configuraciones/configuraciones.module').then(
-        m => m.ConfiguracionesModule
-      )
   },
   {
     path: 'acceso-peatonal-detalle',

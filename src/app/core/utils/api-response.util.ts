@@ -136,6 +136,55 @@ function extraerMensajeCrudo(err: unknown): string | null {
 export const MENSAJE_ERROR_SIN_CONEXION =
   'Revise su internet o intente más tarde.';
 
+export const TITULO_SIN_CONEXION_USUARIO = 'Sin conexión a internet';
+
+export const DETALLE_SIN_CONEXION_USUARIO =
+  'Revise su señal e intente nuevamente.';
+
+export const CODE_SIN_CONEXION = 'sin_conexion';
+
+export function esMensajeSinConexion(text?: string | null): boolean {
+  const valor = text?.trim();
+  if (!valor) {
+    return false;
+  }
+
+  const normalizado = valor.toLowerCase();
+  return (
+    valor === MENSAJE_ERROR_SIN_CONEXION ||
+    normalizado.includes('sin conexión') ||
+    normalizado.includes('sin conexion') ||
+    normalizado.includes('revise su internet') ||
+    normalizado.includes('sin catálogo local') ||
+    normalizado.includes('sin catalogo local') ||
+    normalizado.includes('network error') ||
+    normalizado.includes('failed to fetch')
+  );
+}
+
+export function obtenerMensajeSinConexion(
+  ...partes: Array<string | null | undefined>
+): string | null {
+  for (const parte of partes) {
+    if (esMensajeSinConexion(parte)) {
+      return parte!.trim();
+    }
+  }
+  return null;
+}
+
+export function respuestaIndicaSinConexion(
+  res: { message?: string; messages?: string[] },
+  textos?: { titulo?: string; mensaje?: string }
+): string | null {
+  return obtenerMensajeSinConexion(
+    res.message,
+    textos?.mensaje,
+    textos?.titulo,
+    ...(res.messages ?? [])
+  );
+}
+
 export function mensajePorEstadoHttp(
   status: number,
   fallback: string

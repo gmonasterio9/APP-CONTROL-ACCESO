@@ -15,8 +15,6 @@ import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
-import { ConfiguracionesService } from '../../core/services/configuraciones.service';
-import { esSedeDesatendida } from '../../core/utils/sede-desatendida.util';
 
 export interface AccesoPeatonal {
   id: number;
@@ -48,7 +46,6 @@ export class HomePage implements OnDestroy {
 
   tiposEscaneo = this.tiposEscaneoTodos;
   scanSubtitle = 'Credencial INACAP, cédula de identidad o patente';
-  esCopiapo = false;
 
   readonly estacionamientosSkeleton = [0, 1, 2];
   readonly statsSkeleton = [0, 1, 2];
@@ -75,12 +72,10 @@ export class HomePage implements OnDestroy {
     private peatonalService: PeatonalService,
     private actionSheetCtrl: ActionSheetController,
     private ui: UiService,
-    private configuraciones: ConfiguracionesService,
     public navCtrl: NavController
   ) {}
 
   async ionViewWillEnter(): Promise<void> {
-    await this.sincronizarSedeCopiapo();
     this.catalogoSub?.unsubscribe();
     this.catalogoSub = this.offlineService.catalogoActualizado$.subscribe(() => {
       void this.refrescarDatosLocales();
@@ -223,53 +218,7 @@ export class HomePage implements OnDestroy {
   }
 
   abrirScanner(): void {
-    if (this.esCopiapo) {
-      this.aplicarPreferenciasEscaneo();
-      if (this.tiposEscaneo.length === 0) {
-        void this.ui.presentToast('Activa al menos un tipo de escaneo en Configuraciones.');
-        return;
-      }
-    }
     this.navCtrl.navigateForward('/scanner');
-  }
-
-  abrirConfiguraciones(): void {
-    if (!this.esCopiapo) {
-      return;
-    }
-    this.navCtrl.navigateForward('/configuraciones');
-  }
-
-  private async sincronizarSedeCopiapo(): Promise<void> {
-    const sede = await this.authService.getSede();
-    this.esCopiapo = esSedeDesatendida(sede);
-    await this.configuraciones.aplicarSegunSede(this.esCopiapo);
-    if (this.esCopiapo) {
-      this.aplicarPreferenciasEscaneo();
-      return;
-    }
-    this.tiposEscaneo = [...this.tiposEscaneoTodos];
-    this.scanSubtitle = 'Credencial INACAP, cédula de identidad o patente';
-  }
-
-  private aplicarPreferenciasEscaneo(): void {
-    const cfg = this.configuraciones.actual;
-    this.tiposEscaneo = this.tiposEscaneoTodos.filter(tipo => {
-      if (tipo.id === 'patente') {
-        return cfg.escanearPatente;
-      }
-      return cfg.escanearQr;
-    });
-
-    if (cfg.escanearQr && cfg.escanearPatente) {
-      this.scanSubtitle = 'Credencial INACAP, cédula de identidad o patente';
-      return;
-    }
-    if (cfg.escanearQr) {
-      this.scanSubtitle = 'Credencial INACAP o cédula de identidad';
-      return;
-    }
-    this.scanSubtitle = 'Patente vehicular';
   }
 
   verDetallePeatonal(): void {
@@ -444,7 +393,6 @@ export class HomePage implements OnDestroy {
             const loading = await this.ui.presentLoading('Cerrando sesión...');
             try {
               await this.authService.logout();
-              await this.configuraciones.aplicarSegunSede(false);
             } finally {
               await this.ui.dismissLoading(loading);
             }
