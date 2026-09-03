@@ -26,7 +26,7 @@ export class ScanPerfilUtil {
     }
 
     if (RutUtil.isScannedFormat(value)) {
-      return false;
+      return RutUtil.isFormatValid(RutUtil.normalizeManual(value));
     }
 
     return false;

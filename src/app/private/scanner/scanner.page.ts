@@ -256,9 +256,7 @@ export class ScannerPage implements OnDestroy {
         };
         await video.play();
         this.camaraLista = true;
-        if (this.escanearQr) {
-          this.iniciarDeteccionQrWeb();
-        }
+        this.iniciarDeteccionQrWeb();
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -342,17 +340,14 @@ export class ScannerPage implements OnDestroy {
       document.body.classList.add('barcode-scanning-active');
 
       this.mlkitListener = await BarcodeScanner.addListener('barcodesScanned', (event) => {
-        if (this.procesando || !this.escanearQr || !event.barcodes?.length) {
+        if (this.procesando || !event.barcodes?.length) {
           return;
         }
 
-        const qr =
-          event.barcodes.find(code => code.format === 'QR_CODE' && code.rawValue?.trim()) ??
-          event.barcodes.find(code => code.rawValue?.trim());
-
-        const valor = qr?.rawValue?.trim();
-        if (valor) {
-          this.zone.run(() => this.onCodigoDetectado(valor));
+        const qr = event.barcodes
+          .find(code => code.format === 'QR_CODE' && code.rawValue?.trim());
+        if (qr?.rawValue?.trim()) {
+          this.zone.run(() => this.onCodigoDetectado(qr.rawValue!.trim()));
         }
       });
 
@@ -377,26 +372,17 @@ export class ScannerPage implements OnDestroy {
     this.procesando = true;
 
     try {
+      if (ScanPerfilUtil.esEscaneoQrPerfil(codigo)) {
+        await this.flujoEscaneoQr(codigo);
+        return;
+      }
+
       if (this.esPatente(codigo)) {
-        if (!this.escanearPatente) {
-          this.procesando = false;
-          return;
-        }
         await this.validarPatenteEscaneada(codigo);
         return;
       }
 
-      if (!this.escanearQr) {
-        this.procesando = false;
-        return;
-      }
-
-      if (!ScanPerfilUtil.esEscaneoQrPerfil(codigo)) {
-        await this.mostrarAlertQrFormatoInvalido();
-        return;
-      }
-
-      await this.flujoEscaneoQr(codigo);
+      await this.mostrarAlertQrFormatoInvalido();
     } catch {
       this.procesando = false;
       if (!this.scannerEnMarcha()) {
@@ -455,9 +441,17 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      loading = await this.ui.presentLoading('Detectando patente...', {
+      loading = await this.ui.presentLoading('Analizando imagen...', {
         spinner: 'crescent',
       });
+
+      const qrDeImagen = await this.leerQrDesdeImagen(base64);
+      if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
+        await this.ui.dismissLoading(loading);
+        loading = null;
+        await this.flujoEscaneoQr(qrDeImagen);
+        return;
+      }
 
       const plateResult = await this.detectarPatenteConReintentos(base64);
 
@@ -1269,6 +1263,47 @@ export class ScannerPage implements OnDestroy {
           plateResult: this.toPlateResult(patente),
         });
       }
+    }
+  }
+
+  private async leerQrDesdeImagen(base64: string): Promise<string | null> {
+    try {
+      const img = new Image();
+      img.src = base64;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // Intentar con BarcodeDetector (navegadores modernos)
+      const BDCtor = (window as Window & {
+        BarcodeDetector?: new (opts?: { formats: string[] }) => {
+          detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+        };
+      }).BarcodeDetector;
+
+      if (BDCtor) {
+        try {
+          const detector = new BDCtor({ formats: ['qr_code'] });
+          const codes = await detector.detect(img);
+          const val = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          if (val) { return val; }
+        } catch { /* fallback abajo */ }
+      }
+
+      // Fallback con jsQR (funciona en todos los entornos)
+      const jsQR = (await import('jsqr')).default;
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+      return result?.data?.trim() || null;
+    } catch {
+      return null;
     }
   }
 
