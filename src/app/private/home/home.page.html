@@ -1,6 +1,6 @@
 <ion-header mode="md">
   <ion-toolbar class="home-toolbar">
-    <ion-title>Sistema Unificado de Control</ion-title>
+    <ion-title>{{ modoTablet ? 'Acceso Peatonal' : 'Sistema Unificado de Control' }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -33,12 +33,15 @@
       Escanear
     </ion-button>
 
-    <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
-      <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg" />
-      Ingreso manual
-    </ion-button>
+    @if (!modoTablet) {
+      <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
+        <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg" />
+        Ingreso manual
+      </ion-button>
+    }
   </div>
 
+  @if (!modoTablet) {
   <ion-segment
     [(ngModel)]="segmentoActivo"
     (ionChange)="onSegmentoChange()"
@@ -51,8 +54,9 @@
       <ion-label>Acceso Peatonal</ion-label>
     </ion-segment-button>
   </ion-segment>
+  }
 
-  @if (segmentoActivo === 'estacionamientos') {
+  @if (!modoTablet && segmentoActivo === 'estacionamientos') {
     <div class="lista-section">
       <div class="lista-header">
         <p class="lista-titulo">Cupos disponibles</p>
@@ -126,7 +130,7 @@
     </div>
   }
 
-  @if (segmentoActivo === 'peatonal') {
+  @if (modoTablet || segmentoActivo === 'peatonal') {
     <div class="peatonal-section">
       @if (cargandoResumenPeatonal && statsPeatonal.length === 0) {
         <div class="peatonal-skeleton" aria-busy="true" aria-label="Cargando resumen">
@@ -170,6 +174,9 @@
     <ion-button class="btn-logout" (click)="cerrarSesion()">
       Cerrar Sesión
     </ion-button>
+    @if (appVersion) {
+      <p class="app-version">Versión {{ appVersion }}</p>
+    }
   </div>
 
 </ion-content>

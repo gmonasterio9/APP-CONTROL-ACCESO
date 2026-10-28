@@ -29,4 +29,7 @@ export interface ValidarPerfilResponse {
   bloqueo?: ValidarPerfilBloqueo;
   ingresarManual?: boolean | string | number;
   credencialExpirada?: boolean | string | number;
+  jornada?: string | null;
+  tipoQr?: string | null;
+  estadoAcceso?: string | null;
 }

@@ -50,6 +50,7 @@ import {
   TipoEscaneo,
   EstadoEscaneo,
 } from './modal-resultado-escaneo/modal-resultado-escaneo.component';
+import { environment } from '../../../environments/environment';
 import { ToqueEnfoque } from './scanner-enfoque/scanner-enfoque.component';
 
 type CamaraTrackCapabilities = MediaTrackCapabilities & {
@@ -89,7 +90,8 @@ export class ScannerPage implements OnDestroy {
   zoomStep        = 0.1;
   toqueEnfoque: ToqueEnfoque | null = null;
   escanearQr = true;
-  escanearPatente = true;
+  escanearPatente = !environment.tabletPeatonal;
+  readonly soloInformativo = environment.tabletPeatonal;
 
   private readonly zoomDigitalMax = 3;
   private readonly zoomNiveles = [0.5, 1, 2, 3];
@@ -377,7 +379,7 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      if (this.esPatente(codigo)) {
+      if (!this.soloInformativo && this.esPatente(codigo)) {
         await this.validarPatenteEscaneada(codigo);
         return;
       }
@@ -420,13 +422,14 @@ export class ScannerPage implements OnDestroy {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
 
-        base64 = canvas.toDataURL('image/jpeg', 0.92);
+        base64 = canvas.toDataURL('image/jpeg', 0.8);
       } else if (Capacitor.isNativePlatform()) {
         const foto = await Camera.getPhoto({
-          quality: 92,
+          quality: 80,
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           saveToGallery: false,
+          width: 1280,
         });
         base64 = foto.dataUrl ?? '';
         if (!base64) {
@@ -441,11 +444,13 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      loading = await this.ui.presentLoading('Analizando imagen...', {
+      loading = await this.ui.presentLoading('Detectando patente...', {
         spinner: 'crescent',
       });
 
-      const qrDeImagen = await this.leerQrDesdeImagen(base64);
+      // Solo BarcodeDetector (rápido). jsQR bloquea el hilo y no respeta timeout.
+      // El QR en vivo ya lo lee ML Kit / BarcodeDetector del preview.
+      const qrDeImagen = await this.leerQrRapidoDesdeImagen(base64);
       if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
         await this.ui.dismissLoading(loading);
         loading = null;
@@ -453,7 +458,7 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      const plateResult = await this.detectarPatenteConReintentos(base64);
+      const plateResult = await this.plateService.readPlate(base64);
 
       await this.ui.dismissLoading(loading);
       loading = null;
@@ -701,6 +706,8 @@ export class ScannerPage implements OnDestroy {
     codigoEscaneado?: string;
     perfil?: string;
     perfilDescripcion?: string;
+    jornada?: string;
+    tipoQr?: string;
     persNcorr?: number;
     code?: string;
     titulo?: string;
@@ -720,11 +727,13 @@ export class ScannerPage implements OnDestroy {
     }
 
     const esBloqueado = String(data.code ?? '').toLowerCase() === 'bloqueado';
-    const cssClass = data.pendienteSalida
-      ? 'modal-75 modal-75--salida'
-      : esBloqueado
-        ? 'modal-75 modal-75--bloqueado'
-        : 'modal-75';
+    const cssClass = this.soloInformativo
+      ? 'modal-75 modal-75--info'
+      : data.pendienteSalida
+        ? 'modal-75 modal-75--salida'
+        : esBloqueado
+          ? 'modal-75 modal-75--bloqueado'
+          : 'modal-75';
     const modal = await this.modalCtrl.create({
       component: ModalResultadoEscaneoComponent,
       cssClass,
@@ -738,6 +747,8 @@ export class ScannerPage implements OnDestroy {
         codigoEscaneado: data.codigoEscaneado,
         perfil:      data.perfil,
         perfilDescripcion: data.perfilDescripcion,
+        jornada:     data.jornada,
+        tipoQr:      data.tipoQr,
         persNcorr:   data.persNcorr,
         code:        data.code,
         titulo:      data.titulo,
@@ -749,6 +760,7 @@ export class ScannerPage implements OnDestroy {
         pendienteSalida: data.pendienteSalida ?? false,
         acreNcorr: data.acreNcorr,
         aeseNcorr: data.aeseNcorr,
+        soloInformativo: this.soloInformativo,
       },
     });
 
@@ -825,27 +837,43 @@ export class ScannerPage implements OnDestroy {
   private enriquecerModalConControlPeatonal<
     T extends {
       estado?: EstadoEscaneo;
-      mensaje?: string;
-      nombre?: string;
-    },
-  >(
-    modalData: T,
-    controlPeatonal: ResultadoControlPeatonal
-  ): T & {
-    controlPeatonalExito: boolean;
+    mensaje?: string;
     nombre?: string;
-  } {
-    const nombre =
-      modalData.nombre?.trim() ||
-      controlPeatonal.nombreCompleto?.trim() ||
-      modalData.nombre;
+    rut?: string;
+    perfilDescripcion?: string;
+    jornada?: string;
+    tipoQr?: string;
+  },
+>(
+  modalData: T,
+  controlPeatonal: ResultadoControlPeatonal
+): T & {
+  controlPeatonalExito: boolean;
+  nombre?: string;
+  rut?: string;
+  perfilDescripcion?: string;
+  jornada?: string;
+  tipoQr?: string;
+  mensaje?: string;
+} {
+  const nombre =
+    controlPeatonal.nombreCompleto?.trim() ||
+    modalData.nombre?.trim() ||
+    modalData.nombre;
+  const mensaje = controlPeatonal.message?.trim() || modalData.mensaje;
 
-    return {
-      ...modalData,
-      nombre,
-      controlPeatonalExito: controlPeatonal.exito,
-    };
-  }
+  return {
+    ...modalData,
+    nombre,
+    rut: controlPeatonal.rut?.trim() || modalData.rut,
+    perfilDescripcion:
+      controlPeatonal.perfilDescripcion?.trim() || modalData.perfilDescripcion,
+    jornada: controlPeatonal.jornada || modalData.jornada,
+    tipoQr: controlPeatonal.tipoQr || modalData.tipoQr,
+    mensaje,
+    controlPeatonalExito: controlPeatonal.exito,
+  };
+}
 
   /** Registra APP_PEATONAL_ESCANEOS al validar QR (éxito, rechazo o expirado). */
   private async registrarEscaneoPeatonalInmediato(data: {
@@ -879,6 +907,10 @@ export class ScannerPage implements OnDestroy {
         registrado: peatonalControlIngresoFueRegistrado(res),
         message: res.message,
         nombreCompleto: res.nombreCompleto,
+        rut: res.rut,
+        perfilDescripcion: res.perfilDescripcion,
+        jornada: res.jornada?.trim() || undefined,
+        tipoQr: res.tipoQr,
       };
     } catch {
       return { exito: false, registrado: false };
@@ -1266,61 +1298,57 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  private async leerQrDesdeImagen(base64: string): Promise<string | null> {
+  /** Solo BarcodeDetector: no usa jsQR (bloquea UI varios segundos). */
+  private async leerQrRapidoDesdeImagen(base64: string): Promise<string | null> {
     try {
-      const img = new Image();
-      img.src = base64;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject();
-      });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      // Intentar con BarcodeDetector (navegadores modernos)
       const BDCtor = (window as Window & {
         BarcodeDetector?: new (opts?: { formats: string[] }) => {
           detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
         };
       }).BarcodeDetector;
 
-      if (BDCtor) {
-        try {
-          const detector = new BDCtor({ formats: ['qr_code'] });
-          const codes = await detector.detect(img);
-          const val = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
-          if (val) { return val; }
-        } catch { /* fallback abajo */ }
+      if (!BDCtor) {
+        return null;
       }
 
-      // Fallback con jsQR (funciona en todos los entornos)
-      const jsQR = (await import('jsqr')).default;
-      const result = jsQR(imageData.data, imageData.width, imageData.height);
-      return result?.data?.trim() || null;
+      const img = await this.cargarImagenDesdeBase64(base64);
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+      if (!srcW || !srcH) {
+        return null;
+      }
+
+      const maxSide = 640;
+      const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(srcW * scale));
+      canvas.height = Math.max(1, Math.round(srcH * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const detector = new BDCtor({ formats: ['qr_code'] });
+      const codes = await Promise.race([
+        detector.detect(canvas),
+        new Promise<Array<{ rawValue?: string }>>(resolve =>
+          setTimeout(() => resolve([]), 800)
+        ),
+      ]);
+      return codes.find(c => c.rawValue?.trim())?.rawValue?.trim() ?? null;
     } catch {
       return null;
     }
   }
 
-  private async detectarPatenteConReintentos(
-    base64: string,
-    intentos = 3
-  ): Promise<PlateResult | null> {
-    for (let i = 0; i < intentos; i++) {
-      const result = await this.plateService.readPlate(base64);
-      if (result?.plate) {
-        return result;
-      }
-      if (i < intentos - 1) {
-        await this.esperar(400);
-      }
-    }
-    return null;
+  private cargarImagenDesdeBase64(base64: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('imagen'));
+      img.src = base64;
+    });
   }
 
   private async solicitarPatenteManual(patentePrefill = ''): Promise<void> {
@@ -1378,10 +1406,6 @@ export class ScannerPage implements OnDestroy {
       this.procesando = false;
       await this.prepararEscaneo();
     }
-  }
-
-  private esperar(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private mapValidarPatenteToModal(
@@ -1738,6 +1762,8 @@ export class ScannerPage implements OnDestroy {
     codigoEscaneado?: string;
     perfil?: string;
     perfilDescripcion?: string;
+    jornada?: string;
+    tipoQr?: string;
     persNcorr?: number;
     titulo?: string;
     mensaje?: string;
@@ -1754,11 +1780,13 @@ export class ScannerPage implements OnDestroy {
       tipo: contexto?.tipo ?? ('credencial' as const),
       nombre,
       credencial: res.codigoCredencial ?? undefined,
-      rut,
-      email,
-      codigoEscaneado: contexto?.codigoEscaneado,
-      perfil: res.perfil != null ? String(res.perfil) : undefined,
-      perfilDescripcion: res.perfilDescripcion,
+    rut,
+    email,
+    codigoEscaneado: contexto?.codigoEscaneado,
+    perfil: res.perfil != null ? String(res.perfil) : undefined,
+    perfilDescripcion: res.perfilDescripcion,
+    jornada: res.jornada?.trim() || undefined,
+    tipoQr: res.tipoQr?.trim() || undefined,
       persNcorr: ValidarPerfilUtil.normalizarPersNcorr(res.persNcorr),
       titulo: textos.titulo,
       mensaje: textos.mensaje,

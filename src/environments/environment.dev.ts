@@ -6,4 +6,6 @@ export const environment = {
   apiUrl: '/api/v1',
   nativeApiUrl: 'https://siga.desa.inacap.cl/Inacap.Api.ControlAcceso.V2/api/v1',
   keyCrypt: environmentSecrets.keyCrypt,
+  appVersion: '1.0',
+  tabletPeatonal: true,
 };

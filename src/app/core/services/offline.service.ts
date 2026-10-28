@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+  BehaviorSubject,
   Observable,
   Subject,
   catchError,
@@ -57,6 +58,11 @@ export class OfflineService {
   private readonly RECINTO_KEY = 'auth_recinto';
   private readonly catalogoActualizadoSubject = new Subject<void>();
   readonly catalogoActualizado$ = this.catalogoActualizadoSubject.asObservable();
+  private readonly catalogoPersonasDisponibleSubject = new BehaviorSubject<boolean>(
+    false
+  );
+  readonly catalogoPersonasDisponible$ =
+    this.catalogoPersonasDisponibleSubject.asObservable();
   private catalogoWriteChain: Promise<void> = Promise.resolve();
   private catalogoBaseEnVuelo: Observable<OfflineCatalogoAccesoView> | null =
     null;
@@ -69,7 +75,19 @@ export class OfflineService {
     private api: ApiHttpService,
     private storage: AppStorageService,
     private network: NetworkService
-  ) {}
+  ) {
+    void this.refrescarEstadoCatalogoPersonas();
+  }
+
+  get catalogoPersonasDisponible(): boolean {
+    return this.catalogoPersonasDisponibleSubject.value;
+  }
+
+  async refrescarEstadoCatalogoPersonas(): Promise<boolean> {
+    const disponible = await this.tieneCatalogoBase();
+    this.catalogoPersonasDisponibleSubject.next(disponible);
+    return disponible;
+  }
 
   sincronizarCatalogoAcceso(
     estacionamientoSesion?: LoginEstacionamientoSesion | null,
@@ -432,6 +450,7 @@ export class OfflineService {
     this.catalogoGeneracion += 1;
     this.catalogoBaseEnVuelo = null;
     this.forzarSyncCatalogoBase = true;
+    this.catalogoPersonasDisponibleSubject.next(false);
     await this.enqueueCatalogoWrite(async () => {
       await this.storage.remove(OFFLINE_CATALOGO_STORAGE_KEY);
     });
@@ -620,6 +639,7 @@ export class OfflineService {
 
   private notificarCatalogoActualizado(): void {
     this.catalogoActualizadoSubject.next();
+    void this.refrescarEstadoCatalogoPersonas();
   }
 
   private completarCatalogo(

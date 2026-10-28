@@ -209,6 +209,21 @@ ion-footer {
     --max-height: min(42vh, 300px);
   }
 
+  &--info {
+    --height: min(62vh, 520px);
+    --width: min(440px, calc(100% - 32px));
+    --border-radius: 20px;
+    --backdrop-opacity: 0.45;
+    align-items: center;
+    justify-content: center;
+
+    &::part(content) {
+      border-radius: 20px;
+      top: auto;
+      bottom: auto;
+    }
+  }
+
   .btn-cancelar {
     background: none;
     border: none;

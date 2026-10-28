@@ -4,6 +4,8 @@ import {
   NavController,
   RefresherCustomEvent,
 } from '@ionic/angular';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { EstacionamientoCard } from '../../core/models/estacionamiento.model';
 import { PeatonalStatCard } from '../../core/models/peatonal-resumen.model';
@@ -15,6 +17,7 @@ import { NetworkService } from '../../core/services/network.service';
 import { OfflineService } from '../../core/services/offline.service';
 import { PeatonalService } from '../../core/services/peatonal.service';
 import { UiService } from '../../core/services/ui.service';
+import { environment } from '../../../environments/environment';
 
 export interface AccesoPeatonal {
   id: number;
@@ -30,7 +33,8 @@ export interface AccesoPeatonal {
   standalone: false,
 })
 export class HomePage implements OnDestroy {
-  segmentoActivo = 'estacionamientos';
+  readonly modoTablet = environment.tabletPeatonal;
+  segmentoActivo = environment.tabletPeatonal ? 'peatonal' : 'estacionamientos';
   private catalogoSub?: Subscription;
   private sincronizandoCacheOffline = false;
   private suprimirRefreshCatalogo = false;
@@ -44,8 +48,12 @@ export class HomePage implements OnDestroy {
     { id: 'patente', label: 'Patente', svg: 'assets/svg/patente.svg', color: '#FFB066' },
   ];
 
-  tiposEscaneo = this.tiposEscaneoTodos;
-  scanSubtitle = 'Credencial INACAP, cédula de identidad o patente';
+  tiposEscaneo = environment.tabletPeatonal
+    ? this.tiposEscaneoTodos.filter(t => t.id !== 'patente')
+    : this.tiposEscaneoTodos;
+  scanSubtitle = environment.tabletPeatonal
+    ? 'Credencial INACAP o cédula de identidad'
+    : 'Credencial INACAP, cédula de identidad o patente';
 
   readonly estacionamientosSkeleton = [0, 1, 2];
   readonly statsSkeleton = [0, 1, 2];
@@ -63,6 +71,7 @@ export class HomePage implements OnDestroy {
   fechaResumenPeatonal: string | null = null;
   cargandoResumenPeatonal = false;
   errorResumenPeatonal: string | null = null;
+  appVersion = '';
 
   constructor(
     private authService: AuthService,
@@ -73,7 +82,9 @@ export class HomePage implements OnDestroy {
     private actionSheetCtrl: ActionSheetController,
     private ui: UiService,
     public navCtrl: NavController
-  ) {}
+  ) {
+    void this.cargarVersionApp();
+  }
 
   async ionViewWillEnter(): Promise<void> {
     this.catalogoSub?.unsubscribe();
@@ -82,6 +93,19 @@ export class HomePage implements OnDestroy {
     });
     void this.inicializarHome();
     this.iniciarRefrescoAutomatico();
+  }
+
+  private async cargarVersionApp(): Promise<void> {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const info = await App.getInfo();
+        this.appVersion = info.version;
+        return;
+      }
+    } catch {
+      // Web o plugin no disponible
+    }
+    this.appVersion = environment.appVersion;
   }
 
   ionViewWillLeave(): void {
@@ -109,7 +133,9 @@ export class HomePage implements OnDestroy {
   private async inicializarHome(): Promise<void> {
     await this.hidratarDesdeCacheLocal();
     void this.cargarResumenPeatonal({ silencioso: true });
-    void this.cargarEstacionamientos({ silencioso: true });
+    if (!this.modoTablet) {
+      void this.cargarEstacionamientos({ silencioso: true });
+    }
     void this.sincronizarCacheOfflineEnSegundoPlano();
   }
 
@@ -134,13 +160,17 @@ export class HomePage implements OnDestroy {
 
     this.refrescandoAutomatico = true;
     try {
-      await Promise.all([
-        this.cargarEstacionamientos({
-          silencioso: true,
-          evitarCache: true,
-        }),
-        this.cargarResumenPeatonal({ silencioso: true }),
-      ]);
+      if (this.modoTablet) {
+        await this.cargarResumenPeatonal({ silencioso: true });
+      } else {
+        await Promise.all([
+          this.cargarEstacionamientos({
+            silencioso: true,
+            evitarCache: true,
+          }),
+          this.cargarResumenPeatonal({ silencioso: true }),
+        ]);
+      }
     } finally {
       this.refrescandoAutomatico = false;
     }
@@ -317,13 +347,13 @@ export class HomePage implements OnDestroy {
 
   async refrescarContenido(event: RefresherCustomEvent): Promise<void> {
     try {
-      if (this.segmentoActivo === 'estacionamientos') {
+      if (this.modoTablet || this.segmentoActivo === 'peatonal') {
+        await this.cargarResumenPeatonal({ silencioso: true });
+      } else {
         await this.cargarEstacionamientos({
           silencioso: true,
           evitarCache: true,
         });
-      } else {
-        await this.cargarResumenPeatonal({ silencioso: true });
       }
     } finally {
       await event.target.complete();

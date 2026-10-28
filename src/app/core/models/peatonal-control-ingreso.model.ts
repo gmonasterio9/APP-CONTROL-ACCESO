@@ -20,16 +20,21 @@ export type PeatonalControlIngresoRequest = PeatonalControlIngresoBase &
 export interface PeatonalControlIngresoResponse {
   success: boolean;
   registrado?: boolean;
-  code?: number;
+  code?: number | string;
   message?: string;
+  messages?: string[];
   apesNcorr?: number;
   tipoQr?: string;
   estado?: EstadoControlPeatonalEscaneo;
   estadoAcceso?: string;
   persNcorr?: number;
   perfil?: number;
+  perfilDescripcion?: string;
   rut?: string;
   nombreCompleto?: string;
+  jornada?: string | null;
+  credencialExpirada?: boolean;
+  sedeSesionCcod?: number;
 }
 
 export interface ResultadoControlPeatonal {
@@ -37,6 +42,10 @@ export interface ResultadoControlPeatonal {
   registrado: boolean;
   message?: string;
   nombreCompleto?: string;
+  rut?: string;
+  perfilDescripcion?: string;
+  jornada?: string;
+  tipoQr?: string;
 }
 
 export function peatonalControlIngresoFueRegistrado(

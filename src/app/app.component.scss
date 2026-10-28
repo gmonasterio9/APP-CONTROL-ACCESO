@@ -1,0 +1,37 @@
+.banner-conexion {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100000;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+  padding: 10px 16px;
+  padding-top: calc(10px + var(--ion-safe-area-top, env(safe-area-inset-top, 0px)));
+  color: #fff;
+  pointer-events: none;
+  animation: banner-conexion-in 0.22s ease-out;
+
+  &--ok {
+    background: #1b8a4a;
+  }
+
+  &--error {
+    background: #c62828;
+  }
+}
+
+@keyframes banner-conexion-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

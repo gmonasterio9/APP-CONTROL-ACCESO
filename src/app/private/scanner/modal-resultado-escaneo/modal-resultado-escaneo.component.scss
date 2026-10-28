@@ -20,11 +20,34 @@
   gap: 0;
   box-sizing: border-box;
 
+  &--info {
+    position: relative;
+    min-height: 0;
+    padding: 36px 24px 28px;
+  }
+
   &--sin-conexion {
     justify-content: flex-start;
     min-height: 0;
     padding: 24px 20px 12px;
   }
+}
+
+.btn-cerrar-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
 }
 
 .estado-circle {
@@ -73,6 +96,16 @@
   font-weight: 500;
   line-height: 20px;
   margin: 0 0 8px;
+}
+
+.modal-dato {
+  color: var(--color-muted);
+  text-align: center;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0 0 4px;
 }
 
 .modal-patente {

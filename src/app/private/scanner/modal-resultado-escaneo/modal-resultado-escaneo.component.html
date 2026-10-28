@@ -1,5 +1,12 @@
 <ion-content class="modal-content" [class.modal-content--sin-conexion]="esSinConexion" [attr.data-estado]="estado">
-  <div class="modal-body" [class.modal-body--sin-conexion]="esSinConexion">
+  <div class="modal-body" [class.modal-body--sin-conexion]="esSinConexion" [class.modal-body--info]="soloInformativo">
+    @if (soloInformativo) {
+      <button type="button" class="btn-cerrar-x" (click)="cerrar()" aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    }
     <div class="estado-circle" [style.background]="colorEstado">
       <ion-icon [name]="iconoEstado + '-outline'"></ion-icon>
     </div>
@@ -17,13 +24,25 @@
       <p class="modal-perfil">{{ perfilDescripcion }}</p>
     }
 
+    @if (rutVisible) {
+      <p class="modal-dato">RUT {{ rutVisible }}</p>
+    }
+
+    @if (jornada) {
+      <p class="modal-dato">Jornada {{ jornada }}</p>
+    }
+
+    @if (tipoQrVisible) {
+      <p class="modal-dato">{{ tipoQrVisible }}</p>
+    }
+
     @if (credencial) {
       <p class="modal-credencial">{{ credencial }}</p>
     } @else if (tipo === 'patente' && plateResult) {
       <p class="modal-patente">{{ plateResult.plate }}</p>
     }
 
-    @if (pendienteSalida) {
+    @if (pendienteSalida && !soloInformativo) {
       <p class="modal-pregunta modal-pregunta--salida">¿Deseas marcar la salida?</p>
     } @else if (mostrarOpcionesAcceso) {
       <p class="modal-pregunta">{{ preguntaAcceso }}</p>
@@ -65,12 +84,12 @@
     </div>
     }
 
-    @if (pendienteSalida) {
+    @if (pendienteSalida && !soloInformativo) {
       <div class="salida-acciones">
         <button type="button" class="salida-btn" (click)="cerrar()">No, cancelar</button>
         <button type="button" class="salida-btn" (click)="confirmarSalida()">Sí</button>
       </div>
-    } @else {
+    } @else if (!soloInformativo) {
       <button type="button" class="btn-cancelar" (click)="cerrar()">Cancelar</button>
     }
   </div>

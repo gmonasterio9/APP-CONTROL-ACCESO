@@ -1,3 +1,14 @@
 <ion-app>
+  @if (bannerVisible) {
+    <div
+      class="banner-conexion"
+      [class.banner-conexion--ok]="bannerOk"
+      [class.banner-conexion--error]="!bannerOk"
+      [attr.data-banner-key]="bannerKey"
+      role="status"
+      aria-live="polite">
+      {{ bannerMensaje }}
+    </div>
+  }
   <ion-router-outlet></ion-router-outlet>
 </ion-app>

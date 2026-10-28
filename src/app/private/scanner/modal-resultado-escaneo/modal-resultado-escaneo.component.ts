@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 import {
@@ -8,6 +8,8 @@ import {
   TITULO_SIN_CONEXION_USUARIO,
 } from '../../../core/utils/api-response.util';
 import { PatenteUtil } from '../../../core/utils/patente.util';
+import { RutUtil } from '../../../core/utils/rut.util';
+import { labelTipoQrPeatonal } from '../../../core/models/peatonal-detalle.model';
 
 export type TipoEscaneo = 'credencial' | 'cedula' | 'patente';
 export type EstadoEscaneo = 'autorizado' | 'no_autorizado' | 'manual';
@@ -33,7 +35,7 @@ export interface DatosResultadoEscaneo {
   styleUrls: ['modal-resultado-escaneo.component.scss'],
   standalone: false,
 })
-export class ModalResultadoEscaneoComponent {
+export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   @Input() tipo: TipoEscaneo = 'credencial';
   @Input() estado: EstadoEscaneo = 'autorizado';
   @Input() nombre?: string;
@@ -41,6 +43,8 @@ export class ModalResultadoEscaneoComponent {
   @Input() rut?: string;
   @Input() perfil?: string;
   @Input() perfilDescripcion?: string;
+  @Input() jornada?: string;
+  @Input() tipoQr?: string;
   @Input() persNcorr?: number;
   @Input() code?: string;
   @Input() titulo?: string;
@@ -54,8 +58,33 @@ export class ModalResultadoEscaneoComponent {
   @Input() pendienteSalida = false;
   @Input() acreNcorr?: number | null;
   @Input() aeseNcorr?: number | null;
+  /** Tablet peatonal: muestra los datos y no ofrece registrar ingreso. */
+  @Input() soloInformativo = false;
+
+  private cierreTimer?: ReturnType<typeof setTimeout>;
+  /** Tiempo para leer nombre, perfil y credencial antes de volver a la cámara. */
+  private readonly CIERRE_AUTOMATICO_MS = 5_000;
 
   constructor(private modalCtrl: ModalController) {}
+
+  ngOnInit(): void {
+    if (!this.soloInformativo) {
+      return;
+    }
+    this.cierreTimer = setTimeout(() => this.cerrar(), this.CIERRE_AUTOMATICO_MS);
+  }
+
+  ngOnDestroy(): void {
+    this.cancelarCierreAutomatico();
+  }
+
+  get rutVisible(): string {
+    return RutUtil.formatDisplay(this.rut);
+  }
+
+  get tipoQrVisible(): string {
+    return labelTipoQrPeatonal(this.tipoQr) ?? '';
+  }
 
   get esSinConexion(): boolean {
     if (String(this.code ?? '').toLowerCase() === CODE_SIN_CONEXION) {
@@ -129,6 +158,7 @@ export class ModalResultadoEscaneoComponent {
 
   get mostrarAccesoPeatonal(): boolean {
     return (
+      !this.soloInformativo &&
       !this.esSinConexion &&
       !this.pendienteSalida &&
       !this.esAccesoBloqueado &&
@@ -138,6 +168,7 @@ export class ModalResultadoEscaneoComponent {
 
   get mostrarAccesoEstacionamiento(): boolean {
     return (
+      !this.soloInformativo &&
       !this.esSinConexion &&
       !this.pendienteSalida &&
       !this.esAccesoBloqueado
@@ -210,6 +241,15 @@ export class ModalResultadoEscaneoComponent {
   }
 
   cerrar() {
-    this.modalCtrl.dismiss(null, 'cancelar');
+    this.cancelarCierreAutomatico();
+    void this.modalCtrl.dismiss(null, 'cancelar');
+  }
+
+  private cancelarCierreAutomatico(): void {
+    if (!this.cierreTimer) {
+      return;
+    }
+    clearTimeout(this.cierreTimer);
+    this.cierreTimer = undefined;
   }
 }

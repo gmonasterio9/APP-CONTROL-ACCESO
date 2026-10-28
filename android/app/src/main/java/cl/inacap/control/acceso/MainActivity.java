@@ -1,4 +1,4 @@
-package io.ionic.starter;
+package cl.inacap.control.acceso;
 
 import com.getcapacitor.BridgeActivity;
 
