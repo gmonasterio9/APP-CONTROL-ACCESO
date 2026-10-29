@@ -74,13 +74,20 @@ const PERFIL_PEATONAL_POR_PERSONA: Record<TipoPersonaIngreso, number> = {
   visita: 4,
 };
 
-const PERSONA_DEFAULT: OpcionTipoPersonaIngreso[] = PERSONAS_VALIDAS.map(
-  value => ({ value, label: PERSONA_LABEL[value] })
-);
+function buildPersonaDefault(): OpcionTipoPersonaIngreso[] {
+  return PERSONAS_VALIDAS.map(value => ({
+    value,
+    label: PERSONA_LABEL[value],
+    apexNtipoPerfil: PERFIL_PEATONAL_POR_PERSONA[value],
+  }));
+}
 
-const MEDIO_VEHICULAR_DEFAULT: OpcionTipoMedioIngreso[] = VEHICULOS_VALIDOS.map(
-  value => ({ value, label: MEDIO_LABEL[value] })
-);
+function buildMedioVehicularDefault(): OpcionTipoMedioIngreso[] {
+  return VEHICULOS_VALIDOS.map(value => ({
+    value,
+    label: MEDIO_LABEL[value],
+  }));
+}
 
 function normalizarSlug(raw: string): string {
   return String(raw ?? '')
@@ -153,11 +160,11 @@ export function mapTiposPersonaVehicular(
 ): OpcionTipoPersonaIngreso[] {
   const slugs = sesion?.ingresoManual?.personas;
   if (!slugs?.length) {
-    return PERSONA_DEFAULT;
+    return buildPersonaDefault();
   }
 
   const opciones = mapPersonasDesdeSlugs(slugs);
-  return opciones.length ? opciones : PERSONA_DEFAULT;
+  return opciones.length ? opciones : buildPersonaDefault();
 }
 
 export function mapTiposPersonaPeatonal(
@@ -165,11 +172,11 @@ export function mapTiposPersonaPeatonal(
 ): OpcionTipoPersonaIngreso[] {
   const slugs = sesion?.ingresoManual?.peatonal;
   if (!slugs?.length) {
-    return PERSONA_DEFAULT;
+    return buildPersonaDefault();
   }
 
   const opciones = mapPersonasDesdeSlugs(slugs);
-  return opciones.length ? opciones : PERSONA_DEFAULT;
+  return opciones.length ? opciones : buildPersonaDefault();
 }
 
 export function mapTiposMedioVehicular(
@@ -177,19 +184,22 @@ export function mapTiposMedioVehicular(
 ): OpcionTipoMedioIngreso[] {
   const slugs = sesion?.ingresoManual?.vehiculos;
   if (!slugs?.length) {
-    return MEDIO_VEHICULAR_DEFAULT;
+    return buildMedioVehicularDefault();
   }
 
   const opciones = mapVehiculosDesdeSlugs(slugs);
-  return opciones.length ? opciones : MEDIO_VEHICULAR_DEFAULT;
+  return opciones.length ? opciones : buildMedioVehicularDefault();
 }
 
 export function mapTiposMedioIngresoManual(
   sesion?: LoginEstacionamientoSesion | null
 ): OpcionTipoMedioIngreso[] {
-  const medios = mapTiposMedioVehicular(sesion);
+  const medios = [...mapTiposMedioVehicular(sesion)];
 
-  if (sesion?.ingresoManual?.peatonal?.length) {
+  if (
+    sesion?.ingresoManual?.peatonal?.length &&
+    !medios.some(m => m.value === 'peatonal')
+  ) {
     medios.push({ value: 'peatonal', label: 'Peatonal' });
   }
 

@@ -44,10 +44,12 @@ export class AuthService {
   ) {}
 
   loginWithPin(pin: string, sedeId: number): Observable<LoginApiResponse> {
+    // Enviar como string: Number("066649") → 66649 y la API exige 6 dígitos.
+    const pinNormalizado = String(pin ?? '').replace(/\D/g, '').padStart(6, '0').slice(-6);
     return this.api
       .postPublic<LoginApiResponse>('/login', {
         sede: sedeId,
-        pin: Number(pin),
+        pin: pinNormalizado,
       })
       .pipe(
         switchMap(res => {

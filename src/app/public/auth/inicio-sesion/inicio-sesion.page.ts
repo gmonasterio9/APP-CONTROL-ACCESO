@@ -146,7 +146,13 @@ export class InicioSesionPage implements OnInit {
       error: async (err) => {
         await this.ui.dismissLoading(loading);
         this.form.get('pin')?.reset();
-        const mensaje = err?.error?.message || 'PIN incorrecto. Intente nuevamente.';
+        const erroresPin = err?.error?.errors?.['login.Pin'];
+        const detalle = Array.isArray(erroresPin) ? erroresPin[0] : null;
+        const mensaje =
+          detalle ||
+          err?.error?.message ||
+          err?.message ||
+          'PIN incorrecto. Intente nuevamente.';
         await this.showToast(mensaje);
       }
     });
