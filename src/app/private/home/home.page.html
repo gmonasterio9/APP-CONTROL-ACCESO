@@ -33,12 +33,10 @@
       Escanear
     </ion-button>
 
-    @if (!modoTablet) {
-      <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
-        <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg" />
-        Ingreso manual
-      </ion-button>
-    }
+    <ion-button expand="block" fill="outline" class="btn-manual" (click)="ingresoManual()">
+      <img src="assets/svg/keyboard.svg" slot="start" class="btn-svg" />
+      Ingreso manual
+    </ion-button>
   </div>
 
   @if (!modoTablet) {

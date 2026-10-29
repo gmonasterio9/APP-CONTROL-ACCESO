@@ -256,7 +256,9 @@ export class HomePage implements OnDestroy {
   }
 
   async ingresoManual(): Promise<void> {
-    this.navCtrl.navigateForward('/ingreso-manual');
+    this.navCtrl.navigateForward('/ingreso-manual', {
+      queryParams: this.modoTablet ? { tipoMedio: 'peatonal' } : undefined,
+    });
   }
 
   verDetalleEstacionamiento(e: EstacionamientoCard): void {

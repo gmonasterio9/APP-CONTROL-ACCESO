@@ -148,16 +148,24 @@ function mapVehiculosDesdeSlugs(slugs: string[]): OpcionTipoMedioIngreso[] {
   return opciones;
 }
 
+function copiaPersonaDefault(): OpcionTipoPersonaIngreso[] {
+  return PERSONA_DEFAULT.map(o => ({ ...o }));
+}
+
+function copiaMedioVehicularDefault(): OpcionTipoMedioIngreso[] {
+  return MEDIO_VEHICULAR_DEFAULT.map(o => ({ ...o }));
+}
+
 export function mapTiposPersonaVehicular(
   sesion?: LoginEstacionamientoSesion | null
 ): OpcionTipoPersonaIngreso[] {
   const slugs = sesion?.ingresoManual?.personas;
   if (!slugs?.length) {
-    return PERSONA_DEFAULT;
+    return copiaPersonaDefault();
   }
 
   const opciones = mapPersonasDesdeSlugs(slugs);
-  return opciones.length ? opciones : PERSONA_DEFAULT;
+  return opciones.length ? opciones : copiaPersonaDefault();
 }
 
 export function mapTiposPersonaPeatonal(
@@ -165,11 +173,11 @@ export function mapTiposPersonaPeatonal(
 ): OpcionTipoPersonaIngreso[] {
   const slugs = sesion?.ingresoManual?.peatonal;
   if (!slugs?.length) {
-    return PERSONA_DEFAULT;
+    return copiaPersonaDefault();
   }
 
   const opciones = mapPersonasDesdeSlugs(slugs);
-  return opciones.length ? opciones : PERSONA_DEFAULT;
+  return opciones.length ? opciones : copiaPersonaDefault();
 }
 
 export function mapTiposMedioVehicular(
@@ -177,19 +185,22 @@ export function mapTiposMedioVehicular(
 ): OpcionTipoMedioIngreso[] {
   const slugs = sesion?.ingresoManual?.vehiculos;
   if (!slugs?.length) {
-    return MEDIO_VEHICULAR_DEFAULT;
+    return copiaMedioVehicularDefault();
   }
 
   const opciones = mapVehiculosDesdeSlugs(slugs);
-  return opciones.length ? opciones : MEDIO_VEHICULAR_DEFAULT;
+  return opciones.length ? opciones : copiaMedioVehicularDefault();
 }
 
 export function mapTiposMedioIngresoManual(
   sesion?: LoginEstacionamientoSesion | null
 ): OpcionTipoMedioIngreso[] {
-  const medios = mapTiposMedioVehicular(sesion);
+  const medios = [...mapTiposMedioVehicular(sesion)];
 
-  if (sesion?.ingresoManual?.peatonal?.length) {
+  if (
+    sesion?.ingresoManual?.peatonal?.length &&
+    !medios.some(m => m.value === 'peatonal')
+  ) {
     medios.push({ value: 'peatonal', label: 'Peatonal' });
   }
 

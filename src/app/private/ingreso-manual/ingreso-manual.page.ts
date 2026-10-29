@@ -29,6 +29,7 @@ import { mensajeErrorUsuario } from '../../core/utils/api-response.util';
 import { acreNcorrValidoParaRequest } from '../../core/utils/acre-ncorr.util';
 import { PatenteMedio, PatenteUtil } from '../../core/utils/patente.util';
 import { RutUtil } from '../../core/utils/rut.util';
+import { environment } from '../../../environments/environment';
 
 const MEDIOS_SIN_PATENTE: TipoMedioIngreso[] = ['bicicleta', 'peatonal'];
 const MEDIOS_CON_ESTACIONAMIENTO: TipoMedioIngreso[] = ['auto', 'moto', 'bicicleta'];
@@ -96,6 +97,8 @@ export class IngresoManualPage implements OnInit {
   form!: FormGroup;
   obsMaxLength = 100;
   nombreMaxLength = NOMBRE_MAX_LENGTH;
+  /** Rama tablet: solo ingreso peatonal, sin medios vehiculares. */
+  readonly soloPeatonal = environment.tabletPeatonal;
 
   tiposPersonaVehicular: OpcionTipoPersonaIngreso[] = [];
   tiposPersonaPeatonal: OpcionTipoPersonaIngreso[] = [];
@@ -190,6 +193,12 @@ export class IngresoManualPage implements OnInit {
         this.form.patchValue({ tipoMedio: 'peatonal' });
         this.actualizarValidacionPatente();
       }
+    }
+
+    if (this.soloPeatonal) {
+      this.form.patchValue({ tipoMedio: 'peatonal', patente: '' });
+      this.actualizarValidacionPatente();
+      return;
     }
 
     if (patente) {
@@ -537,7 +546,20 @@ export class IngresoManualPage implements OnInit {
 
     this.tiposPersonaVehicular = catalogo.vehicular.tiposPersona;
     this.tiposPersonaPeatonal = catalogo.peatonal.tiposPersona;
-    this.tiposMedio = catalogo.medios;
+    this.tiposMedio = this.soloPeatonal
+      ? [{ value: 'peatonal', label: 'Peatonal' }]
+      : catalogo.medios;
+
+    if (this.soloPeatonal) {
+      const personaDefault =
+        this.tiposPersonaPeatonal[0]?.value ?? 'estudiante';
+      this.form.patchValue({
+        tipoPersona: personaDefault,
+        tipoMedio: 'peatonal',
+      });
+      this.actualizarValidacionPatente();
+      return;
+    }
 
     const personaDefault = this.tiposPersonaVehicular[0]?.value ?? 'estudiante';
     this.form.patchValue({ tipoPersona: personaDefault });
