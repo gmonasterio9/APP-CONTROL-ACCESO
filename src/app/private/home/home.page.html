@@ -101,9 +101,7 @@
                   {{ e.ubicacion }}
                 </p>
               </div>
-              @if (e.cuposDisponibles > 0) {
-                <img src="assets/svg/arrow-right.svg" class="item-arrow" />
-              }
+              <img src="assets/svg/arrow-right.svg" class="item-arrow" />
             </div>
             <p class="item-cupos" [class.sin-cupos]="e.cuposDisponibles === 0">
               @if (e.cuposDisponibles > 0) {

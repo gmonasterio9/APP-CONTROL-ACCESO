@@ -230,14 +230,7 @@ export class HomePage implements OnDestroy {
   }
 
   verDetalleEstacionamiento(e: EstacionamientoCard): void {
-    if (e.cuposDisponibles === 0) {
-      void this.ui.presentToast(
-        'No hay cupos disponibles en este estacionamiento.',
-        { color: 'warning', duration: 2500 }
-      );
-      return;
-    }
-
+    // Sin cupos igual se puede entrar a ver trazabilidad (vehículos activos, ocupación).
     this.navCtrl.navigateForward('/estacionamiento-detalle', {
       queryParams: {
         aeseNcorr: e.aeseNcorr,
