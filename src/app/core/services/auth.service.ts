@@ -388,7 +388,8 @@ export class AuthService {
       await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
     }
 
-    await this.offlineColaService.sincronizar();
+    // No bloquear el login si la cola offline falla o tarda.
+    void this.offlineColaService.sincronizar().catch(() => undefined);
 
     return response;
   }
