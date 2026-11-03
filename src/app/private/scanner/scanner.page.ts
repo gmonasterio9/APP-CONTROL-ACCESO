@@ -188,9 +188,13 @@ export class ScannerPage implements OnDestroy {
   async iniciarEscaneo() {
     this.camaraLista = false;
 
-    if (Capacitor.isNativePlatform()) {
-      await this.iniciarMLKit();
-      return;
+    // ML Kit (CameraX) falla o queda en negro en tablets con Camera2 Limited
+    // (p.ej. Lenovo Yoga Tab YT-X705F). En esos modelos vamos directo al fallback.
+    if (Capacitor.isNativePlatform() && !this.esDispositivoCamera2Limitado()) {
+      const mlkitOk = await this.iniciarMLKit();
+      if (mlkitOk) {
+        return;
+      }
     }
 
     try {
@@ -208,6 +212,12 @@ export class ScannerPage implements OnDestroy {
       }
       await this.mostrarError('No se pudo iniciar la cámara.');
     }
+  }
+
+  /** Tablets conocidas donde CameraX/ML Kit no entrega preview usable. */
+  private esDispositivoCamera2Limitado(): boolean {
+    const ua = navigator.userAgent || '';
+    return /YT-X705|LenovoTB-X705|Yoga.?Smart.?Tab|TB-X705/i.test(ua);
   }
 
   private async abrirCamaraWeb(): Promise<MediaStream> {
@@ -277,15 +287,44 @@ export class ScannerPage implements OnDestroy {
       }
     ).BarcodeDetector;
 
-    if (!DetectorCtor) {
-      return;
+    let detector: DetectorInstancia | null = null;
+    if (DetectorCtor) {
+      try {
+        detector = new DetectorCtor({ formats: ['qr_code'] });
+      } catch {
+        detector = null;
+      }
     }
 
-    let detector: DetectorInstancia;
-    try {
-      detector = new DetectorCtor({ formats: ['qr_code'] });
-    } catch {
-      return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    type JsQRResult = { data?: string } | null;
+    type JsQRFn = (
+      data: Uint8ClampedArray,
+      w: number,
+      h: number,
+      opts?: { inversionAttempts?: 'dontInvert' | 'onlyInvert' | 'attemptBoth' | 'invertFirst' }
+    ) => JsQRResult;
+    let jsQRFn: JsQRFn | null = null;
+    let cargandoJsQR = false;
+
+    const asegurarJsQR = async () => {
+      if (jsQRFn || cargandoJsQR) {
+        return;
+      }
+      cargandoJsQR = true;
+      try {
+        jsQRFn = (await import('jsqr')).default as JsQRFn;
+      } catch {
+        jsQRFn = null;
+      } finally {
+        cargandoJsQR = false;
+      }
+    };
+
+    // En Android WebView casi nunca hay BarcodeDetector: precargar jsQR.
+    if (!detector) {
+      void asegurarJsQR();
     }
 
     const gen = this.deteccionQrWebGeneracion;
@@ -297,10 +336,32 @@ export class ScannerPage implements OnDestroy {
       const video = this.videoRef?.nativeElement;
       if (!this.procesando && video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         try {
-          const codes = await detector.detect(video);
-          const valor = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          let valor: string | undefined;
+
+          if (detector) {
+            const codes = await detector.detect(video);
+            valor = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          }
+
+          if (!valor && ctx) {
+            await asegurarJsQR();
+            if (jsQRFn && video.videoWidth > 0 && video.videoHeight > 0) {
+              // Resolución baja para Snapdragon 439 / tablets lentas.
+              const maxW = 640;
+              const scale = Math.min(1, maxW / video.videoWidth);
+              canvas.width = Math.max(1, Math.floor(video.videoWidth * scale));
+              canvas.height = Math.max(1, Math.floor(video.videoHeight * scale));
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const result = jsQRFn(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert',
+              });
+              valor = result?.data?.trim() || undefined;
+            }
+          }
+
           if (valor && gen === this.deteccionQrWebGeneracion) {
-            this.zone.run(() => this.onCodigoDetectado(valor));
+            this.zone.run(() => this.onCodigoDetectado(valor!));
           }
         } catch {
           // Un frame fallido no debe cortar el loop.
@@ -310,7 +371,7 @@ export class ScannerPage implements OnDestroy {
       if (gen !== this.deteccionQrWebGeneracion) {
         return;
       }
-      this.deteccionQrWebId = setTimeout(() => void ciclo(), 250);
+      this.deteccionQrWebId = setTimeout(() => void ciclo(), 280);
     };
 
     this.deteccionQrWebId = setTimeout(() => void ciclo(), 400);
@@ -324,17 +385,23 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  private async iniciarMLKit() {
+  /** @returns true si ML Kit quedó activo; false para usar fallback WebView. */
+  private async iniciarMLKit(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) {
-      return;
+      return false;
     }
 
     this.detenerVideoStream();
     try {
+      const { supported } = await BarcodeScanner.isSupported();
+      if (!supported) {
+        return false;
+      }
+
       const permitido = await this.obtenerPermisoCamaraNativo();
       if (!permitido) {
         await this.mostrarAlertPermisoCamara();
-        return;
+        return false;
       }
       this.usandoMLKit = true;
       document.body.classList.add('barcode-scanning-active');
@@ -354,15 +421,22 @@ export class ScannerPage implements OnDestroy {
       await BarcodeScanner.startScan();
       this.scannerVisible = true;
       this.camaraLista = true;
+      return true;
     } catch (e: unknown) {
       this.usandoMLKit = false;
       document.body.classList.remove('barcode-scanning-active');
-      this.scannerVisible = false;
+      try {
+        await BarcodeScanner.stopScan();
+      } catch { /* ya estaba detenido */ }
+      await this.mlkitListener?.remove();
+      this.mlkitListener = null;
+
       if (this.esErrorPermisoCamara(e)) {
         await this.mostrarAlertPermisoCamara();
-        return;
+        return false;
       }
-      await this.mostrarError('No se pudo iniciar el escáner.');
+      // No mostrar error: el caller intenta fallback WebView/jsQR.
+      return false;
     }
   }
 
@@ -1743,6 +1817,7 @@ export class ScannerPage implements OnDestroy {
     mensaje?: string;
     code?: string;
     escaneoPorEmail?: boolean;
+    plateResult?: PlateResult;
   } {
     const textos = ValidarPerfilUtil.extraerTituloYMensaje(res);
     const nombre = String(res.nombreCompleto ?? '').trim() || undefined;
@@ -1750,6 +1825,16 @@ export class ScannerPage implements OnDestroy {
     const email =
       ValidarPerfilUtil.normalizarEmail(contexto?.email) ??
       ValidarPerfilUtil.normalizarEmail(res.email);
+    const patente = ValidarPerfilUtil.normalizarPatente(res.patente);
+    const medio = ValidarPerfilUtil.resolverMedioVehiculo(res);
+    const plateResult: PlateResult | undefined = patente
+      ? {
+          plate: patente,
+          score: 1,
+          region: 'cl',
+          vehicleType: medio === 'moto' ? 'moto' : 'auto',
+        }
+      : undefined;
     const base = {
       tipo: contexto?.tipo ?? ('credencial' as const),
       nombre,
@@ -1764,6 +1849,7 @@ export class ScannerPage implements OnDestroy {
       mensaje: textos.mensaje,
       code: res.code,
       escaneoPorEmail: contexto?.escaneoPorEmail === true,
+      plateResult,
     };
 
     const sinConexion = respuestaIndicaSinConexion(res, textos);

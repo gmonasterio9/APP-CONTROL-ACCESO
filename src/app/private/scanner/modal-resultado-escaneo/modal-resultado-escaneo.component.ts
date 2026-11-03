@@ -170,6 +170,10 @@ export class ModalResultadoEscaneoComponent {
     return PatenteUtil.etiquetaMedio(medio);
   }
 
+  get patenteMostrada(): string {
+    return String(this.plateResult?.plate ?? '').trim();
+  }
+
   accesoAccion(via: 'peatonal' | 'estacionamiento') {
     this.modalCtrl.dismiss(
       {
@@ -183,7 +187,7 @@ export class ModalResultadoEscaneoComponent {
         perfilDescripcion: this.perfilDescripcion,
         persNcorr: this.persNcorr,
         code: this.code,
-        patente: this.plateResult?.plate,
+        patente: this.patenteMostrada || undefined,
         controlPeatonalExito: this.controlPeatonalExito,
         escaneoPorEmail: this.escaneoPorEmail,
         codigoEscaneado: this.codigoEscaneado,
@@ -200,7 +204,7 @@ export class ModalResultadoEscaneoComponent {
         tipo: this.tipo,
         estado: this.estado,
         nombre: this.nombre,
-        patente: this.plateResult?.plate,
+        patente: this.patenteMostrada || undefined,
         perfil: this.perfilDescripcion ?? this.perfil,
         acreNcorr: this.acreNcorr,
         aeseNcorr: this.aeseNcorr,

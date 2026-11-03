@@ -19,8 +19,15 @@
 
     @if (credencial) {
       <p class="modal-credencial">{{ credencial }}</p>
-    } @else if (tipo === 'patente' && plateResult) {
-      <p class="modal-patente">{{ plateResult.plate }}</p>
+    }
+
+    @if (patenteMostrada) {
+      <p class="modal-patente">
+        {{ patenteMostrada }}
+        @if (patenteMedioEtiqueta) {
+          <span> · {{ patenteMedioEtiqueta }}</span>
+        }
+      </p>
     }
 
     @if (pendienteSalida) {
