@@ -87,7 +87,8 @@
                 class="otp-input"
                 formControlName="pin"
                 [length]="6"
-                type="number"
+                type="text"
+                inputmode="numeric"
                 shape="rectangle"
                 (ionComplete)="onSubmit()">
               </ion-input-otp>

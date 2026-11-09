@@ -44,10 +44,12 @@ export class AuthService {
   ) {}
 
   loginWithPin(pin: string, sedeId: number): Observable<LoginApiResponse> {
+    // Enviar como string: Number("066649") → 66649 y la API exige 6 dígitos.
+    const pinNormalizado = String(pin ?? '').replace(/\D/g, '').padStart(6, '0').slice(-6);
     return this.api
       .postPublic<LoginApiResponse>('/login', {
         sede: sedeId,
-        pin: Number(pin),
+        pin: pinNormalizado,
       })
       .pipe(
         switchMap(res => {
@@ -386,7 +388,8 @@ export class AuthService {
       await this.storage.remove(this.ESTACIONAMIENTO_SESION_KEY);
     }
 
-    await this.offlineColaService.sincronizar();
+    // No bloquear el login si la cola offline falla o tarda.
+    void this.offlineColaService.sincronizar().catch(() => undefined);
 
     return response;
   }

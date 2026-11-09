@@ -134,11 +134,17 @@ export class InicioSesionPage implements OnInit {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.step !== 'pin' || this.form.invalid || !this.selectedSede) return;
+    if (this.step !== 'pin' || !this.selectedSede) return;
+
+    const pin = String(this.pin.value ?? '').replace(/\D/g, '');
+    if (pin.length !== 6) {
+      await this.showToast('Ingrese el PIN de 6 dígitos.');
+      return;
+    }
 
     const loading = await this.ui.presentLoading('Verificando PIN...');
 
-    this.authService.loginWithPin(this.pin.value, this.selectedSede.id).subscribe({
+    this.authService.loginWithPin(pin, this.selectedSede.id).subscribe({
       next: async () => {
         await this.ui.dismissLoading(loading);
         await this.router.navigate(['/home'], { replaceUrl: true });
@@ -146,7 +152,13 @@ export class InicioSesionPage implements OnInit {
       error: async (err) => {
         await this.ui.dismissLoading(loading);
         this.form.get('pin')?.reset();
-        const mensaje = err?.error?.message || 'PIN incorrecto. Intente nuevamente.';
+        const erroresPin = err?.error?.errors?.['login.Pin'];
+        const detalle = Array.isArray(erroresPin) ? erroresPin[0] : null;
+        const mensaje =
+          detalle ||
+          err?.error?.message ||
+          err?.message ||
+          'PIN incorrecto. Intente nuevamente.';
         await this.showToast(mensaje);
       }
     });

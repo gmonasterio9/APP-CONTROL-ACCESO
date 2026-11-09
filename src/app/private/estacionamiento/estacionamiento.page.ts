@@ -229,6 +229,7 @@ export class EstacionamientoPage implements OnDestroy {
 
     const rechazado =
       this.estadoScan === 'no_autorizado' || this.estadoScan === 'manual';
+    const patenteApi = PatenteUtil.toApi(String(this.patente ?? ''));
     const perfil = rechazado
       ? resolverPerfilIngresoManual({
           perfil: this.perfil,
@@ -238,7 +239,8 @@ export class EstacionamientoPage implements OnDestroy {
       : this.perfil ?? undefined;
     const nombreReal = (this.nombre ?? '').trim() || null;
 
-    if (rechazado) {
+    // Sin patente → ingreso manual. Con patente → registrar directo (sin manual).
+    if (!patenteApi) {
       const acreDesdeAuth = await this.authService.resolverAcreNcorrParaOperar();
       const acreNcorr = acreNcorrValidoParaRequest(e.acreNcorr)
         ? e.acreNcorr
@@ -249,24 +251,21 @@ export class EstacionamientoPage implements OnDestroy {
         queryParams: {
           nombre: nombreReal,
           rut: this.rut,
-          patente: this.patente,
           perfil,
-          tipoMedio: this.patente
-            ? PatenteUtil.inferirMedio(PatenteUtil.toApi(this.patente)) ?? 'auto'
-            : null,
+          tipoMedio: 'auto',
           aeseNcorr: e.aeseNcorr,
           acreNcorr,
           estacionamiento: e.nombre,
           origen: this.origen,
+          ...(this.persNcorr != null ? { persNcorr: this.persNcorr } : {}),
         },
       });
       return;
     }
 
-    const nombre = nombreReal ?? (this.patente ? this.patente : 'Visitante');
-
+    const nombre = nombreReal ?? patenteApi;
     const body = await this.buildIngresoBody(e);
-    if (!body) {
+    if (!body || !('patente' in body)) {
       await this.ui.presentToast(
         'Faltan datos para confirmar el ingreso del vehículo.',
         { color: 'warning' }
@@ -274,7 +273,7 @@ export class EstacionamientoPage implements OnDestroy {
       return;
     }
 
-    if ('patente' in body && (await this.network.aptaParaOperacionTiempoReal())) {
+    if (await this.network.aptaParaOperacionTiempoReal()) {
       await this.confirmarIngresoConBarrera(e, body.patente, body.acreNcorr, nombre, perfil);
       return;
     }
@@ -434,15 +433,10 @@ export class EstacionamientoPage implements OnDestroy {
         : undefined;
 
     const patente = PatenteUtil.toApi(String(this.patente ?? ''));
-    if (patente) {
-      return acreNcorr != null ? { patente, acreNcorr } : { patente };
+    if (!patente) {
+      return null;
     }
-    if (this.persNcorr != null && this.persNcorr > 0) {
-      return acreNcorr != null
-        ? { persNcorr: this.persNcorr, acreNcorr }
-        : { persNcorr: this.persNcorr };
-    }
-    return null;
+    return acreNcorr != null ? { patente, acreNcorr } : { patente };
   }
 
   registrarAcompanante(): void {

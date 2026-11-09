@@ -81,9 +81,12 @@ export class OfflineValidacionUtil {
       };
     }
 
-    return OfflineValidacionUtil.respuestaPerfilDesdePersona(persona, {
-      codigoCredencial: qr,
-    });
+    return OfflineValidacionUtil.respuestaPerfilDesdePersona(
+      persona,
+      OfflineValidacionUtil.extrasVehiculoDesdeCatalogo(catalogo, persona.persNcorr, {
+        codigoCredencial: qr,
+      })
+    );
   }
 
   static validarPerfil(
@@ -99,7 +102,10 @@ export class OfflineValidacionUtil {
     if (rut) {
       const persona = OfflineValidacionUtil.buscarPersonaPorRut(catalogo, rut);
       if (persona) {
-        return OfflineValidacionUtil.respuestaPerfilDesdePersona(persona);
+        return OfflineValidacionUtil.respuestaPerfilDesdePersona(
+          persona,
+          OfflineValidacionUtil.extrasVehiculoDesdeCatalogo(catalogo, persona.persNcorr)
+        );
       }
 
       return {
@@ -115,7 +121,10 @@ export class OfflineValidacionUtil {
     if (email) {
       const persona = OfflineValidacionUtil.buscarPersonaPorEmail(catalogo, email);
       if (persona) {
-        return OfflineValidacionUtil.respuestaPerfilDesdePersona(persona);
+        return OfflineValidacionUtil.respuestaPerfilDesdePersona(
+          persona,
+          OfflineValidacionUtil.extrasVehiculoDesdeCatalogo(catalogo, persona.persNcorr)
+        );
       }
 
       return {
@@ -226,9 +235,33 @@ export class OfflineValidacionUtil {
     return ValidarPerfilUtil.normalizarEmail(persona.emailInacap);
   }
 
+  private static extrasVehiculoDesdeCatalogo(
+    catalogo: OfflineCatalogoAccesoView,
+    persNcorr: number,
+    extras?: { codigoCredencial?: string }
+  ): {
+    codigoCredencial?: string;
+    patente?: string | null;
+    aeveNcorr?: number | null;
+    aeveTnombre?: string | null;
+  } {
+    const registro = catalogo.patentes?.find(p => p.persNcorr === persNcorr);
+    return {
+      ...extras,
+      patente: registro?.patente ?? null,
+      aeveNcorr: registro?.aeveNcorr ?? null,
+      aeveTnombre: registro?.tipoVehiculo ?? null,
+    };
+  }
+
   private static respuestaPerfilDesdePersona(
     persona: OfflinePersonaCatalogo,
-    extras?: { codigoCredencial?: string }
+    extras?: {
+      codigoCredencial?: string;
+      patente?: string | null;
+      aeveNcorr?: number | null;
+      aeveTnombre?: string | null;
+    }
   ): ValidarPerfilResponse {
     if (ValidarPerfilUtil.esPersonaBloqueada(persona)) {
       return OfflineValidacionUtil.respuestaBloqueadoDesdePersona(persona, extras);
@@ -242,6 +275,9 @@ export class OfflineValidacionUtil {
       nombreCompleto: persona.nombreCompleto,
       persNcorr: persona.persNcorr,
       codigoCredencial: extras?.codigoCredencial,
+      patente: extras?.patente ?? undefined,
+      aeveNcorr: extras?.aeveNcorr ?? undefined,
+      aeveTnombre: extras?.aeveTnombre ?? undefined,
     };
 
     if (!persona.accesoPeatonal) {

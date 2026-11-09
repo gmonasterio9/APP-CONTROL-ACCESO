@@ -1,5 +1,6 @@
 import { ValidarPerfilResponse } from '../models/validar-perfil.model';
 import { ApiHttpError } from '../services/api-http.service';
+import { PatenteMedio, PatenteUtil } from './patente.util';
 import { RutUtil } from './rut.util';
 
 const TITULOS_ACCESO = new Set(['Acceso Autorizado', 'Acceso No Autorizado']);
@@ -60,6 +61,28 @@ export class ValidarPerfilUtil {
     }
 
     return Math.trunc(n);
+  }
+
+  static normalizarPatente(value: unknown): string | undefined {
+    const patente = PatenteUtil.toApi(String(value ?? ''));
+    return PatenteUtil.isFormatValidAutoOMoto(patente) ? patente : undefined;
+  }
+
+  static resolverMedioVehiculo(res: ValidarPerfilResponse): PatenteMedio | null {
+    const nombre = String(res.aeveTnombre ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    if (nombre.includes('moto')) {
+      return 'moto';
+    }
+    if (nombre.includes('auto') || nombre.includes('camion') || nombre.includes('vehiculo')) {
+      return 'auto';
+    }
+
+    const patente = ValidarPerfilUtil.normalizarPatente(res.patente);
+    return patente ? PatenteUtil.inferirMedio(patente) : null;
   }
 
   static normalizarEmail(value: unknown): string | undefined {
