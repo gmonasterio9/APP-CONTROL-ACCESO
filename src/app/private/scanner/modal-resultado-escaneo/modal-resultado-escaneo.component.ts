@@ -1,4 +1,11 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+} from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { PlateResult } from '../../../core/services/plate-recognizer.service';
 import {
@@ -35,7 +42,7 @@ export interface DatosResultadoEscaneo {
   styleUrls: ['modal-resultado-escaneo.component.scss'],
   standalone: false,
 })
-export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
+export class ModalResultadoEscaneoComponent implements OnInit, OnChanges, OnDestroy {
   @Input() tipo: TipoEscaneo = 'credencial';
   @Input() estado: EstadoEscaneo = 'autorizado';
   @Input() nombre?: string;
@@ -68,14 +75,26 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnDestroy {
   constructor(private modalCtrl: ModalController) {}
 
   ngOnInit(): void {
-    if (!this.soloInformativo) {
-      return;
+    // Ionic suele aplicar componentProps después de ngOnInit.
+    queueMicrotask(() => this.programarCierreAutomatico());
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['soloInformativo']) {
+      this.programarCierreAutomatico();
     }
-    this.cierreTimer = setTimeout(() => this.cerrar(), this.CIERRE_AUTOMATICO_MS);
   }
 
   ngOnDestroy(): void {
     this.cancelarCierreAutomatico();
+  }
+
+  private programarCierreAutomatico(): void {
+    this.cancelarCierreAutomatico();
+    if (!this.soloInformativo) {
+      return;
+    }
+    this.cierreTimer = setTimeout(() => this.cerrar(), this.CIERRE_AUTOMATICO_MS);
   }
 
   get rutVisible(): string {
