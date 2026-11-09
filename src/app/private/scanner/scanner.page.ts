@@ -842,41 +842,59 @@ export class ScannerPage implements OnDestroy {
     void this.scanSound.play(estado);
 
     await modal.present();
-    const { data: resp, role } = await modal.onDidDismiss();
 
-    if (role === 'accion') {
-      if (resp?.via === 'salida') {
-        await this.registrarSalidaDesdeEscaneo(resp);
-        return;
-      }
+    // Tablet: cerrar solo a los 3s desde el presentador (más fiable que Inputs del modal).
+    let autoCloseTimer: ReturnType<typeof setTimeout> | undefined;
+    if (this.soloInformativo) {
+      const cierreMs = 3_000;
+      console.log('[tablet] modal cierre automático en', cierreMs, 'ms');
+      autoCloseTimer = setTimeout(() => {
+        console.log('[tablet] cerrando modal automático');
+        void modal.dismiss(null, 'cancelar');
+      }, cierreMs);
+    }
 
-      const esPatente = resp?.tipo === 'patente';
+    try {
+      const { data: resp, role } = await modal.onDidDismiss();
 
-      if (resp?.via === 'peatonal' && !esPatente) {
-        if (resp.estado === 'autorizado') {
-          if (resp.controlPeatonalExito) {
-            await this.completarIngresoPeatonalTrasEscaneo(resp);
-          } else {
-            await this.registrarControlIngresoPeatonal(resp);
-          }
-        } else if (resp.estado === 'manual') {
-          await this.confirmarEscaneoPeatonalExpirado(resp);
-        } else {
-          await this.salirScannerHacia(
-            '/ingreso-manual',
-            await this.buildAccesoQueryParams(resp)
-          );
+      if (role === 'accion') {
+        if (resp?.via === 'salida') {
+          await this.registrarSalidaDesdeEscaneo(resp);
+          return;
         }
-        return;
-      }
 
-      const params = await this.buildAccesoQueryParams(resp);
-      const ruta = esPatente || resp?.via === 'estacionamiento'
-        ? '/estacionamiento'
-        : '/ingreso-manual';
-      await this.salirScannerHacia(ruta, params);
-    } else {
-      await this.reanudarEscaneoTrasModal();
+        const esPatente = resp?.tipo === 'patente';
+
+        if (resp?.via === 'peatonal' && !esPatente) {
+          if (resp.estado === 'autorizado') {
+            if (resp.controlPeatonalExito) {
+              await this.completarIngresoPeatonalTrasEscaneo(resp);
+            } else {
+              await this.registrarControlIngresoPeatonal(resp);
+            }
+          } else if (resp.estado === 'manual') {
+            await this.confirmarEscaneoPeatonalExpirado(resp);
+          } else {
+            await this.salirScannerHacia(
+              '/ingreso-manual',
+              await this.buildAccesoQueryParams(resp)
+            );
+          }
+          return;
+        }
+
+        const params = await this.buildAccesoQueryParams(resp);
+        const ruta = esPatente || resp?.via === 'estacionamiento'
+          ? '/estacionamiento'
+          : '/ingreso-manual';
+        await this.salirScannerHacia(ruta, params);
+      } else {
+        await this.reanudarEscaneoTrasModal();
+      }
+    } finally {
+      if (autoCloseTimer != null) {
+        clearTimeout(autoCloseTimer);
+      }
     }
   }
 

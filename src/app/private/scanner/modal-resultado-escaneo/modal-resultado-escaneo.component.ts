@@ -70,13 +70,13 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnChanges, OnDest
 
   private cierreTimer?: ReturnType<typeof setTimeout>;
   /** Tiempo para leer nombre, perfil y credencial antes de volver a la cámara. */
-  private readonly CIERRE_AUTOMATICO_MS = 5_000;
+  private readonly CIERRE_AUTOMATICO_MS = 3_000;
 
   constructor(private modalCtrl: ModalController) {}
 
   ngOnInit(): void {
-    // Ionic suele aplicar componentProps después de ngOnInit.
-    queueMicrotask(() => this.programarCierreAutomatico());
+    // Ionic aplica componentProps tarde; reintentar en el siguiente tick.
+    setTimeout(() => this.programarCierreAutomatico(), 0);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -94,7 +94,15 @@ export class ModalResultadoEscaneoComponent implements OnInit, OnChanges, OnDest
     if (!this.soloInformativo) {
       return;
     }
-    this.cierreTimer = setTimeout(() => this.cerrar(), this.CIERRE_AUTOMATICO_MS);
+    console.log(
+      '[tablet] modal programarCierreAutomatico',
+      this.CIERRE_AUTOMATICO_MS,
+      'ms'
+    );
+    this.cierreTimer = setTimeout(() => {
+      console.log('[tablet] modal cerrar() por timer');
+      this.cerrar();
+    }, this.CIERRE_AUTOMATICO_MS);
   }
 
   get rutVisible(): string {
