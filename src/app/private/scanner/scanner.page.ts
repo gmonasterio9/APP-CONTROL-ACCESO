@@ -473,28 +473,34 @@ export class ScannerPage implements OnDestroy {
       if (this.videoStream && this.videoRef?.nativeElement) {
         const video = this.videoRef.nativeElement;
         const canvas = document.createElement('canvas');
-        canvas.width  = video.videoWidth  || 1280;
-        canvas.height = video.videoHeight || 720;
+        // Limitar tamaño: fotos enormes congelan jsQR y PlateRecognizer en tablets.
+        const maxW = 1280;
+        const srcW = video.videoWidth || 1280;
+        const srcH = video.videoHeight || 720;
+        const scale = Math.min(1, maxW / srcW);
+        canvas.width = Math.max(1, Math.round(srcW * scale));
+        canvas.height = Math.max(1, Math.round(srcH * scale));
         const ctx = canvas.getContext('2d')!;
 
         if (!this.zoomEsHardware && this.zoomActual > 1) {
           const z = this.zoomActual;
-          const sw = canvas.width / z;
-          const sh = canvas.height / z;
-          const sx = (canvas.width - sw) / 2;
-          const sy = (canvas.height - sh) / 2;
+          const sw = srcW / z;
+          const sh = srcH / z;
+          const sx = (srcW - sw) / 2;
+          const sy = (srcH - sh) / 2;
           ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         } else {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
 
-        base64 = canvas.toDataURL('image/jpeg', 0.92);
+        base64 = canvas.toDataURL('image/jpeg', 0.85);
       } else if (Capacitor.isNativePlatform()) {
         const foto = await Camera.getPhoto({
-          quality: 92,
+          quality: 85,
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           saveToGallery: false,
+          width: 1280,
         });
         base64 = foto.dataUrl ?? '';
         if (!base64) {
@@ -513,15 +519,26 @@ export class ScannerPage implements OnDestroy {
         spinner: 'crescent',
       });
 
-      const qrDeImagen = await this.leerQrDesdeImagen(base64);
-      if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
-        await this.ui.dismissLoading(loading);
-        loading = null;
-        await this.flujoEscaneoQr(qrDeImagen);
-        return;
+      // QR rápido con tope de tiempo: el decode pesado dejaba el loading pegado.
+      if (this.escanearQr) {
+        const qrDeImagen = await this.conTimeout(
+          this.leerQrDesdeImagenRapido(base64),
+          1200,
+          null
+        );
+        if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
+          await this.ui.dismissLoading(loading);
+          loading = null;
+          await this.flujoEscaneoQr(qrDeImagen);
+          return;
+        }
       }
 
-      const plateResult = await this.detectarPatenteConReintentos(base64);
+      const plateResult = await this.conTimeout(
+        this.detectarPatenteConReintentos(base64, 2),
+        10000,
+        null
+      );
 
       await this.ui.dismissLoading(loading);
       loading = null;
@@ -534,7 +551,12 @@ export class ScannerPage implements OnDestroy {
       await this.solicitarPatenteManual();
     } catch {
       await this.ui.dismissLoading(loading);
+      loading = null;
       await this.solicitarPatenteManual();
+    } finally {
+      if (loading) {
+        await this.ui.dismissLoading(loading);
+      }
     }
   }
 
@@ -1334,43 +1356,85 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  private async leerQrDesdeImagen(base64: string): Promise<string | null> {
+  /** QR desde foto del shutter: rápido, no debe congelar el loading de patente. */
+  private async leerQrDesdeImagenRapido(base64: string): Promise<string | null> {
     try {
-      const img = new Image();
-      img.src = base64;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject();
-      });
+      const img = await this.cargarImagenDesdeBase64(base64);
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+      if (!srcW || !srcH) {
+        return null;
+      }
 
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      // Intentar con BarcodeDetector (navegadores modernos)
       const BDCtor = (window as Window & {
         BarcodeDetector?: new (opts?: { formats: string[] }) => {
           detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
         };
       }).BarcodeDetector;
 
+      const maxSide = 720;
+      const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(srcW * scale));
+      canvas.height = Math.max(1, Math.round(srcH * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
       if (BDCtor) {
         try {
           const detector = new BDCtor({ formats: ['qr_code'] });
-          const codes = await detector.detect(img);
+          const codes = await Promise.race([
+            detector.detect(canvas),
+            this.esperar(600).then(() => [] as Array<{ rawValue?: string }>),
+          ]);
           const val = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
-          if (val) { return val; }
-        } catch { /* fallback abajo */ }
+          if (val) {
+            return val;
+          }
+        } catch {
+          /* jsQR abajo */
+        }
       }
 
-      // Fallback jsQR con recortes/escala (credencial colaborador con logo).
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const jsQR = (await import('jsqr')).default as JsQRFn;
-      return JsQrDecodeUtil.decodeImageData(jsQR, imageData);
+      // Ceder un tick para que el loading se pinte antes del decode sync.
+      await this.esperar(0);
+      return JsQrDecodeUtil.decodeImageDataFast(jsQR, imageData);
     } catch {
       return null;
+    }
+  }
+
+  private cargarImagenDesdeBase64(base64: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('imagen'));
+      img.src = base64;
+    });
+  }
+
+  private async conTimeout<T>(
+    promesa: Promise<T>,
+    ms: number,
+    fallback: T
+  ): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promesa,
+        new Promise<T>(resolve => {
+          timer = setTimeout(() => resolve(fallback), ms);
+        }),
+      ]);
+    } finally {
+      if (timer != null) {
+        clearTimeout(timer);
+      }
     }
   }
 
@@ -1379,12 +1443,20 @@ export class ScannerPage implements OnDestroy {
     intentos = 3
   ): Promise<PlateResult | null> {
     for (let i = 0; i < intentos; i++) {
-      const result = await this.plateService.readPlate(base64);
-      if (result?.plate) {
-        return result;
+      try {
+        const result = await this.conTimeout(
+          this.plateService.readPlate(base64),
+          6000,
+          null
+        );
+        if (result?.plate) {
+          return result;
+        }
+      } catch {
+        // reintento / fallback manual
       }
       if (i < intentos - 1) {
-        await this.esperar(400);
+        await this.esperar(300);
       }
     }
     return null;
