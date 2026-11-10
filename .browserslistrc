@@ -1,0 +1,9 @@
+# Target moderno: esbuild/Angular 20 no puede downlevel ciertos destructuring.
+# Compatibilidad Lenovo YT-X705F: minify off + polyfills + actualizar System WebView.
+last 2 Chrome versions
+last 2 ChromeAndroid versions
+last 2 Firefox versions
+last 2 Edge major versions
+last 2 Safari major versions
+last 2 iOS major versions
+Firefox ESR
