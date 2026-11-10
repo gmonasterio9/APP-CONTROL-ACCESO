@@ -23,41 +23,28 @@ type Region = {
 export class JsQrDecodeUtil {
   private constructor() {}
 
-  /** Intenta varias regiones/escalas sobre un ImageData ya capturado. */
-  static decodeImageData(jsQR: JsQRFn, imageData: ImageData): string | null {
+  /**
+   * Rápido para el botón de captura (no bloquear UI / patente).
+   * Solo 2 intentos de recorte centrado.
+   */
+  static decodeImageDataFast(jsQR: JsQRFn, imageData: ImageData): string | null {
     const { width: w, height: h, data } = imageData;
     if (w < 16 || h < 16) {
       return null;
     }
 
-    const intentos: Array<{ data: Uint8ClampedArray; w: number; h: number }> = [
-      { data, w, h },
-    ];
-
-    for (const ratio of [0.7, 0.55, 0.45]) {
-      const side = Math.floor(Math.min(w, h) * ratio);
-      if (side < 80) {
-        continue;
-      }
-      const sx = Math.floor((w - side) / 2);
-      const sy = Math.floor((h - side) / 2);
-      intentos.push(JsQrDecodeUtil.crop(data, w, h, sx, sy, side, side));
-      // Credenciales con logo: upscale del recorte ayuda a jsQR.
-      if (side < 700) {
-        const factor = Math.min(2.5, 700 / side);
-        intentos.push(
-          JsQrDecodeUtil.scaleNearest(
-            JsQrDecodeUtil.crop(data, w, h, sx, sy, side, side).data,
-            side,
-            side,
-            factor
-          )
-        );
-      }
-    }
-
-    for (const intento of intentos) {
-      const result = jsQR(intento.data, intento.w, intento.h, {
+    const side = Math.min(w, h);
+    for (const ratio of [0.55, 0.42]) {
+      const crop = Math.max(120, Math.floor(side * ratio));
+      const sx = Math.floor((w - crop) / 2);
+      const sy = Math.floor((h - crop) / 2);
+      const cropped = JsQrDecodeUtil.crop(data, w, h, sx, sy, crop, crop);
+      const factor = Math.min(2.5, 700 / crop);
+      const scaled =
+        factor > 1.05
+          ? JsQrDecodeUtil.scaleNearest(cropped.data, crop, crop, factor)
+          : cropped;
+      const result = jsQR(scaled.data, scaled.w, scaled.h, {
         inversionAttempts: 'attemptBoth',
       });
       const valor = result?.data?.trim();
@@ -68,9 +55,27 @@ export class JsQrDecodeUtil {
     return null;
   }
 
+  /** Más intentos (foto estática / debug). Evitar en el shutter de patente. */
+  static decodeImageData(jsQR: JsQRFn, imageData: ImageData): string | null {
+    const fast = JsQrDecodeUtil.decodeImageDataFast(jsQR, imageData);
+    if (fast) {
+      return fast;
+    }
+
+    const { width: w, height: h, data } = imageData;
+    const side = Math.min(w, h);
+    const crop = Math.max(100, Math.floor(side * 0.7));
+    const sx = Math.floor((w - crop) / 2);
+    const sy = Math.floor((h - crop) / 2);
+    const cropped = JsQrDecodeUtil.crop(data, w, h, sx, sy, crop, crop);
+    const result = jsQR(cropped.data, cropped.w, cropped.h, {
+      inversionAttempts: 'attemptBoth',
+    });
+    return result?.data?.trim() || null;
+  }
+
   /**
-   * Decodifica un frame de video dibujando una región en canvas.
-   * `modo` rota estrategias entre frames para no saturar tablets lentas.
+   * Un intento por frame (rota estrategia). Dos jsQR por frame congelaban Lenovo.
    */
   static decodeVideoFrame(
     jsQR: JsQRFn,
@@ -108,10 +113,23 @@ export class JsQrDecodeUtil {
 
   private static regionForMode(vw: number, vh: number, modo: number): Region {
     const side = Math.min(vw, vh);
-    const cycle = ((modo % 3) + 3) % 3;
+    const cycle = ((modo % 4) + 4) % 4;
 
     if (cycle === 0) {
-      // Recorte central ~60%: caso típico de credencial en el marco.
+      // Logo INACAP / vCard denso (prioridad).
+      const crop = Math.max(140, Math.floor(side * 0.5));
+      const out = Math.min(800, Math.max(560, Math.floor(crop * 2.5)));
+      return {
+        sx: Math.floor((vw - crop) / 2),
+        sy: Math.floor((vh - crop) / 2),
+        sw: crop,
+        sh: crop,
+        outW: out,
+        outH: out,
+      };
+    }
+
+    if (cycle === 1) {
       const crop = Math.max(160, Math.floor(side * 0.6));
       const out = Math.min(720, Math.max(480, Math.floor(crop * 1.8)));
       return {
@@ -124,10 +142,9 @@ export class JsQrDecodeUtil {
       };
     }
 
-    if (cycle === 1) {
-      // Recorte más cerrado + más upscale (QR denso con logo).
-      const crop = Math.max(140, Math.floor(side * 0.48));
-      const out = Math.min(800, Math.max(560, Math.floor(crop * 2.4)));
+    if (cycle === 2) {
+      const crop = Math.max(120, Math.floor(side * 0.4));
+      const out = Math.min(840, Math.max(560, Math.floor(crop * 2.6)));
       return {
         sx: Math.floor((vw - crop) / 2),
         sy: Math.floor((vh - crop) / 2),
@@ -138,7 +155,6 @@ export class JsQrDecodeUtil {
       };
     }
 
-    // Frame completo a resolución moderada.
     const maxW = 800;
     const scale = Math.min(1, maxW / vw);
     return {
@@ -154,7 +170,7 @@ export class JsQrDecodeUtil {
   private static crop(
     src: Uint8ClampedArray,
     sw: number,
-    sh: number,
+    _sh: number,
     sx: number,
     sy: number,
     cw: number,

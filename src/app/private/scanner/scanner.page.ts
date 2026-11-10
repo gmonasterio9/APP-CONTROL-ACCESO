@@ -475,25 +475,30 @@ export class ScannerPage implements OnDestroy {
       if (this.videoStream && this.videoRef?.nativeElement) {
         const video = this.videoRef.nativeElement;
         const canvas = document.createElement('canvas');
-        canvas.width  = video.videoWidth  || 1280;
-        canvas.height = video.videoHeight || 720;
+        // Limitar tamaño: fotos enormes congelan jsQR y PlateRecognizer en tablets.
+        const maxW = 1280;
+        const srcW = video.videoWidth || 1280;
+        const srcH = video.videoHeight || 720;
+        const scale = Math.min(1, maxW / srcW);
+        canvas.width = Math.max(1, Math.round(srcW * scale));
+        canvas.height = Math.max(1, Math.round(srcH * scale));
         const ctx = canvas.getContext('2d')!;
 
         if (!this.zoomEsHardware && this.zoomActual > 1) {
           const z = this.zoomActual;
-          const sw = canvas.width / z;
-          const sh = canvas.height / z;
-          const sx = (canvas.width - sw) / 2;
-          const sy = (canvas.height - sh) / 2;
+          const sw = srcW / z;
+          const sh = srcH / z;
+          const sx = (srcW - sw) / 2;
+          const sy = (srcH - sh) / 2;
           ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         } else {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
 
-        base64 = canvas.toDataURL('image/jpeg', 0.8);
+        base64 = canvas.toDataURL('image/jpeg', 0.85);
       } else if (Capacitor.isNativePlatform()) {
         const foto = await Camera.getPhoto({
-          quality: 80,
+          quality: 85,
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           saveToGallery: false,
@@ -512,21 +517,30 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      loading = await this.ui.presentLoading('Detectando patente...', {
+      loading = await this.ui.presentLoading('Analizando imagen...', {
         spinner: 'crescent',
       });
 
-      // Solo BarcodeDetector (rápido). jsQR bloquea el hilo y no respeta timeout.
-      // El QR en vivo ya lo lee ML Kit / BarcodeDetector del preview.
-      const qrDeImagen = await this.leerQrRapidoDesdeImagen(base64);
-      if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
-        await this.ui.dismissLoading(loading);
-        loading = null;
-        await this.flujoEscaneoQr(qrDeImagen);
-        return;
+      // QR rápido con tope de tiempo: el decode pesado dejaba el loading pegado.
+      if (this.escanearQr) {
+        const qrDeImagen = await this.conTimeout(
+          this.leerQrDesdeImagenRapido(base64),
+          1200,
+          null
+        );
+        if (qrDeImagen && ScanPerfilUtil.esEscaneoQrPerfil(qrDeImagen)) {
+          await this.ui.dismissLoading(loading);
+          loading = null;
+          await this.flujoEscaneoQr(qrDeImagen);
+          return;
+        }
       }
 
-      const plateResult = await this.plateService.readPlate(base64);
+      const plateResult = await this.conTimeout(
+        this.detectarPatenteConReintentos(base64, 2),
+        10000,
+        null
+      );
 
       await this.ui.dismissLoading(loading);
       loading = null;
@@ -539,7 +553,12 @@ export class ScannerPage implements OnDestroy {
       await this.solicitarPatenteManual();
     } catch {
       await this.ui.dismissLoading(loading);
+      loading = null;
       await this.solicitarPatenteManual();
+    } finally {
+      if (loading) {
+        await this.ui.dismissLoading(loading);
+      }
     }
   }
 
@@ -1384,11 +1403,8 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  /**
-   * BarcodeDetector primero (rápido). Si no existe (WebView Android 9 / Lenovo),
-   * usa jsQR con recorte centrado para credencial colaborador con logo.
-   */
-  private async leerQrRapidoDesdeImagen(base64: string): Promise<string | null> {
+  /** QR desde foto del shutter: rápido, no debe congelar el loading de patente. */
+  private async leerQrDesdeImagenRapido(base64: string): Promise<string | null> {
     try {
       const img = await this.cargarImagenDesdeBase64(base64);
       const srcW = img.naturalWidth || img.width;
@@ -1403,7 +1419,7 @@ export class ScannerPage implements OnDestroy {
         };
       }).BarcodeDetector;
 
-      const maxSide = 640;
+      const maxSide = 720;
       const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(srcW * scale));
@@ -1419,31 +1435,23 @@ export class ScannerPage implements OnDestroy {
           const detector = new BDCtor({ formats: ['qr_code'] });
           const codes = await Promise.race([
             detector.detect(canvas),
-            new Promise<Array<{ rawValue?: string }>>(resolve =>
-              setTimeout(() => resolve([]), 800)
-            ),
+            this.esperar(600).then(() => [] as Array<{ rawValue?: string }>),
           ]);
-          const val = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          const val = codes
+            .find((c: { rawValue?: string }) => c.rawValue?.trim())
+            ?.rawValue?.trim();
           if (val) {
             return val;
           }
         } catch {
-          /* fallback jsQR abajo */
+          /* jsQR abajo */
         }
       }
 
-      // Imagen completa (mejor para QR denso con logo) + util de recortes.
-      const full = document.createElement('canvas');
-      full.width = srcW;
-      full.height = srcH;
-      const fullCtx = full.getContext('2d');
-      if (!fullCtx) {
-        return null;
-      }
-      fullCtx.drawImage(img, 0, 0);
-      const imageData = fullCtx.getImageData(0, 0, srcW, srcH);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const jsQR = (await import('jsqr')).default as JsQRFn;
-      return JsQrDecodeUtil.decodeImageData(jsQR, imageData);
+      await this.esperar(0);
+      return JsQrDecodeUtil.decodeImageDataFast(jsQR, imageData);
     } catch {
       return null;
     }
@@ -1456,6 +1464,54 @@ export class ScannerPage implements OnDestroy {
       img.onerror = () => reject(new Error('imagen'));
       img.src = base64;
     });
+  }
+
+  private async conTimeout<T>(
+    promesa: Promise<T>,
+    ms: number,
+    fallback: T
+  ): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promesa,
+        new Promise<T>(resolve => {
+          timer = setTimeout(() => resolve(fallback), ms);
+        }),
+      ]);
+    } finally {
+      if (timer != null) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async detectarPatenteConReintentos(
+    base64: string,
+    intentos = 3
+  ): Promise<PlateResult | null> {
+    for (let i = 0; i < intentos; i++) {
+      try {
+        const result = await this.conTimeout(
+          this.plateService.readPlate(base64),
+          6000,
+          null
+        );
+        if (result?.plate) {
+          return result;
+        }
+      } catch {
+        // reintento / fallback manual
+      }
+      if (i < intentos - 1) {
+        await this.esperar(300);
+      }
+    }
+    return null;
+  }
+
+  private esperar(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private async solicitarPatenteManual(patentePrefill = ''): Promise<void> {
