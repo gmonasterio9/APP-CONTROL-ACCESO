@@ -1384,20 +1384,64 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  /** Solo BarcodeDetector: no usa jsQR (bloquea UI varios segundos). */
+  /**
+   * BarcodeDetector primero (rápido). Si no existe (WebView Android 9 / Lenovo),
+   * usa jsQR con recorte centrado para credencial colaborador con logo.
+   */
   private async leerQrRapidoDesdeImagen(base64: string): Promise<string | null> {
     try {
+      const img = await this.cargarImagenDesdeBase64(base64);
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+      if (!srcW || !srcH) {
+        return null;
+      }
+
       const BDCtor = (window as Window & {
         BarcodeDetector?: new (opts?: { formats: string[] }) => {
           detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
         };
       }).BarcodeDetector;
 
-      if (!BDCtor) {
+      const maxSide = 640;
+      const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(srcW * scale));
+      canvas.height = Math.max(1, Math.round(srcH * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
         return null;
       }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      // Fallback jsQR con recortes/escala (credencial colaborador con logo).
+      if (BDCtor) {
+        try {
+          const detector = new BDCtor({ formats: ['qr_code'] });
+          const codes = await Promise.race([
+            detector.detect(canvas),
+            new Promise<Array<{ rawValue?: string }>>(resolve =>
+              setTimeout(() => resolve([]), 800)
+            ),
+          ]);
+          const val = codes.find(c => c.rawValue?.trim())?.rawValue?.trim();
+          if (val) {
+            return val;
+          }
+        } catch {
+          /* fallback jsQR abajo */
+        }
+      }
+
+      // Imagen completa (mejor para QR denso con logo) + util de recortes.
+      const full = document.createElement('canvas');
+      full.width = srcW;
+      full.height = srcH;
+      const fullCtx = full.getContext('2d');
+      if (!fullCtx) {
+        return null;
+      }
+      fullCtx.drawImage(img, 0, 0);
+      const imageData = fullCtx.getImageData(0, 0, srcW, srcH);
       const jsQR = (await import('jsqr')).default as JsQRFn;
       return JsQrDecodeUtil.decodeImageData(jsQR, imageData);
     } catch {
