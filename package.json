@@ -18,7 +18,9 @@
     "build:prod": "ng build --configuration=production",
     "watch": "ng build --watch --configuration=local",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "postinstall": "node tools/apply-mlkit-patch.js",
+    "patch:mlkit": "node tools/apply-mlkit-patch.js"
   },
   "private": true,
   "dependencies": {

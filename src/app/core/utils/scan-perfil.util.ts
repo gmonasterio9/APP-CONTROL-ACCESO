@@ -35,6 +35,11 @@ export class ScanPerfilUtil {
       return true;
     }
 
+    // Email colaborador suelto o texto con @inacap (ML Kit displayValue / CONTACT_INFO).
+    if (ScanPerfilUtil.extraerEmailColaborador(value)) {
+      return true;
+    }
+
     if (RutUtil.isScannedFormat(value)) {
       return RutUtil.isFormatValid(RutUtil.normalizeManual(value));
     }
@@ -44,10 +49,10 @@ export class ScanPerfilUtil {
 
   static extractEmailFromEscaneo(raw: string): string | null {
     const value = ScanPerfilUtil.normalizarTextoEscaneo(raw);
-    if (!ScanPerfilUtil.esTarjetaPresentacion(value)) {
-      return null;
+    if (ScanPerfilUtil.esTarjetaPresentacion(value)) {
+      return ScanPerfilUtil.parseTarjetaPresentacion(value).email;
     }
-    return ScanPerfilUtil.parseTarjetaPresentacion(value).email;
+    return ScanPerfilUtil.extraerEmailColaborador(value);
   }
 
   static esEscaneoPorEmail(raw: string): boolean {
@@ -98,6 +103,11 @@ export class ScanPerfilUtil {
       }
     }
 
+    const emailColaborador = ScanPerfilUtil.extraerEmailColaborador(value);
+    if (emailColaborador) {
+      return { email: emailColaborador };
+    }
+
     if (ScanPerfilUtil.isSidivUrl(value)) {
       const rut = ScanPerfilUtil.extractRutFromSidivUrl(value);
       if (rut) {
@@ -114,6 +124,23 @@ export class ScanPerfilUtil {
     }
 
     return { qr: value };
+  }
+
+  /** Email INACAP en texto libre (vCard parcial / CONTACT_INFO). */
+  static extraerEmailColaborador(raw: string): string | null {
+    const value = ScanPerfilUtil.normalizarTextoEscaneo(raw);
+    const email = value.match(EMAIL_RE)?.[0]?.trim();
+    if (!email) {
+      return null;
+    }
+    const lower = email.toLowerCase();
+    if (lower.endsWith('@inacap.cl') || lower.endsWith('@inacapmail.cl')) {
+      return lower;
+    }
+    if (/EMAIL\s*[;:]/i.test(value) || /BEGIN\s*:\s*VCARD/i.test(value) || /^\s*MECARD:/i.test(value)) {
+      return lower;
+    }
+    return null;
   }
 
   static esTarjetaPresentacion(value: string): boolean {

@@ -514,12 +514,9 @@ export class ScannerPage implements OnDestroy {
         }
       }
 
-      const email =
-        code.contactInfo?.emails?.map(e => e.address?.trim()).find(v => !!v) ||
-        code.email?.address?.trim() ||
-        candidatos
-          .map(c => c.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0])
-          .find(v => !!v);
+      const email = this.extraerEmailDesdeBarcode(code, candidatos);
+      const valueType = String(code.valueType ?? '').toUpperCase();
+      const esContacto = valueType === 'CONTACT_INFO' || valueType === 'EMAIL';
       if (email && email.includes('@')) {
         const persona = code.contactInfo?.personName ?? code.contactInfo?.name;
         const nombre =
@@ -539,6 +536,15 @@ export class ScannerPage implements OnDestroy {
         return lineas.join('\n');
       }
 
+      // CONTACT_INFO sin email usable: no devolver solo el nombre (displayValue).
+      if (esContacto) {
+        const conEmail = candidatos.find(c => ScanPerfilUtil.extraerEmailColaborador(c));
+        if (conEmail) {
+          return conEmail;
+        }
+        continue;
+      }
+
       // QR genérico (credencial, cédula, texto): no filtrar aquí.
       const generico = candidatos.find(c => c.length > 0);
       if (generico) {
@@ -546,6 +552,34 @@ export class ScannerPage implements OnDestroy {
       }
     }
     return null;
+  }
+
+  private extraerEmailDesdeBarcode(
+    code: {
+      email?: { address?: string };
+      contactInfo?: { emails?: Array<{ address?: string }> };
+      rawValue?: string;
+      displayValue?: string;
+      bytes?: number[] | string;
+    },
+    candidatos: string[]
+  ): string | null {
+    const directos = [
+      ...(code.contactInfo?.emails?.map(e => e.address?.trim()) ?? []),
+      code.email?.address?.trim(),
+      ...candidatos.map(c => ScanPerfilUtil.extraerEmailColaborador(c)),
+      ...candidatos.map(c => c.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]),
+    ];
+    const hallado = directos.find(v => !!v && v.includes('@'));
+    if (hallado) {
+      return hallado;
+    }
+    try {
+      const blob = JSON.stringify(code);
+      return blob.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private textoDesdeBytes(bytes?: number[] | string): string | null {
