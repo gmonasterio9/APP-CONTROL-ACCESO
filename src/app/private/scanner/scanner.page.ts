@@ -187,40 +187,16 @@ export class ScannerPage implements OnDestroy {
     await this.iniciarEscaneo();
   }
 
-  /** En tablets limitadas jsQR no lee vCard con logo → botón Google Code Scanner. */
-  get mostrarBotonQrNativo(): boolean {
-    return (
-      Capacitor.isNativePlatform() &&
-      this.escanearQr &&
-      this.esDispositivoCamera2Limitado() &&
-      !this.usandoMLKit
-    );
-  }
-
   async iniciarEscaneo() {
     this.camaraLista = false;
 
-    // ML Kit (CameraX) falla o queda en negro en tablets con Camera2 Limited
-    // (p.ej. Lenovo Yoga Tab YT-X705F). En esos modelos vamos directo al fallback.
+    // Scanner unificado: primero ML Kit (lee vCard con logo). Si falla o es
+    // Lenovo YT-X705 (Camera2 Limited / preview negro), mismo UI con WebView.
     if (Capacitor.isNativePlatform() && !this.esDispositivoCamera2Limitado()) {
       const mlkitOk = await this.iniciarMLKit();
       if (mlkitOk) {
         return;
       }
-    }
-
-    // Solo QR en tablet limitada: Google Code Scanner (sí lee vCard con logo).
-    if (
-      Capacitor.isNativePlatform() &&
-      this.esDispositivoCamera2Limitado() &&
-      this.escanearQr &&
-      !this.escanearPatente
-    ) {
-      this.scannerVisible = true;
-      this.camaraLista = true;
-      this.cdr.detectChanges();
-      await this.escanearQrConGoogleCodeScanner();
-      return;
     }
 
     try {
@@ -240,75 +216,10 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  /**
-   * Escáner nativo de Google: en dispositivo lee vCard/colaborador con logo.
-   * En escritorio/web no aplica (ahí BarcodeDetector/jsQR bastan).
-   */
-  async escanearQrConGoogleCodeScanner(): Promise<void> {
-    if (!Capacitor.isNativePlatform() || this.procesando || !this.escanearQr) {
-      return;
-    }
-
-    this.procesando = true;
-    const teniaVideo = !!this.videoStream;
-    await this.detenerDeteccion();
-
-    try {
-      await this.asegurarModuloGoogleBarcode();
-      const { barcodes } = await BarcodeScanner.scan({
-        formats: [BarcodeFormat.QrCode],
-        autoZoom: true,
-      });
-      const valor = barcodes
-        .map(b => b.rawValue?.trim())
-        .find((v): v is string => !!v);
-
-      if (valor) {
-        await this.onCodigoDetectado(valor);
-        return;
-      }
-
-      this.procesando = false;
-      if (teniaVideo) {
-        await this.prepararEscaneo();
-      }
-    } catch {
-      // Usuario canceló o módulo no disponible.
-      this.procesando = false;
-      if (teniaVideo || this.escanearPatente) {
-        await this.prepararEscaneo();
-      }
-    }
-  }
-
-  private async asegurarModuloGoogleBarcode(): Promise<void> {
-    try {
-      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-      if (available) {
-        return;
-      }
-      await BarcodeScanner.installGoogleBarcodeScannerModule();
-    } catch {
-      // Si falla, scan() igual puede resolver o lanzar; lo maneja el caller.
-    }
-  }
-
-  /** Tablets donde CameraX/ML Kit no entrega preview usable → WebView+jsQR. */
+  /** Solo Lenovo Yoga Tab X705: CameraX queda en negro. */
   private esDispositivoCamera2Limitado(): boolean {
     const ua = navigator.userAgent || '';
-    // Lenovo Yoga Tab / Smart Tab (p.ej. YT-X705F Camera2 Limited).
-    if (
-      /YT-X705|YT-X703|YT-J706|LenovoTB-X705|LenovoTB-X606|TB-X705|TB-X606|Yoga.?Smart.?Tab|Yoga.?Tab|Lenovo.?Yoga/i.test(
-        ua
-      )
-    ) {
-      return true;
-    }
-    // Otras tablets de gama baja con CameraX inestable.
-    if (/MTN-N|MTN-NX|HONOR.?Pad|AGR-W|AGS3|AGS5/i.test(ua)) {
-      return true;
-    }
-    return false;
+    return /YT-X705|LenovoTB-X705|TB-X705/i.test(ua);
   }
 
   private async abrirCamaraWeb(): Promise<MediaStream> {
@@ -357,10 +268,7 @@ export class ScannerPage implements OnDestroy {
         };
         await video.play();
         this.camaraLista = true;
-        // En tablets limitadas jsQR no lee vCard con logo; QR va por Google Scanner.
-        if (!this.esDispositivoCamera2Limitado()) {
-          this.iniciarDeteccionQrWeb();
-        }
+        this.iniciarDeteccionQrWeb();
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -504,7 +412,7 @@ export class ScannerPage implements OnDestroy {
         }
       });
 
-      await BarcodeScanner.startScan();
+      await BarcodeScanner.startScan({ formats: [BarcodeFormat.QrCode] });
       this.scannerVisible = true;
       this.camaraLista = true;
       return true;

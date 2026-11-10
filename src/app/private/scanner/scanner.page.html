@@ -71,17 +71,6 @@
           </div>
         }
 
-        @if (mostrarBotonQrNativo) {
-          <button
-            type="button"
-            class="btn-qr-nativo"
-            (click)="escanearQrConGoogleCodeScanner()"
-            [disabled]="procesando"
-            aria-label="Escanear QR credencial">
-            Escanear QR credencial
-          </button>
-        }
-
         @if (escanearPatente) {
           <button
             type="button"
@@ -92,10 +81,8 @@
             <span class="btn-captura-inner"></span>
           </button>
           <p class="captura-label">Escaneo de Patente Vehicular</p>
-        } @else if (!mostrarBotonQrNativo) {
-          <p class="captura-label">Apunta al código QR</p>
         } @else {
-          <p class="captura-label">Usa el botón para leer la credencial</p>
+          <p class="captura-label">Apunta al código QR</p>
         }
       </div>
 
