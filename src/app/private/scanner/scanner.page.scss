@@ -57,6 +57,7 @@
   .btn-cerrar,
   .btn-flash,
   .btn-captura,
+  .btn-qr-nativo,
   .zoom-pills {
     pointer-events: auto;
     position: relative;
@@ -218,6 +219,29 @@
   font-size:   13px;
   font-weight: 600;
   letter-spacing: 0.4px;
+}
+
+.btn-qr-nativo {
+  display:         block;
+  width:           min(280px, 86%);
+  margin:          0 auto 14px;
+  padding:         14px 18px;
+  border:          none;
+  border-radius:   12px;
+  background:      #1D78BF;
+  color:           #fff;
+  font-family:     Roboto, sans-serif;
+  font-size:       15px;
+  font-weight:     600;
+  letter-spacing:  0.2px;
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+  }
 }
 
 .btn-ingreso-manual {

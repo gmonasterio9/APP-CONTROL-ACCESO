@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { NavController, ModalController, Platform, AlertOptions } from '@ionic/angular';
 import { Capacitor, PluginListenerHandle } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
+import { BarcodeFormat, BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 
 import { firstValueFrom, Subscription } from 'rxjs';
 import { PlateRecognizerService, PlateResult } from '../../core/services/plate-recognizer.service';
@@ -187,6 +187,16 @@ export class ScannerPage implements OnDestroy {
     await this.iniciarEscaneo();
   }
 
+  /** En tablets limitadas jsQR no lee vCard con logo → botón Google Code Scanner. */
+  get mostrarBotonQrNativo(): boolean {
+    return (
+      Capacitor.isNativePlatform() &&
+      this.escanearQr &&
+      this.esDispositivoCamera2Limitado() &&
+      !this.usandoMLKit
+    );
+  }
+
   async iniciarEscaneo() {
     this.camaraLista = false;
 
@@ -197,6 +207,20 @@ export class ScannerPage implements OnDestroy {
       if (mlkitOk) {
         return;
       }
+    }
+
+    // Solo QR en tablet limitada: Google Code Scanner (sí lee vCard con logo).
+    if (
+      Capacitor.isNativePlatform() &&
+      this.esDispositivoCamera2Limitado() &&
+      this.escanearQr &&
+      !this.escanearPatente
+    ) {
+      this.scannerVisible = true;
+      this.camaraLista = true;
+      this.cdr.detectChanges();
+      await this.escanearQrConGoogleCodeScanner();
+      return;
     }
 
     try {
@@ -213,6 +237,59 @@ export class ScannerPage implements OnDestroy {
         return;
       }
       await this.mostrarError('No se pudo iniciar la cámara.');
+    }
+  }
+
+  /**
+   * Escáner nativo de Google: en dispositivo lee vCard/colaborador con logo.
+   * En escritorio/web no aplica (ahí BarcodeDetector/jsQR bastan).
+   */
+  async escanearQrConGoogleCodeScanner(): Promise<void> {
+    if (!Capacitor.isNativePlatform() || this.procesando || !this.escanearQr) {
+      return;
+    }
+
+    this.procesando = true;
+    const teniaVideo = !!this.videoStream;
+    await this.detenerDeteccion();
+
+    try {
+      await this.asegurarModuloGoogleBarcode();
+      const { barcodes } = await BarcodeScanner.scan({
+        formats: [BarcodeFormat.QrCode],
+        autoZoom: true,
+      });
+      const valor = barcodes
+        .map(b => b.rawValue?.trim())
+        .find((v): v is string => !!v);
+
+      if (valor) {
+        await this.onCodigoDetectado(valor);
+        return;
+      }
+
+      this.procesando = false;
+      if (teniaVideo) {
+        await this.prepararEscaneo();
+      }
+    } catch {
+      // Usuario canceló o módulo no disponible.
+      this.procesando = false;
+      if (teniaVideo || this.escanearPatente) {
+        await this.prepararEscaneo();
+      }
+    }
+  }
+
+  private async asegurarModuloGoogleBarcode(): Promise<void> {
+    try {
+      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      if (available) {
+        return;
+      }
+      await BarcodeScanner.installGoogleBarcodeScannerModule();
+    } catch {
+      // Si falla, scan() igual puede resolver o lanzar; lo maneja el caller.
     }
   }
 
@@ -280,7 +357,10 @@ export class ScannerPage implements OnDestroy {
         };
         await video.play();
         this.camaraLista = true;
-        this.iniciarDeteccionQrWeb();
+        // En tablets limitadas jsQR no lee vCard con logo; QR va por Google Scanner.
+        if (!this.esDispositivoCamera2Limitado()) {
+          this.iniciarDeteccionQrWeb();
+        }
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 50));
