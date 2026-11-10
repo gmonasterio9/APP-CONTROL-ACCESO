@@ -18,6 +18,7 @@ import { ValidarPatenteUtil } from '../../core/utils/validar-patente.util';
 import { resolverPerfilIngresoManual } from '../../core/models/ingreso-manual.model';
 import { ValidarPerfilUtil } from '../../core/utils/validar-perfil.util';
 import { ScanPerfilUtil } from '../../core/utils/scan-perfil.util';
+import { JsQRFn, JsQrDecodeUtil } from '../../core/utils/jsqr-decode.util';
 import { PeatonalEscaneoUtil } from '../../core/utils/peatonal-escaneo.util';
 import { RutUtil } from '../../core/utils/rut.util';
 import {
@@ -102,6 +103,7 @@ export class ScannerPage implements OnDestroy {
   private usandoMLKit  = false;
   private deteccionQrWebId: ReturnType<typeof setTimeout> | null = null;
   private deteccionQrWebGeneracion = 0;
+  private deteccionQrWebModo = 0;
   private backButtonSub?: Subscription;
   private networkSub?: Subscription;
   private modoAcompanantes = false;
@@ -300,13 +302,6 @@ export class ScannerPage implements OnDestroy {
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    type JsQRResult = { data?: string } | null;
-    type JsQRFn = (
-      data: Uint8ClampedArray,
-      w: number,
-      h: number,
-      opts?: { inversionAttempts?: 'dontInvert' | 'onlyInvert' | 'attemptBoth' | 'invertFirst' }
-    ) => JsQRResult;
     let jsQRFn: JsQRFn | null = null;
     let cargandoJsQR = false;
 
@@ -348,17 +343,15 @@ export class ScannerPage implements OnDestroy {
           if (!valor && ctx) {
             await asegurarJsQR();
             if (jsQRFn && video.videoWidth > 0 && video.videoHeight > 0) {
-              // Resolución baja para Snapdragon 439 / tablets lentas.
-              const maxW = 640;
-              const scale = Math.min(1, maxW / video.videoWidth);
-              canvas.width = Math.max(1, Math.floor(video.videoWidth * scale));
-              canvas.height = Math.max(1, Math.floor(video.videoHeight * scale));
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              const result = jsQRFn(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
-              });
-              valor = result?.data?.trim() || undefined;
+              // Credencial colaborador (vCard + logo): recorte centrado + upscale.
+              valor =
+                JsQrDecodeUtil.decodeVideoFrame(
+                  jsQRFn,
+                  ctx,
+                  canvas,
+                  video,
+                  this.deteccionQrWebModo++
+                ) || undefined;
             }
           }
 
@@ -381,6 +374,7 @@ export class ScannerPage implements OnDestroy {
 
   private detenerDeteccionQrWeb(): void {
     this.deteccionQrWebGeneracion++;
+    this.deteccionQrWebModo = 0;
     if (this.deteccionQrWebId != null) {
       clearTimeout(this.deteccionQrWebId);
       this.deteccionQrWebId = null;
@@ -1403,32 +1397,9 @@ export class ScannerPage implements OnDestroy {
         return null;
       }
 
-      const img = await this.cargarImagenDesdeBase64(base64);
-      const srcW = img.naturalWidth || img.width;
-      const srcH = img.naturalHeight || img.height;
-      if (!srcW || !srcH) {
-        return null;
-      }
-
-      const maxSide = 640;
-      const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(srcW * scale));
-      canvas.height = Math.max(1, Math.round(srcH * scale));
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return null;
-      }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      const detector = new BDCtor({ formats: ['qr_code'] });
-      const codes = await Promise.race([
-        detector.detect(canvas),
-        new Promise<Array<{ rawValue?: string }>>(resolve =>
-          setTimeout(() => resolve([]), 800)
-        ),
-      ]);
-      return codes.find(c => c.rawValue?.trim())?.rawValue?.trim() ?? null;
+      // Fallback jsQR con recortes/escala (credencial colaborador con logo).
+      const jsQR = (await import('jsqr')).default as JsQRFn;
+      return JsQrDecodeUtil.decodeImageData(jsQR, imageData);
     } catch {
       return null;
     }
