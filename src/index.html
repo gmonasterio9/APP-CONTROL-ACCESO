@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
   <meta charset="utf-8" />
@@ -16,6 +16,46 @@
 
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+  <!-- Lenovo X705 / WebView viejo: mostrar error en vez de pantalla blanca -->
+  <script>
+    (function () {
+      function mostrar(titulo, detalle) {
+        try {
+          document.addEventListener('DOMContentLoaded', function () {
+            var root = document.querySelector('app-root') || document.body;
+            root.innerHTML =
+              '<div style="padding:24px;font-family:sans-serif;color:#222;background:#fff;min-height:100vh">' +
+              '<h2 style="color:#b00020;margin:0 0 12px">' + titulo + '</h2>' +
+              '<p style="line-height:1.45;margin:0 0 12px">' + detalle + '</p>' +
+              '<p style="color:#555;font-size:14px;margin:0">En Lenovo Yoga Tab X705 actualice <b>Android System WebView</b> y <b>Chrome</b> desde Play Store, luego reabra la app.</p>' +
+              '</div>';
+          });
+        } catch (e) {}
+      }
+
+      window.addEventListener('error', function (ev) {
+        var msg = (ev && ev.message) ? ev.message : 'Error de JavaScript';
+        mostrar('No se pudo iniciar la app', msg);
+      });
+      window.addEventListener('unhandledrejection', function (ev) {
+        var reason = ev && ev.reason;
+        var msg = reason && reason.message ? reason.message : String(reason || 'Promesa rechazada');
+        mostrar('No se pudo iniciar la app', msg);
+      });
+
+      // Sintaxis moderna requerida por Angular 20
+      try {
+        // eslint-disable-next-line no-new-func
+        new Function('const a={b:1};return a?.b??0;')();
+      } catch (e) {
+        mostrar(
+          'WebView desactualizado',
+          'Esta tablet no soporta el JavaScript de la app. Actualice Android System WebView desde Play Store.'
+        );
+      }
+    })();
+  </script>
 </head>
 
 <body>
