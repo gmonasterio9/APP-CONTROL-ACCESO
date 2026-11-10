@@ -218,10 +218,22 @@ export class ScannerPage implements OnDestroy {
     }
   }
 
-  /** Tablets conocidas donde CameraX/ML Kit no entrega preview usable. */
+  /** Tablets donde CameraX/ML Kit no entrega preview usable → WebView+jsQR. */
   private esDispositivoCamera2Limitado(): boolean {
     const ua = navigator.userAgent || '';
-    return /YT-X705|LenovoTB-X705|Yoga.?Smart.?Tab|TB-X705/i.test(ua);
+    // Lenovo Yoga Tab / Smart Tab (p.ej. YT-X705F Camera2 Limited).
+    if (
+      /YT-X705|YT-X703|YT-J706|LenovoTB-X705|LenovoTB-X606|TB-X705|TB-X606|Yoga.?Smart.?Tab|Yoga.?Tab|Lenovo.?Yoga/i.test(
+        ua
+      )
+    ) {
+      return true;
+    }
+    // Otras tablets de gama baja con CameraX inestable.
+    if (/MTN-N|MTN-NX|HONOR.?Pad|AGR-W|AGS3|AGS5/i.test(ua)) {
+      return true;
+    }
+    return false;
   }
 
   private async abrirCamaraWeb(): Promise<MediaStream> {
