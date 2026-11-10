@@ -447,10 +447,11 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
-      // Email suelto (ML Kit contact) → validar como tarjeta.
-      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(codigo)) {
+      // Email suelto o incrustado (ML Kit CONTACT_INFO / displayValue).
+      const emailSueltos = codigo.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+      if (emailSueltos) {
         await this.flujoEscaneoQr(
-          `BEGIN:VCARD\nVERSION:3.0\nEMAIL;WORK;INTERNET:${codigo}\nEND:VCARD`
+          `BEGIN:VCARD\nVERSION:3.0\nEMAIL;WORK;INTERNET:${emailSueltos}\nEND:VCARD`
         );
         return;
       }
@@ -470,20 +471,29 @@ export class ScannerPage implements OnDestroy {
   }
 
   /**
-   * Unifica payloads de ML Kit: texto vCard, bytes UTF-8 o CONTACT_INFO → vCard.
+   * Unifica payloads de ML Kit. Siempre entrega el texto del QR si existe;
+   * si ML Kit solo arma CONTACT_INFO, reconstruye vCard.
+   * (Antes se descartaban QR que no pasaban esEscaneoQrPerfil → “no lee nada”.)
    */
   private extraerPayloadDesdeBarcodes(
     barcodes: Array<{
       format?: string;
+      valueType?: string;
       rawValue?: string;
       displayValue?: string;
-      bytes?: number[];
+      bytes?: number[] | string;
       email?: { address?: string };
       contactInfo?: {
         organization?: string;
         title?: string;
         emails?: Array<{ address?: string }>;
+        /** Tipado Capawesome: personName; Android real: name */
         personName?: {
+          formattedName?: string;
+          first?: string;
+          last?: string;
+        };
+        name?: {
           formattedName?: string;
           first?: string;
           last?: string;
@@ -493,10 +503,11 @@ export class ScannerPage implements OnDestroy {
     }>
   ): string | null {
     for (const code of barcodes) {
+      const desdeBytes = this.textoDesdeBytes(code.bytes);
       const candidatos = [
         code.rawValue?.trim(),
+        desdeBytes,
         code.displayValue?.trim(),
-        this.textoDesdeBytes(code.bytes),
       ].filter((v): v is string => !!v);
 
       for (const candidato of candidatos) {
@@ -507,9 +518,12 @@ export class ScannerPage implements OnDestroy {
 
       const email =
         code.contactInfo?.emails?.map(e => e.address?.trim()).find(v => !!v) ||
-        code.email?.address?.trim();
+        code.email?.address?.trim() ||
+        candidatos
+          .map(c => c.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0])
+          .find(v => !!v);
       if (email && email.includes('@')) {
-        const persona = code.contactInfo?.personName;
+        const persona = code.contactInfo?.personName ?? code.contactInfo?.name;
         const nombre =
           persona?.formattedName?.trim() ||
           [persona?.first, persona?.last].filter(Boolean).join(' ').trim();
@@ -526,16 +540,35 @@ export class ScannerPage implements OnDestroy {
         ].filter(Boolean);
         return lineas.join('\n');
       }
+
+      // QR genérico (credencial, cédula, texto): no filtrar aquí.
+      const generico = candidatos.find(c => c.length > 0);
+      if (generico) {
+        return generico;
+      }
     }
     return null;
   }
 
-  private textoDesdeBytes(bytes?: number[]): string | null {
-    if (!bytes?.length) {
+  private textoDesdeBytes(bytes?: number[] | string): string | null {
+    if (bytes == null || (typeof bytes !== 'string' && !bytes.length)) {
       return null;
     }
     try {
-      return new TextDecoder('utf-8', { fatal: false }).decode(Uint8Array.from(bytes)).trim() || null;
+      let data: Uint8Array;
+      if (typeof bytes === 'string') {
+        // Capacitor a veces entrega base64.
+        const bin = atob(bytes);
+        data = Uint8Array.from(bin, c => c.charCodeAt(0));
+      } else {
+        data = Uint8Array.from(bytes);
+      }
+      const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(data).trim();
+      if (utf8 && !utf8.includes('\uFFFD')) {
+        return utf8;
+      }
+      const latin1 = new TextDecoder('iso-8859-1').decode(data).trim();
+      return latin1 || utf8 || null;
     } catch {
       return null;
     }
