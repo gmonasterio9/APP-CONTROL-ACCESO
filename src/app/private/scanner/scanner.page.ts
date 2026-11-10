@@ -405,10 +405,10 @@ export class ScannerPage implements OnDestroy {
           return;
         }
 
-        const qr = event.barcodes
-          .find(code => code.format === 'QR_CODE' && code.rawValue?.trim());
-        if (qr?.rawValue?.trim()) {
-          this.zone.run(() => this.onCodigoDetectado(qr.rawValue!.trim()));
+        // ML Kit suele parsear vCard como CONTACT_INFO (sin BEGIN:VCARD en rawValue).
+        const codigo = this.extraerPayloadDesdeBarcodes(event.barcodes);
+        if (codigo) {
+          this.zone.run(() => this.onCodigoDetectado(codigo));
         }
       });
 
@@ -445,6 +445,14 @@ export class ScannerPage implements OnDestroy {
         return;
       }
 
+      // Email suelto (ML Kit contact) → validar como tarjeta.
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(codigo)) {
+        await this.flujoEscaneoQr(
+          `BEGIN:VCARD\nVERSION:3.0\nEMAIL;WORK;INTERNET:${codigo}\nEND:VCARD`
+        );
+        return;
+      }
+
       if (this.esPatente(codigo)) {
         await this.validarPatenteEscaneada(codigo);
         return;
@@ -456,6 +464,78 @@ export class ScannerPage implements OnDestroy {
       if (!this.scannerEnMarcha()) {
         await this.prepararEscaneo();
       }
+    }
+  }
+
+  /**
+   * Unifica payloads de ML Kit: texto vCard, bytes UTF-8 o CONTACT_INFO → vCard.
+   */
+  private extraerPayloadDesdeBarcodes(
+    barcodes: Array<{
+      format?: string;
+      rawValue?: string;
+      displayValue?: string;
+      bytes?: number[];
+      email?: { address?: string };
+      contactInfo?: {
+        organization?: string;
+        title?: string;
+        emails?: Array<{ address?: string }>;
+        personName?: {
+          formattedName?: string;
+          first?: string;
+          last?: string;
+        };
+        phones?: Array<{ number?: string }>;
+      };
+    }>
+  ): string | null {
+    for (const code of barcodes) {
+      const candidatos = [
+        code.rawValue?.trim(),
+        code.displayValue?.trim(),
+        this.textoDesdeBytes(code.bytes),
+      ].filter((v): v is string => !!v);
+
+      for (const candidato of candidatos) {
+        if (ScanPerfilUtil.esEscaneoQrPerfil(candidato)) {
+          return candidato;
+        }
+      }
+
+      const email =
+        code.contactInfo?.emails?.map(e => e.address?.trim()).find(v => !!v) ||
+        code.email?.address?.trim();
+      if (email && email.includes('@')) {
+        const persona = code.contactInfo?.personName;
+        const nombre =
+          persona?.formattedName?.trim() ||
+          [persona?.first, persona?.last].filter(Boolean).join(' ').trim();
+        const tel = code.contactInfo?.phones?.map(p => p.number?.trim()).find(v => !!v);
+        const lineas = [
+          'BEGIN:VCARD',
+          'VERSION:3.0',
+          nombre ? `FN:${nombre}` : '',
+          code.contactInfo?.organization ? `ORG:${code.contactInfo.organization}` : '',
+          code.contactInfo?.title ? `TITLE:${code.contactInfo.title}` : '',
+          tel ? `TEL;WORK;VOICE:${tel}` : '',
+          `EMAIL;WORK;INTERNET:${email}`,
+          'END:VCARD',
+        ].filter(Boolean);
+        return lineas.join('\n');
+      }
+    }
+    return null;
+  }
+
+  private textoDesdeBytes(bytes?: number[]): string | null {
+    if (!bytes?.length) {
+      return null;
+    }
+    try {
+      return new TextDecoder('utf-8', { fatal: false }).decode(Uint8Array.from(bytes)).trim() || null;
+    } catch {
+      return null;
     }
   }
 
