@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  siga.inacap.cl envía la raíz Comodo "AAA Certificate Services".
+  Varios Android la marcan Unacceptable → SSLHandshakeException en OkHttp.
+  Se confía explícitamente la cadena Sectigo/USERTrust/AAA solo para dominios INACAP.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">siga.inacap.cl</domain>
+        <domain includeSubdomains="true">inacap.cl</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/sectigo_ov" />
+            <certificates src="@raw/usertrust_rsa" />
+            <certificates src="@raw/comodo_aaa" />
+        </trust-anchors>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

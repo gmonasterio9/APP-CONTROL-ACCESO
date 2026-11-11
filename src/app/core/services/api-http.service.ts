@@ -1,6 +1,6 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
 import { Observable, firstValueFrom, from, of, throwError } from 'rxjs';
 import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
@@ -199,9 +199,55 @@ export class ApiHttpService {
     withAuth = false,
     options?: ApiRequestOptions
   ): Promise<T> {
-    // Siempre HttpClient/WebView: CapacitorHttp (OkHttp) falla SSL contra
-    // siga.inacap.cl (AAA Certificate Services) en varios Android.
-    return this.requestWeb<T>(method, path, body, withAuth, options);
+    if (Capacitor.getPlatform() === 'web') {
+      return this.requestWeb<T>(method, path, body, withAuth, options);
+    }
+
+    // Nativo: CapacitorHttp + network_security_config (confía cadena Sectigo/AAA).
+    // No usar XHR/WebView: en varios Android el preflight a siga.inacap.cl queda cancelado.
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      ...this.noCacheHeaders(method, options),
+    };
+
+    if (withAuth) {
+      const token = await this.auth.ensureAccessToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const url = this.buildAbsoluteUrl(path);
+    const timeoutMs = options?.timeoutMs ?? 120_000;
+    const httpOptions = {
+      url,
+      headers,
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
+      ...(body !== undefined ? { data: body } : {}),
+    };
+
+    try {
+      const response: HttpResponse =
+        method === 'GET'
+          ? await CapacitorHttp.get(httpOptions)
+          : await CapacitorHttp.post(httpOptions);
+
+      const data = this.parseData<T>(response.data);
+
+      if (response.status < 200 || response.status >= 300) {
+        throw this.buildApiHttpError(
+          this.resolveUnauthorizedStatus(response.status, data),
+          data
+        );
+      }
+
+      this.guardUnauthorizedResponse(data, withAuth);
+      return data;
+    } catch (error) {
+      throw this.normalizeToApiError(error);
+    }
   }
 
   private async requestWeb<T>(
@@ -290,6 +336,20 @@ export class ApiHttpService {
     const base = this.getApiBase().replace(/\/$/, '');
     const suffix = resource.startsWith('/') ? resource : `/${resource}`;
     return `${base}${suffix}`;
+  }
+
+  private buildAbsoluteUrl(resource: string): string {
+    const path = this.buildRequestPath(resource);
+
+    if (path.startsWith('http')) {
+      return path;
+    }
+
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}${path}`;
+    }
+
+    return path;
   }
 
   private debeReintentarConRefresh(apiErr: ApiHttpError): boolean {
