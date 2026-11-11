@@ -436,4 +436,14 @@ export class ApiHttpService {
     };
   }
 
+  private parseData<T>(data: unknown): T {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data) as T;
+      } catch {
+        return data as T;
+      }
+    }
+    return data as T;
+  }
 }
