@@ -226,23 +226,48 @@ export class ApiHttpService {
       ...(body !== undefined ? { data: body } : {}),
     };
 
-    const response: HttpResponse =
-      method === 'GET'
-        ? await CapacitorHttp.get(httpOptions)
-        : await CapacitorHttp.post(httpOptions);
-    
-    const data = this.parseData<T>(response.data);
+    try {
+      const response: HttpResponse =
+        method === 'GET'
+          ? await CapacitorHttp.get(httpOptions)
+          : await CapacitorHttp.post(httpOptions);
 
-    if (response.status < 200 || response.status >= 300) {
-      throw this.buildApiHttpError(
-        this.resolveUnauthorizedStatus(response.status, data),
-        data
-      );
+      const data = this.parseData<T>(response.data);
+
+      if (response.status < 200 || response.status >= 300) {
+        throw this.buildApiHttpError(
+          this.resolveUnauthorizedStatus(response.status, data),
+          data
+        );
+      }
+
+      this.guardUnauthorizedResponse(data, withAuth);
+
+      return data;
+    } catch (error) {
+      // Android/OkHttp rechaza a veces la cadena Sectigo→AAA Certificate Services;
+      // el WebView (Chromium) sí confía → reintentar por HttpClient.
+      if (this.esErrorSslNativo(error)) {
+        return this.requestWeb<T>(method, path, body, withAuth, options);
+      }
+      throw this.normalizeToApiError(error);
     }
+  }
 
-    this.guardUnauthorizedResponse(data, withAuth);
-
-    return data;
+  private esErrorSslNativo(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const err = error as { code?: string; message?: string };
+    const code = String(err.code ?? '');
+    const message = String(err.message ?? '');
+    return (
+      code === 'SSLHandshakeException' ||
+      /SSLHandshakeException/i.test(message) ||
+      /Unacceptable certificate/i.test(message) ||
+      /CertPathValidatorException/i.test(message) ||
+      /Trust anchor for certification path/i.test(message)
+    );
   }
 
   private async requestWeb<T>(

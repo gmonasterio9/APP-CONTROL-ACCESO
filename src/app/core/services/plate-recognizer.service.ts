@@ -46,27 +46,48 @@ export class PlateRecognizerService {
   }
 
   private async postNativo(base64: string): Promise<PlateRecognizerResponse> {
-    const res = await CapacitorHttp.post({
-      url: this.API_URL,
-      headers: {
-        Authorization: `Token ${this.API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        upload: base64,
-        regions: ['cl'],
-      },
-      connectTimeout: this.REQUEST_TIMEOUT_MS,
-      readTimeout: this.REQUEST_TIMEOUT_MS,
-    });
+    try {
+      const res = await CapacitorHttp.post({
+        url: this.API_URL,
+        headers: {
+          Authorization: `Token ${this.API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        data: {
+          upload: base64,
+          regions: ['cl'],
+        },
+        connectTimeout: this.REQUEST_TIMEOUT_MS,
+        readTimeout: this.REQUEST_TIMEOUT_MS,
+      });
 
-    if (res.status < 200 || res.status >= 300) {
-      throw new Error(`PlateRecognizer HTTP ${res.status}`);
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`PlateRecognizer HTTP ${res.status}`);
+      }
+
+      return (typeof res.data === 'string'
+        ? JSON.parse(res.data)
+        : res.data) as PlateRecognizerResponse;
+    } catch (error) {
+      if (this.esErrorSslNativo(error)) {
+        return this.postWeb(base64);
+      }
+      throw error;
     }
+  }
 
-    return (typeof res.data === 'string'
-      ? JSON.parse(res.data)
-      : res.data) as PlateRecognizerResponse;
+  private esErrorSslNativo(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const err = error as { code?: string; message?: string };
+    const code = String(err.code ?? '');
+    const message = String(err.message ?? '');
+    return (
+      code === 'SSLHandshakeException' ||
+      /SSLHandshakeException/i.test(message) ||
+      /Unacceptable certificate/i.test(message)
+    );
   }
 
   private async postWeb(base64: string): Promise<PlateRecognizerResponse> {
