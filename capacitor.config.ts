@@ -9,8 +9,10 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: true,
   },
   plugins: {
+    // false: XHR/fetch van por WebView (Chromium). OkHttp nativo rechaza la
+    // cadena Sectigo→AAA Certificate Services de siga.inacap.cl (SSLHandshakeException).
     CapacitorHttp: {
-      enabled: true,
+      enabled: false,
     },
   },
 };

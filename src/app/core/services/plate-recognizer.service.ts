@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { firstValueFrom, timeout } from 'rxjs';
 import { PatenteUtil } from '../utils/patente.util';
 
@@ -35,59 +34,13 @@ export class PlateRecognizerService {
   async readPlate(base64Image: string): Promise<PlateResult | null> {
     try {
       const optimizada = await this.optimizarImagen(base64Image);
-      const response = Capacitor.isNativePlatform()
-        ? await this.postNativo(optimizada)
-        : await this.postWeb(optimizada);
+      // WebView HttpClient: evita SSLHandshakeException de CapacitorHttp/OkHttp.
+      const response = await this.postWeb(optimizada);
 
       return this.extraerPatente(response);
     } catch {
       return null;
     }
-  }
-
-  private async postNativo(base64: string): Promise<PlateRecognizerResponse> {
-    try {
-      const res = await CapacitorHttp.post({
-        url: this.API_URL,
-        headers: {
-          Authorization: `Token ${this.API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        data: {
-          upload: base64,
-          regions: ['cl'],
-        },
-        connectTimeout: this.REQUEST_TIMEOUT_MS,
-        readTimeout: this.REQUEST_TIMEOUT_MS,
-      });
-
-      if (res.status < 200 || res.status >= 300) {
-        throw new Error(`PlateRecognizer HTTP ${res.status}`);
-      }
-
-      return (typeof res.data === 'string'
-        ? JSON.parse(res.data)
-        : res.data) as PlateRecognizerResponse;
-    } catch (error) {
-      if (this.esErrorSslNativo(error)) {
-        return this.postWeb(base64);
-      }
-      throw error;
-    }
-  }
-
-  private esErrorSslNativo(error: unknown): boolean {
-    if (!error || typeof error !== 'object') {
-      return false;
-    }
-    const err = error as { code?: string; message?: string };
-    const code = String(err.code ?? '');
-    const message = String(err.message ?? '');
-    return (
-      code === 'SSLHandshakeException' ||
-      /SSLHandshakeException/i.test(message) ||
-      /Unacceptable certificate/i.test(message)
-    );
   }
 
   private async postWeb(base64: string): Promise<PlateRecognizerResponse> {

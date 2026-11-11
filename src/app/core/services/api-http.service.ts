@@ -1,6 +1,6 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Capacitor, CapacitorHttp, HttpResponse } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Observable, firstValueFrom, from, of, throwError } from 'rxjs';
 import { catchError, finalize, map, shareReplay, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
@@ -199,75 +199,9 @@ export class ApiHttpService {
     withAuth = false,
     options?: ApiRequestOptions
   ): Promise<T> {
-    if (Capacitor.getPlatform() === 'web') {
-      return this.requestWeb<T>(method, path, body, withAuth, options);
-    }
-
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
-      ...this.noCacheHeaders(method, options),
-    };
-
-    if (withAuth) {
-      const token = await this.auth.ensureAccessToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
-
-    const url = this.buildAbsoluteUrl(path);
-    const timeoutMs = options?.timeoutMs ?? 120_000;
-    const httpOptions = {
-      url,
-      headers,
-      connectTimeout: timeoutMs,
-      readTimeout: timeoutMs,
-      ...(body !== undefined ? { data: body } : {}),
-    };
-
-    try {
-      const response: HttpResponse =
-        method === 'GET'
-          ? await CapacitorHttp.get(httpOptions)
-          : await CapacitorHttp.post(httpOptions);
-
-      const data = this.parseData<T>(response.data);
-
-      if (response.status < 200 || response.status >= 300) {
-        throw this.buildApiHttpError(
-          this.resolveUnauthorizedStatus(response.status, data),
-          data
-        );
-      }
-
-      this.guardUnauthorizedResponse(data, withAuth);
-
-      return data;
-    } catch (error) {
-      // Android/OkHttp rechaza a veces la cadena Sectigo→AAA Certificate Services;
-      // el WebView (Chromium) sí confía → reintentar por HttpClient.
-      if (this.esErrorSslNativo(error)) {
-        return this.requestWeb<T>(method, path, body, withAuth, options);
-      }
-      throw this.normalizeToApiError(error);
-    }
-  }
-
-  private esErrorSslNativo(error: unknown): boolean {
-    if (!error || typeof error !== 'object') {
-      return false;
-    }
-    const err = error as { code?: string; message?: string };
-    const code = String(err.code ?? '');
-    const message = String(err.message ?? '');
-    return (
-      code === 'SSLHandshakeException' ||
-      /SSLHandshakeException/i.test(message) ||
-      /Unacceptable certificate/i.test(message) ||
-      /CertPathValidatorException/i.test(message) ||
-      /Trust anchor for certification path/i.test(message)
-    );
+    // Siempre HttpClient/WebView: CapacitorHttp (OkHttp) falla SSL contra
+    // siga.inacap.cl (AAA Certificate Services) en varios Android.
+    return this.requestWeb<T>(method, path, body, withAuth, options);
   }
 
   private async requestWeb<T>(
@@ -358,20 +292,6 @@ export class ApiHttpService {
     return `${base}${suffix}`;
   }
 
-  private buildAbsoluteUrl(resource: string): string {
-    const path = this.buildRequestPath(resource);
-
-    if (path.startsWith('http')) {
-      return path;
-    }
-
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      return `${window.location.origin}${path}`;
-    }
-
-    return path;
-  }
-
   private debeReintentarConRefresh(apiErr: ApiHttpError): boolean {
     return (
       apiErr.status === 401 ||
@@ -456,14 +376,4 @@ export class ApiHttpService {
     };
   }
 
-  private parseData<T>(data: unknown): T {
-    if (typeof data === 'string') {
-      try {
-        return JSON.parse(data) as T;
-      } catch {
-        return data as T;
-      }
-    }
-    return data as T;
-  }
 }
